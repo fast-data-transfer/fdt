@@ -1,5 +1,5 @@
 /*
- * $Id: FDTReaderSession.java 632 2011-02-08 15:02:37Z ramiro $
+ * $Id: FDTReaderSession.java 656 2012-02-24 13:51:44Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -175,6 +175,9 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
                     processorInfo.fileList = new String[fileList.length];
                     processorInfo.destinationDir = (this.remoteDir == null) ? config.getDestinationDir() : this.remoteDir;
+                    processorInfo.remoteAddress = this.controlChannel.remoteAddress;
+                    processorInfo.remotePort = this.controlChannel.remotePort;
+                    processorInfo.recursive = this.recursive;
 
                     System.arraycopy(fileList, 0, processorInfo.fileList, 0, fileList.length);
 

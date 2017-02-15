@@ -1,5 +1,5 @@
 /*
- * $Id: DiskWriterTask.java 629 2011-02-08 15:00:51Z ramiro $
+ * $Id: DiskWriterTask.java 654 2011-11-14 22:47:14Z ramiro $
  */
 package lia.util.net.copy.disk;
 

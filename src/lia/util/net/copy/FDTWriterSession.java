@@ -1,5 +1,5 @@
 /*
- * $Id: FDTWriterSession.java 611 2010-06-22 15:30:41Z ramiro $
+ * $Id: FDTWriterSession.java 656 2012-02-24 13:51:44Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -443,6 +443,8 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                             : this.destinationDir;
 
                     System.arraycopy(fileList, 0, processorInfo.fileList, 0, fileList.length);
+                    processorInfo.remoteAddress = this.controlChannel.remoteAddress;
+                    processorInfo.remotePort = this.controlChannel.remotePort;
 
                     for (final String filterName: preProcessFilters) {
                         Preprocessor preprocessor = (Preprocessor) (Class.forName(filterName).newInstance());
@@ -499,6 +501,9 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
                     System.arraycopy(fileList, 0, processorInfo.fileList, 0, fileList.length);
 
+                    processorInfo.remoteAddress = this.controlChannel.remoteAddress;
+                    processorInfo.remotePort = this.controlChannel.remotePort;
+                    
                     for (final String filterName: postProcessFilters) {
                         Postprocessor postprocessor = (Postprocessor) (Class.forName(filterName).newInstance());
                         postprocessor.postProcessFileList(processorInfo,
