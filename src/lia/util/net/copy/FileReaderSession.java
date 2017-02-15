@@ -11,7 +11,7 @@ import lia.util.net.common.FileChannelProvider;
 
 /**
  * Wrapper class over a current file which is being read
- * 
+ *
  * @author ramiro
  */
 public class FileReaderSession extends FileSession {
@@ -51,7 +51,7 @@ public class FileReaderSession extends FileSession {
             return;
         }
 
-        if (!file.isFile()) {
+        if (!isLoop && !file.isFile()) {
             throw new IOException("The specified name [ " + fileName + " ] is not a file!");
         }
 
