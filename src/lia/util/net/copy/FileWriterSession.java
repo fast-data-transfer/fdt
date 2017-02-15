@@ -1,5 +1,5 @@
 /*
- * $Id: FileWriterSession.java 632 2011-02-08 15:02:37Z ramiro $
+ * $Id: FileWriterSession.java 670 2012-06-25 13:35:15Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -22,7 +22,8 @@ public class FileWriterSession extends FileSession {
 
     @Override
     public String toString() {
-        return "FileWriterSession [tmpCopyFile=" + tmpCopyFile + ", file=" + file + ", partitionID=" + partitionID + ", sessionID=" + sessionID + ", sessionSize=" + sessionSize + "]";
+        return "FileWriterSession [tmpCopyFile=" + tmpCopyFile + ", file=" + file + ", partitionID=" + partitionID + ", sessionID=" + sessionID
+                + ", sessionSize=" + sessionSize + "]";
     }
 
     private static final Logger logger = Logger.getLogger(FileSession.class.getName());
@@ -34,44 +35,46 @@ public class FileWriterSession extends FileSession {
     private String openMode = "rw";
 
     protected volatile FileLock fLock = null;
+
     protected final boolean noLock;
 
-    public FileWriterSession(UUID uid, FDTSession fdtSession, String fileName, long size, long lastModified, boolean isLoop, String writeMode, boolean noTmp, boolean noLock, FileChannelProvider fcp) throws IOException {
+    protected final boolean noTmp;
+
+    public FileWriterSession(UUID uid,
+            FDTSession fdtSession,
+            String fileName,
+            long size,
+            long lastModified,
+            boolean isLoop,
+            String writeMode,
+            boolean noTmp,
+            boolean noLock,
+            FileChannelProvider fcp) throws IOException {
+        
         super(uid, fdtSession, fileName, isLoop, fcp);
+        this.noTmp = noTmp;
 
         this.noLock = noLock;
-		file = fcp.getFile(file.getAbsolutePath());
-		
+        file = fcp.getFile(file.getAbsolutePath());
+        this.sessionSize = size;
+
         if (!isNull) {
-            this.sessionSize = size;
             this.lastModified = lastModified;
 
             String tmpF = "";
-            if (!file.exists()) {
-
-//                File dirs = new File(file.getParent());
-            	
-            	File dirs = fcp.getFile(file.getParent());
-            	
-                if (!dirs.exists()) {
-                    if (!dirs.mkdirs()) {
-                        throw new IOException(" Unable to create parent dirs [ " + dirs + " ]");
-                    }
-                }
-
-            }
 
             File parent = file.getParentFile();
             if (parent != null) {
                 tmpF = parent.getAbsolutePath();
             }
 
-            final String fName = tmpF + File.separator + "." + file.getName();
-            
-            this.tmpCopyFile =  fcp.getFile((noTmp)?file.getAbsolutePath():fName);
+            // It's not a safe name generator but should be ok
+            // Replace with SecureRandom as per TempDirectory in java.io.File
+            final String fName = tmpF + File.separator + "." + Math.random() + file.getName();
+
+            this.tmpCopyFile = fcp.getFile((noTmp) ? file.getAbsolutePath() : fName);
 
         } else {
-            this.sessionSize = size;
             this.tmpCopyFile = file;
         }
 
@@ -92,6 +95,19 @@ public class FileWriterSession extends FileSession {
             openMode = "rw";
         }
 
+    }
+
+    public static FileWriterSession fromFileWriterSession(FileWriterSession other) throws IOException {
+        return new FileWriterSession(other.sessionID,
+                                     other.fdtSession,
+                                     other.fileName,
+                                     other.sessionSize(),
+                                     other.lastModified,
+                                     other.isLoop,
+                                     other.openMode,
+                                     other.noTmp,
+                                     other.noLock,
+                                     other.fileChannelProvider);
     }
 
     public FileChannel getChannel() throws Exception {
@@ -119,27 +135,50 @@ public class FileWriterSession extends FileSession {
                 throw new Exception("Stream closed!");
             }
             try {
-                fileChannel = this.fileChannelProvider.getFileChannel(tmpCopyFile, openMode);
+                if (!isNull) {
+                    if (!file.exists()) {
+                        File dirs = fileChannelProvider.getFile(file.getParent());
+
+                        if (!dirs.exists()) {
+                            if (!dirs.mkdirs()) {
+                                throw new IOException(" Unable to create parent dirs [ " + dirs + " ]");
+                            }
+                        }
+
+                    }
+                }
+                
+                try {
+                    partitionID = this.fileChannelProvider.getPartitionID(this.tmpCopyFile);
+                } catch (Throwable t) {
+                    logger.log(Level.WARNING, " [ FileWriterSession ] cannot determine partition id for: " + this.tmpCopyFile, t);
+                }
+                
+                final FileChannel lfc = this.fileChannelProvider.getFileChannel(tmpCopyFile, openMode); 
 
                 if (!noLock && !isNull) {
                     try {
-                        fLock = fileChannel.lock();
-                        if(logger.isLoggable(Level.FINE)) {
-                            if(fLock == null) {
-                                logger.log(Level.FINE, "[ FileWriterSession ] Cannot lock file: " + tmpCopyFile + "; will try to write without lock taken. No reason given.");
+                        fLock = lfc.lock();
+                        if (logger.isLoggable(Level.FINE)) {
+                            if (fLock == null) {
+                                logger.log(Level.FINE, "[ FileWriterSession ] Cannot lock file: " + tmpCopyFile
+                                        + "; will try to write without lock taken. No reason given.");
                             } else {
                                 logger.log(Level.FINE, "[ FileWriterSession ] File lock for: " + tmpCopyFile + " taken!");
                             }
                         }
                     } catch (Throwable t) {
                         fLock = null;
-                        logger.log(Level.WARNING, "[ FileWriterSession ] Cannot lock file: " + tmpCopyFile + "; will try to write without lock taken. Cause:", t);
+                        logger.log(Level.WARNING, "[ FileWriterSession ] Cannot lock file: " + tmpCopyFile
+                                + "; will try to write without lock taken. Cause:", t);
                     }
                 } else {
-                    if(logger.isLoggable(Level.FINE)) {
+                    if (logger.isLoggable(Level.FINE)) {
                         logger.log(Level.FINE, "[ FileWriterSession ] Not using file lock for: " + tmpCopyFile);
                     }
                 }
+                
+                fileChannel = lfc; 
                 channelInitialized = true;
             } catch (Exception ex) {
                 close(null, ex);
@@ -159,16 +198,16 @@ public class FileWriterSession extends FileSession {
         try {
             if (bRename) {
                 if (!tmpCopyFile.equals(file)) {
-                    if(file.exists()) {
-                        if(!file.delete()) {
+                    if (file.exists()) {
+                        if (!file.delete()) {
                             logger.log(Level.WARNING, "Unable to delete existing file: " + file + ". Will try to replace it with: " + tmpCopyFile);
                         } else {
-                            if(logFine) {
+                            if (logFine) {
                                 logger.log(Level.FINE, "Deleted existing file: " + file + ". Will replace it with: " + tmpCopyFile);
                             }
                         }
                     } else {
-                        if(logFine) {
+                        if (logFine) {
                             logger.log(Level.FINE, "No existing file: " + file + ". Will move temp file: " + tmpCopyFile + " to " + file);
                         }
                     }
@@ -176,15 +215,17 @@ public class FileWriterSession extends FileSession {
                 } else {
                     bRename = true;
                 }
-                if(!file.setLastModified(lastModified)) {
+                if (!file.setLastModified(lastModified)) {
                     logger.log(Level.WARNING, "Unable to set modification time for file: " + file);
                 }
             } else {
                 bRename = true;
                 if (downCause() != null || downMessage() != null && tmpCopyFile != null) {
                     if (!isNull) {
-                        if(!tmpCopyFile.delete()) {
-                            logger.log(Level.WARNING, "Unable to delete temporary file: " + tmpCopyFile);
+                        if (!tmpCopyFile.delete()) {
+                            if (tmpCopyFile.exists()) {
+                                logger.log(Level.WARNING, "Unable to delete temporary file: " + tmpCopyFile);
+                            }
                         }
                     }
                 }
@@ -199,39 +240,66 @@ public class FileWriterSession extends FileSession {
             final FileLock fLock = this.fLock;
             if (fLock != null) {
                 try {
-                    if(fLock.isValid()) {
+                    if (fLock.isValid()) {
                         fLock.release();
-                        if(logFine) {
+                        if (logFine) {
                             logger.log(Level.FINE, "[ FileWriterSession ] Released the lock for file: " + file);
                         }
                     } else {
-                        if(logFine) {
-                            logger.log(Level.FINE, "[ FileWriterSession ] The lock for file: " + file + " no longer valid. File chanel open: " + fileChannel.isOpen() );
+                        if (logFine) {
+                            logger.log(Level.FINE, "[ FileWriterSession ] The lock for file: " + file + " no longer valid. File chanel open: "
+                                    + fileChannel.isOpen());
                         }
                     }
                 } catch (Throwable t) {
-                    logger.log(Level.WARNING, "[ FileWriterSession ] Unable to release the lock for file: " + file + " file channel opened: " + fileChannel.isOpen() + "; Cause: ", t);
+                    logger.log(Level.WARNING, "[ FileWriterSession ] Unable to release the lock for file: " + file + " file channel opened: "
+                            + fileChannel.isOpen() + "; Cause: ", t);
                 }
             } else {
-                if(logger.isLoggable(Level.FINE)) {
+                if (logger.isLoggable(Level.FINE)) {
                     logger.log(Level.FINE, "[ FileWriterSession ] No lock for file: " + file);
                 }
             }
-            
-            if(!bRename) {
-                final String msg = "Unable to rename temporary file: [ " + tmpCopyFile + " ] to destination file: [ " + file + " ]. Check your file system.";
+
+            if (!bRename) {
+                final String msg = "Unable to rename temporary file: [ " + tmpCopyFile + " ] to destination file: [ " + file
+                        + " ]. Check your file system.";
                 logger.log(Level.WARNING, msg);
                 if (!isNull & tmpCopyFile != null) {
-                    if(tmpCopyFile.delete()) {
+                    if (tmpCopyFile.delete()) {
                         logger.log(Level.INFO, "Temporary file: " + tmpCopyFile + " deleted");
                     } else {
                         logger.log(Level.WARNING, "Unable to delete temporary file: " + tmpCopyFile + " deleted. Check your file system.");
                     }
                 }
-                
-                //close the file session with errors
+
+                // close the file session with errors
                 fdtSession.close(msg, new IOException(msg));
             }
+        }
+    }
+
+    @Override
+    public void setFileName(String fileName) throws IOException {
+        super.setFileName(fileName);
+        if (!isNull) {
+            this.lastModified = lastModified;
+
+            String tmpF = "";
+
+            File parent = file.getParentFile();
+            if (parent != null) {
+                tmpF = parent.getAbsolutePath();
+            }
+
+            // It's not a safe name generator but should be ok
+            // Replace with SecureRandom as per TempDirectory in java.io.File
+            final String fName = tmpF + File.separator + "." + Math.random() + file.getName();
+
+            this.tmpCopyFile = this.fileChannelProvider.getFile((noTmp) ? file.getAbsolutePath() : fName);
+
+        } else {
+            this.tmpCopyFile = file;
         }
     }
 }

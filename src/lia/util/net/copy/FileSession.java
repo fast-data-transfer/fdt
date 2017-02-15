@@ -1,9 +1,10 @@
 /*
- * $Id: FileSession.java 659 2012-03-04 20:07:24Z ramiro $
+ * $Id: FileSession.java 670 2012-06-25 13:35:15Z ramiro $
  */
 package lia.util.net.copy;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -34,7 +35,7 @@ public abstract class FileSession extends IOSession {
     protected volatile File file;
     protected final FDTSession fdtSession;
     public final AtomicLong cProcessedBytes = new AtomicLong(0);
-    protected int partitionID;
+    protected volatile int partitionID;
     
     protected volatile long lastModified;
     
@@ -122,5 +123,15 @@ public abstract class FileSession extends IOSession {
     
     public String fileName() {
         return fileName;
+    }
+
+    /**
+     * 
+     * @param fileName
+     * @throws IOException
+     */
+    public void setFileName(String fileName) throws IOException {
+        this.fileName = fileName;
+        this.file = new File(fileName);
     }
 }

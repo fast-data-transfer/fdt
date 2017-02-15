@@ -4,5 +4,8 @@ FDT uses third-party libraries which are not distributed with this source code.
 Please check the Security section on the FDT web page if you want to compile this source code:
 http://monalisa.cern.ch/FDT/documentation_security.html
 
+Simple examples for user filters can be found under:
+src/lia/util/net/copy/filters/examples directory
+
 For any features, suggestions or bug reports please contact: support@monalisa.cern.ch
 
