@@ -1,38 +1,55 @@
+
 package lia.util.net.copy;
 
 import java.nio.channels.SocketChannel;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import lia.util.net.common.AbstractFDTCloseable;
 import lia.util.net.common.Config;
 import lia.util.net.copy.transport.ControlChannel;
 import lia.util.net.copy.transport.ControlChannelNotifier;
 import lia.util.net.copy.transport.FDTProcolException;
 
 
-public class FDTSessionManager implements ControlChannelNotifier {
+public class FDTSessionManager extends AbstractFDTCloseable implements ControlChannelNotifier {
     
     private static final Logger logger = Logger.getLogger(FDTSessionManager.class.getName());
     
-    private static final FDTSessionManager _thisInstanceManager;
+    private static final FDTSessionManager _thisInstanceManager = new FDTSessionManager();
     private static final Config config = Config.getInstance();
+
     
-    static {
-        _thisInstanceManager = new FDTSessionManager();
-    }
+    private final Map<UUID, FDTSession> fdtSessionMap;
+    
+    
+    private final Lock lock;
+    private final Condition isSessionMapEmpty;
+    
+    
+    private final AtomicBoolean inited;
+    
+    private volatile String lastDownMsg;
+    private volatile Throwable lastDownCause;
     
     public static final FDTSessionManager getInstance() {
         return _thisInstanceManager;
     }
     
     
-    ConcurrentHashMap<UUID, FDTSession> fdtSessionMap = new ConcurrentHashMap<UUID, FDTSession>();
-    private AtomicBoolean inited = new AtomicBoolean(false);
     
     private FDTSessionManager() {
+        lock = new ReentrantLock();
+        isSessionMapEmpty = lock.newCondition();
+        fdtSessionMap = new ConcurrentHashMap<UUID, FDTSession>();
+        inited = new AtomicBoolean(false);
     }
     
     public void addFDTClientSession(ControlChannel controlChannel) throws Exception {
@@ -75,7 +92,7 @@ public class FDTSessionManager implements ControlChannelNotifier {
         }
     }
     
-    public void addFDTClientSession() throws Exception {
+    public FDTSession addFDTClientSession() throws Exception {
         
         FDTSession fdtSession = null;
         
@@ -88,6 +105,9 @@ public class FDTSessionManager implements ControlChannelNotifier {
                 
                 fdtSession = new FDTReaderSession();
             }
+            
+            
+            fdtSession.startControlThread();
             
             fdtSessionMap.put(fdtSession.sessionID(), fdtSession);
             inited.set(true);
@@ -102,6 +122,7 @@ public class FDTSessionManager implements ControlChannelNotifier {
             }
             throw new Exception(t);
         }
+        return fdtSession;
     }
     
     public int sessionsNumber() {
@@ -118,19 +139,36 @@ public class FDTSessionManager implements ControlChannelNotifier {
     
     public boolean finishSession(UUID fdtSessionID, String downMessage, Throwable downCause) {
         FDTSession fdtSession = fdtSessionMap.remove(fdtSessionID);
+        
         if(fdtSession == null) {
             return false;
         }
         
+        
+        if (fdtSessionMap.size() == 0) {
+            lock.lock();
+            try {
+                
+                lastDownMsg = downMessage;
+                lastDownCause = downCause;
+                
+                isSessionMapEmpty.signalAll();
+            } finally {
+                lock.unlock();
+            }
+        }
         return fdtSession.close(downMessage, downCause);
     }
     
-    public void addWorker(UUID fdtSessionID, SocketChannel sc) throws Exception {
-        FDTSession fdtSession = fdtSessionMap.get(fdtSessionID);
+    public void addWorker(final UUID fdtSessionID, final SocketChannel sc) throws Exception {
+        final FDTSession fdtSession = fdtSessionMap.get(fdtSessionID);
         if(fdtSession != null) {
             fdtSession.transportProvider.addWorkerStream(sc);
         } else {
-            logger.log(Level.WARNING, "\n\n No such session " + fdtSessionID + " for worker " + sc);
+            logger.log(Level.WARNING, "\n\n [ FDTSessionManager ] No such session " + fdtSessionID + " for worker: " + sc + ". The channel will be closed");
+            try {
+                sc.close();
+            }catch(Throwable _) {}
         }
     }
     
@@ -152,12 +190,44 @@ public class FDTSessionManager implements ControlChannelNotifier {
         }
     }
     
-    public void notifyCtrlSessionDown(ControlChannel controlChannel, Throwable cause) throws FDTProcolException {
-        FDTSession fdtSession = fdtSessionMap.get(controlChannel.fdtSessionID());
-        if(fdtSession != null) {
-            fdtSession.notifyCtrlMsg(controlChannel, cause);
-        } else {
-            controlChannel.close("No such fdtSession in the FDT Sessions Map", null);
+    public void awaitTermination() throws InterruptedException {
+        lock.lock();
+        try {
+            while(fdtSessionMap.size() > 0) {
+                isSessionMapEmpty.await();
+            }
+        } finally {
+            lock.unlock();
         }
+    }
+    
+    public Throwable getLasDownCause() {
+        lock.lock();
+        try {
+            return lastDownCause;
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    public String getLasDownMessage() {
+        lock.lock();
+        try {
+            return lastDownMsg;
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    public void notifyCtrlSessionDown(ControlChannel controlChannel, Throwable cause) {
+        final FDTSession fdtSession = fdtSessionMap.get(controlChannel.fdtSessionID());
+        if(fdtSession != null) {
+            fdtSession.notifyCtrlSessionDown(controlChannel, cause);
+        }
+    }
+
+    @Override
+    protected void internalClose() throws Exception {
+        
     }
 }

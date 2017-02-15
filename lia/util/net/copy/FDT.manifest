@@ -1,2 +1,10 @@
-Main-Class: lia.util.net.copy.FDT
+Manifest-Version: 1.0
+Ant-Version: Apache Ant 1.7.0
+Created-By: 1.6.0_02-b05 (Sun Microsystems Inc.)
+Main-Class: lia.util.net.copy.gui.FolderFrame
+Built-By: ramiro
+Release-Date: 2007-10-03
+Release-Version: 0.8.3
+Implementation-Version: 0.8.3-200710030855
 Class-Path: 
+

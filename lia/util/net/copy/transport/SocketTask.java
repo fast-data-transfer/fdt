@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.transport;
 
 import java.util.concurrent.BlockingQueue;
@@ -16,6 +17,10 @@ public abstract class SocketTask extends AbstractFDTIOEntity implements Runnable
 
     protected BlockingQueue<FDTSelectionKey> readyChannelsQueue;
 
+    public long getSize() {
+        return -1;
+    }
+    
     public SocketTask(BlockingQueue<FDTSelectionKey> readyChannelsQueue) {
         this.readyChannelsQueue = readyChannelsQueue;
     }

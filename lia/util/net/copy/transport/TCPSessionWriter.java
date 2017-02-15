@@ -1,14 +1,12 @@
+
 package lia.util.net.copy.transport;
 
 import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -18,12 +16,14 @@ import lia.util.net.copy.FDTReaderSession;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import lia.util.net.copy.transport.internal.SelectionManager;
 
+
+
 public class TCPSessionWriter extends TCPTransportProvider {
     
-    private static final Logger logger = Logger.getLogger(TCPSessionReader.class.getName());
+    private static final Logger logger = Logger.getLogger("lia.util.net.copy.transport.TCPSessionWriter");
     private static final SelectionManager selectionManager = SelectionManager.getInstance();
     private static final Config config = Config.getInstance();
-    
+
     public TCPSessionWriter(FDTReaderSession fdtSession) throws Exception {
         super(fdtSession);
         selectionQueue = new PriorityBlockingQueue<FDTSelectionKey>(10, new FDTWriterKeyAttachementComparator());
@@ -64,7 +64,9 @@ public class TCPSessionWriter extends TCPTransportProvider {
                     avForWrite = availableBytes;
                     availableBytes = 0;
                 } else {
-                    isAvailable.await(4, TimeUnit.SECONDS);
+                    if(isAvailable.await(2, TimeUnit.SECONDS) && avForWrite > 0) {
+                        break;
+                    }
                 }
             }
         } finally {
@@ -72,6 +74,26 @@ public class TCPSessionWriter extends TCPTransportProvider {
         }
         
         return avForWrite;
+    }
+    
+    private int getMSS(SocketChannel sc) {
+        
+        int retMSS = Config.NETWORK_BUFF_LEN_SIZE;
+        
+        try {
+            final InetAddress ia = sc.socket().getLocalAddress();
+            NetworkInterface ni = NetworkInterface.getByInetAddress(ia);
+            int mss = ni.getMTU() - 40;
+            if(mss > 1000) {
+                retMSS = mss;
+            }
+        }catch(Throwable t) {
+            if(logger.isLoggable(Level.FINE)){
+                logger.log(Level.FINE, "Cannot determine MTU for socket channel: " + sc);
+            }
+        }
+        
+        return retMSS;
     }
     
     public void addWorkerStream(SocketChannel sc) throws Exception {
@@ -98,6 +120,12 @@ public class TCPSessionWriter extends TCPTransportProvider {
                     logger.log(Level.WARNING, " \n\n Smth went terrible wrong ?? \n\n fsk.registerInterest() returned false \n\n");
                 }
             }
+            
+            final int mss = getMSS(sc);
+            if(logger.isLoggable(Level.FINER)) {
+                logger.log(Level.FINER, " Setting MSS for: " + sc + " to: " + mss);
+            }
+            fsk.setMSS(mss);
             
             channels.put(sc, fsk);
         }

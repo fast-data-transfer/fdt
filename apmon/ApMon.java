@@ -37,12 +37,12 @@ public class ApMon {
 	
 	static final String APMON_VERSION = "2.2.2";
 	
-	public static int MAX_DGRAM_SIZE = 8192;
+	public static final int MAX_DGRAM_SIZE = 8192;
 	public static final int XDR_STRING = 0;
 	public static final int XDR_INT32 = 2;
 	public static final int XDR_REAL32 = 4;
 	public static final int XDR_REAL64 = 5;
-	public static int DEFAULT_PORT = 8884; 
+	public static final int DEFAULT_PORT = 8884; 
 	
 	
 	public static final int JOB_MONITOR_INTERVAL = 20;
@@ -593,10 +593,12 @@ public class ApMon {
 					dgramSocket = new DatagramSocket();
 				}
 				
-				logger.fine(" Datagram with size " + dgramSize +
-					   " sent to " + destAddresses.get(i) +
-					  ", containing parameters:\n" + 
-			printParameters(paramNames, valueTypes, paramValues));
+				if(logger.isLoggable(Level.FINE)) {
+				    logger.fine(" Datagram with size " + dgramSize +
+				            " sent to " + destAddresses.get(i) +
+				            ", containing parameters:\n" + 
+				            printParameters(paramNames, valueTypes, paramValues));
+				}
 			}
 		} 
 	}
@@ -744,7 +746,9 @@ public class ApMon {
 			xdrOS.flush();
 			buf = baos.toByteArray();
 			baos.reset();
-			logger.fine("Send buffer length: " + buf.length + "B");
+			if(logger.isLoggable(Level.FINE)) {
+	            logger.fine("Send buffer length: " + buf.length + "B");
+			}
 				
 		} catch(Throwable t){
 			logger.log(Level.WARNING, "", t);

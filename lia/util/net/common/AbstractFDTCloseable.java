@@ -1,3 +1,4 @@
+
 package lia.util.net.common;
 
 import java.util.concurrent.BlockingQueue;
@@ -42,9 +43,10 @@ public abstract class AbstractFDTCloseable implements FDTCloseable {
         
         public void run() {
             AbstractFDTCloseable closeable = null;
+            
             for(;;) {
                 try {
-                    this.setName(" AsyncCloseThread TAKING wqSize: " + workingQueue.size());
+                    this.setName(" AsyncCloseThread waiting to take wqSize: " + workingQueue.size());
                     
                     closeable = null;
                     closeable = workingQueue.take();
@@ -56,8 +58,11 @@ public abstract class AbstractFDTCloseable implements FDTCloseable {
                         closeable.internalClose();
                     }
                     
-                }catch(Throwable t) {
-                    logger.log(Level.WARNING, "[ AsynchronousCloseThread ]Got exception on task [ " + closeable + " ] Exc:", t);
+                } catch(InterruptedException ie) {
+                    logger.log(Level.WARNING, "[ AsynchronousCloseThread ] [ HANDLED ] Got InterruptedException on task [ " + closeable + " ] Exc:", ie);
+                    Thread.interrupted();
+                } catch(Throwable t) {
+                    logger.log(Level.WARNING, "[ AsynchronousCloseThread ] [ HANDLED ] Got generic exception on task [ " + closeable + " ] Exc:", t);
                 }
             }
         }
@@ -72,14 +77,14 @@ public abstract class AbstractFDTCloseable implements FDTCloseable {
     protected final Object closeLock = new Object();
     protected volatile boolean closed;
     
-    private String downMessage;
-    private Throwable downCause;
+    private volatile String downMessage;
+    private volatile Throwable downCause;
     
     public AbstractFDTCloseable() {
         closed = false;
     }
     
-    public boolean close(String downMessage, Throwable downCause) {
+    public boolean close(final String downMessage, final Throwable downCause) {
         
         synchronized(closeLock) {
             if(!closed) {
@@ -100,9 +105,7 @@ public abstract class AbstractFDTCloseable implements FDTCloseable {
     }
     
     public boolean isClosed() {
-        synchronized (closeLock) {
-            return closed;
-        }
+        return closed;
     }
     
     public String downMessage() {

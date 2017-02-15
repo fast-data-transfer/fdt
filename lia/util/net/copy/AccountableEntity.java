@@ -1,8 +1,10 @@
+
 package lia.util.net.copy;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class AccountableEntity implements Accountable {
+
+public abstract class AccountableEntity implements Accountable {
 
     AtomicLong totalProcessedBytes;
     AtomicLong totalUtilBytes;
@@ -27,7 +29,9 @@ public class AccountableEntity implements Accountable {
         this(0, 0);
     }
     
-    public AccountableEntity(long initialProcessedBytes, long initialUtilBytes ) {
+    public abstract long getSize();
+    
+    public AccountableEntity(long initialProcessedBytes, long initialUtilBytes) {
         totalProcessedBytes = new AtomicLong(initialProcessedBytes);
         totalUtilBytes = new AtomicLong(initialUtilBytes);
     }

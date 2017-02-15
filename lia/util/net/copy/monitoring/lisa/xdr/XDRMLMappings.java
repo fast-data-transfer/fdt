@@ -1,4 +1,6 @@
+
 package lia.util.net.copy.monitoring.lisa.xdr;
+
 
 public final class XDRMLMappings {
     public static final int XDR_STRING     = 0;

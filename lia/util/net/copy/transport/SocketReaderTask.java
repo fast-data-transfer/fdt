@@ -1,3 +1,5 @@
+
+
 package lia.util.net.copy.transport;
 
 import java.nio.ByteBuffer;
@@ -8,9 +10,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import lia.util.net.common.Config;
+import lia.util.net.common.Utils;
 import lia.util.net.copy.FileBlock;
 import lia.util.net.copy.FileBlockConsumer;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
+
 
 public class SocketReaderTask extends SocketTask {
 
@@ -41,8 +45,10 @@ public class SocketReaderTask extends SocketTask {
         ByteBuffer payload = null;
         
         try {
-            header = headersPool.poll(50, TimeUnit.MILLISECONDS);
-            payload = payloadPool.poll(50, TimeUnit.MILLISECONDS);
+            header = headersPool.poll(2, TimeUnit.SECONDS);
+            if(header != null) {
+                payload = payloadPool.poll(2, TimeUnit.SECONDS);
+            }
         } finally {
             if(header == null) {
                 return false;
@@ -96,6 +102,10 @@ public class SocketReaderTask extends SocketTask {
         attach = (FDTReaderKeyAttachement)fdtSelectionKey.attachment();
         SocketChannel sc = fdtSelectionKey.channel();
 
+        if(logger.isLoggable(Level.FINEST)) {
+            logger.log(Level.FINEST, " [ SocketReaderTask ] [ readData ] for " + Utils.toStringSelectionKey(fdtSelectionKey));
+        }
+        
         long count=-1;
 
         if(!attach.hasBuffers()) {
@@ -111,7 +121,6 @@ public class SocketReaderTask extends SocketTask {
         }
         
         for(;;) {   
-            
             if(isClosed()) break;
             
             if(attach.useFixedSizeBlocks) {
@@ -122,10 +131,11 @@ public class SocketReaderTask extends SocketTask {
                 } else {
                     count = sc.read(attach.header);
                     if(attach.isHeaderRead()) {
-                        
                         addAndGetTotalBytes(count);
+                        if(logger.isLoggable(Level.FINEST)) {
+                            logger.log(Level.FINEST, " [ SocketReaderTask ] socket: " + sc.socket() + " count: " + count);
+                        }
                         master.addAndGetTotalBytes(count);
-                        
                         count = sc.read(attach.payload);
                     }
                 }
@@ -134,6 +144,10 @@ public class SocketReaderTask extends SocketTask {
             if(count > 0) {
                 
                 fdtSelectionKey.opCount = 0;
+
+                if(logger.isLoggable(Level.FINEST)) {
+                    logger.log(Level.FINEST, " [ SocketReaderTask ] socket: " + sc.socket() + " count: " + count);
+                }
                 
                 addAndGetTotalBytes(count);
                 master.addAndGetTotalBytes(count);
@@ -237,35 +251,28 @@ public class SocketReaderTask extends SocketTask {
                     } else {
                         break;
                     }
-                    
-                    
-                    continue;
+                    Thread.interrupted();
+                    close("Got interrupted exception", ie);
                 }
 
                 if(fdtSelectionKey.equals(FDTSelectionKey.END_PROCESSING_NOTIF_KEY)) {
                     readyChannelsQueue.offer(FDTSelectionKey.END_PROCESSING_NOTIF_KEY);
                     return;
                 }
-
-                
-
-
-
                 
                 try {
                     if(!readData()) {
                         readyChannelsQueue.put(fdtSelectionKey);
                     }
-                }catch(Throwable t) {
-                    recycleBuffers();
+                } catch(Throwable t) {
                     if(fdtSelectionKey == null) {
-                        master.close("Null selection key - FDTProtocolExceptio", new FDTProcolException("Null selection key", t));
+                        master.close("Null selection key - FDTProtocolException", new FDTProcolException("Null selection key", t));
                     } else {
-                        master.workerDown(fdtSelectionKey, t);
+                        master.close("Exception reading data", t);
                     }
-                    if(!isClosed()) {
-                        logger.log(Level.WARNING, " Got exception trying to readData() from channel", t );
-                    }
+                    
+                    recycleBuffers();
+                    
                     close(" Got exception trying to readData() from channel", t);
                     break;
                 }

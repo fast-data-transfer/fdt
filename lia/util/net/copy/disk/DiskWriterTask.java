@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.disk;
 
 import java.io.IOException;
@@ -9,11 +10,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.DirectByteBufferPool;
 import lia.util.net.copy.FDTSession;
 import lia.util.net.copy.FDTSessionManager;
 import lia.util.net.copy.FileBlock;
 import lia.util.net.copy.FileSession;
+
 
 public class DiskWriterTask extends GenericDiskTask {
 
@@ -21,11 +22,7 @@ public class DiskWriterTask extends GenericDiskTask {
 
     private static final DiskWriterManager dwm = DiskWriterManager.getInstance();
     private static final FDTSessionManager fsm = FDTSessionManager.getInstance();
-    private static final DirectByteBufferPool bufferPool = DirectByteBufferPool.getInstance();
     
-    private int partitionID;
-
-    private String myName;
     private final Object countersLock = new Object();
     
     long sTime;
@@ -43,29 +40,17 @@ public class DiskWriterTask extends GenericDiskTask {
 
     AtomicBoolean hasToRun;
     
-    private long tid;
-    
-    public DiskWriterTask(int partitionID, BlockingQueue<FileBlock> queue) {
-        this.partitionID = partitionID;
-        hasToRun = new AtomicBoolean(true);
-        this.myName = "DiskWriterTask [ " + this.partitionID + " ]";
+    DiskWriterTask(int partitionID, int writerID, BlockingQueue<FileBlock> queue) {
+        super(partitionID, writerID);
         this.queue = queue;
+        hasToRun = new AtomicBoolean(true);
     }
 
     public void stopIt() {
         
         if(hasToRun.compareAndSet(true, false)) {
-            if(logger.isLoggable(Level.FINER)) {
-                logger.log(Level.FINER, "\n\n\n ----> writer task  [ " + partitionID + "] stopit() <<<<<< \n\n\n");
-            }
-
-            queue.offer(FileBlock.EOF_FB);
+            logger.log(Level.INFO, this.myName + " STOPPED!");
             
-            if(dwm.diskWritersMap.remove(partitionID) != null) {
-                if(logger.isLoggable(Level.FINER)) {
-                    logger.log(Level.FINER, "\n\n\n ----> writer task  [ " + partitionID + "] removed from the map <<<<<< \n\n\n");
-                }
-            }
         }
 
     }
@@ -82,37 +67,39 @@ public class DiskWriterTask extends GenericDiskTask {
         return queue;
     }
     
-    public long threadID() {
-        return tid;
+    public final int writerID() {
+        return taskID;
     }
     
     public void run() {
 
-        String cName = Thread.currentThread().getName();
+        final String cName = Thread.currentThread().getName();
+        this.myName = new StringBuilder("DiskWriterTask [ partitionID=").append(this.partitionID).append(", writerID= ").append(this.taskID).append(", tid=").append(Thread.currentThread().getId()).append(" ]").toString();
 
         try {
             Thread.currentThread().setName(myName);
         }catch(Throwable t1) {
-            logger.log(Level.WARNING, " Got exception trying to set thread name for FileWriterTask");
+            logger.log(Level.SEVERE, "Got exception trying to set thread name for DiskWriterTask", t1);
         }
 
-        FileBlock fileBlock = null;
-        ByteBuffer buff = null;
-        FileChannel fileChannel = null;
-        FileSession fileSession = null;
 
-        logger.log(Level.INFO, "DiskWriterTask [ " + this.partitionID + " ] STARTED = " + hasToRun.get() + " / " + this.toString());
         int writtenBytes = -1;
-        tid = Thread.currentThread().getId();
+        
+        logger.log(Level.INFO, myName + " STARTED. hasToRun() = " + hasToRun.get());
         
         while(hasToRun.get()) {
-
+            
+            FileBlock fileBlock = null;
+            ByteBuffer buff = null;
+            FileChannel fileChannel = null;
+            FileSession fileSession = null;
+            FDTSession fdtSession = null;
 
             try {
                 sTime = System.nanoTime();
                 sTimeFinish = 0;
 
-                fileBlock = queue.poll(2, TimeUnit.SECONDS);
+                fileBlock = queue.poll(10, TimeUnit.SECONDS);
                 
                 if(fileBlock == null) {
                     if(hasToRun.get()) {
@@ -128,20 +115,17 @@ public class DiskWriterTask extends GenericDiskTask {
 
                 buff = fileBlock.buff;
 
-                FDTSession fdtSession = fsm.getSession(fileBlock.fdtSessionID);
+                fdtSession = fsm.getSession(fileBlock.fdtSessionID);
                 
                 if(fdtSession == null) {
-                    if(buff != null) {
-                        bufferPool.put(buff);
-                    }
-                    buff = null;
+                    logger.log(Level.WARNING, myName + " Got a fileBlock for fdtSessionID: " + fileBlock.fdtSessionID + " but the session does not appear to be in the manager's map");
                     continue;
                 }
                 
                 fileSession = fdtSession.getFileSession(fileBlock.fileSessionID);
 
                 if(fileSession == null) {
-                    logger.log(Level.WARNING, " No such fileSession in local map [ " + fileBlock.fileSessionID +" ]");
+                    logger.log(Level.WARNING, " No such fileSession in local map [ fileSessionID: " + fileBlock.fileSessionID +", fdtSessionID: " + fileBlock.fdtSessionID +" ]");
                     continue;
                 }
 
@@ -169,9 +153,6 @@ public class DiskWriterTask extends GenericDiskTask {
                 if(fileChannel != null) {
                     writtenBytes = -1;
 
-                    
-                    buff = fileBlock.buff;
-                    
                     final int remainingBeforeWrite = buff.remaining();
 
                     writtenBytes = fileChannel.write(buff, fileBlock.fileOffset);
@@ -181,9 +162,10 @@ public class DiskWriterTask extends GenericDiskTask {
 
                     
                     
+                    
                     if(buff.hasRemaining()) {
                         logger.log(Level.WARNING, 
-                                "\n\n\n [ BUG ] WriterTask buffer still hasRemaining()" +
+                                "\n\n\n [ BUG ] " + myName + " buffer still hasRemaining()" +
                                 " something is terrible wrong with the FS/Kernel/Java NIO !! \n" +
                                 "\n fileblock offset = " + fileBlock.fileOffset + 
                                 "\n buff.remaining() before write: " + remainingBeforeWrite +
@@ -195,7 +177,7 @@ public class DiskWriterTask extends GenericDiskTask {
 
                     if(writtenBytes == -1) {
                         sTimeFinish = System.nanoTime();
-                        logger.log(Level.WARNING, "\n\n [ ERROR ] Unable to write bytes to [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] Disk full or R/O partition ?");
+                        logger.log(Level.WARNING, "\n\n [ ERROR ] " + myName + " ... Unable to write bytes to [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] Disk full or R/O partition ?");
                         Throwable downCause = new IOException("Unable to write bytes ????  [ Full disk or R/O partition ]");
                         downCause.fillInStackTrace();
                         fsm.getSession(fileBlock.fdtSessionID).finishFileSession(fileSession.sessionID(), downCause);
@@ -216,12 +198,12 @@ public class DiskWriterTask extends GenericDiskTask {
                     if(fileSession.cProcessedBytes.get() == fileSession.sessionSize()) {
                         try {
                             fileSession.close(null, null);
-                        }catch(Throwable t) {
-                            logger.log(Level.WARNING, " Got exception closing fileSession " + fileSession, t);
+                        } catch(Throwable t) {
+                            logger.log(Level.WARNING, myName + " got exception closing fileSession " + fileSession, t);
                         }
                         
                         if(logger.isLoggable(Level.FINE)) {
-                            logger.log(Level.FINE, "\n All the bytes ( " + fileSession.sessionSize() + " ) for [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] have been written ");
+                            logger.log(Level.FINE, "\n " + myName + " ... All the bytes ( " + fileSession.sessionSize() + " ) for [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] have been written ");
                         }
                         sTimeFinish = System.nanoTime();
                         
@@ -231,9 +213,8 @@ public class DiskWriterTask extends GenericDiskTask {
                     }
 
                 } else {
-                    Throwable downCause = new NullPointerException("Null File Channel inside writer worker for [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ]");
+                    Throwable downCause = new NullPointerException("Null File Channel inside disk writer worker [ " + myName + " ] for [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ]");
                     downCause.fillInStackTrace();
-
                     sTimeFinish = System.nanoTime();
                     fsm.getSession(fileBlock.fdtSessionID).finishFileSession(fileSession.sessionID(), downCause);
                 }
@@ -252,42 +233,47 @@ public class DiskWriterTask extends GenericDiskTask {
                 }
 
             } catch(IOException ioe) {
-                ioe.printStackTrace();
                 sTimeFinish = System.nanoTime();
-                logger.log(Level.WARNING, "Got I/O Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + fileBlock.fileOffset, ioe); 
-                fsm.getSession(fileBlock.fdtSessionID).finishFileSession(fileSession.sessionID(), ioe);
+                logger.log(Level.SEVERE, myName + " ... Got I/O Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + fileBlock.fileOffset, ioe); 
                 break;
             } catch (InterruptedException ie) {
-                ie.printStackTrace();
+                if(fileSession == null) {
+                    logger.log(Level.SEVERE, myName + " ... Got InterruptedException Exception writing to file [  ( fileSession is null ) ] offset: " + ((fileBlock == null)?" fileBlock is null":fileBlock.fileOffset), ie); 
+                } else {
+                    logger.log(Level.SEVERE, myName + " ... Got InterruptedException Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + ((fileBlock == null)?" fileBlock is null":fileBlock.fileOffset), ie); 
+                }
+                
+                Thread.interrupted();
                 break;
             } catch (Throwable t) {
-                t.printStackTrace();
                 sTimeFinish = System.nanoTime();
-                logger.log(Level.WARNING, "Got General Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + fileBlock.fileOffset, t); 
-                fsm.getSession(fileBlock.fdtSessionID).finishFileSession(fileSession.sessionID(), t);
+                if(fileSession == null) {
+                    logger.log(Level.SEVERE, myName + " ... Got GeneralException Exception writing to file [  ( fileSession is null ) ] offset: " + ((fileBlock == null)?" fileBlock is null":fileBlock.fileOffset), t); 
+                } else {
+                    logger.log(Level.SEVERE, myName + " ... Got GeneralException Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + ((fileBlock == null)?" fileBlock is null":fileBlock.fileOffset), t); 
+                }
+                
+                if(fdtSession != null && fileSession.sessionID() != null) {
+                    fdtSession.finishFileSession(fileSession.sessionID(), t);
+                }
                 break;
             } finally {
                 try {
                     if(buff != null) {
                         bufferPool.put(buff);
                     }
-                    if(fileBlock != null) {
-                        FileBlock.returnFileBlock(fileBlock);
-                    }
                     buff = null;
-                }catch(Throwable t) {
-                    t.printStackTrace();
+                } catch(Throwable t) {
+                    logger.log(Level.SEVERE, myName + " ... unable to return the buffer to the bufferPool", t);
                 }
             }
+            
         }
 
         try {
             Thread.currentThread().setName(cName);
         }catch(Throwable t) {}
         
-        logger.log(Level.INFO, "\n\nDiskWriterTask for partitionID " + partitionID + " exits!\n\n");
-
-
         stopIt();
     }
 }

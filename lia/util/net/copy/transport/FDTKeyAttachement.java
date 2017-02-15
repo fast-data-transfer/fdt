@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.transport;
 
 import java.nio.ByteBuffer;
@@ -20,13 +21,12 @@ public abstract class FDTKeyAttachement {
     public ByteBuffer header;
     public ByteBuffer payload;
     
-    private ByteBuffer[] _array = new ByteBuffer[2];
+    private final ByteBuffer[] _array = new ByteBuffer[2];
     
     protected int seq;
     
-    FDTSelectionKey fdtSelectionKey;
+    public FDTSelectionKey fdtSelectionKey;
     protected boolean useFixedSizeBlocks;
-    protected Object lock = new Object();
     
     public FDTKeyAttachement(FDTSelectionKey fdtSelectionKey, boolean useFixedSizeBlocks) {
         this.header = null;
@@ -36,57 +36,47 @@ public abstract class FDTKeyAttachement {
         this.useFixedSizeBlocks = useFixedSizeBlocks;
     }
     
-    public void setBuffers(ByteBuffer header, ByteBuffer payload) {
-        synchronized(lock) {
-            this.header = header;
-            this.payload = payload;
-            setArray();
-        }
+    
+    public synchronized void setBuffers(ByteBuffer header, ByteBuffer payload) {
+        this.header = header;
+        this.payload = payload;
+        setArray();
     }
+
     
     private void setArray() {
         this._array[0] = this.header;
         this._array[1] = this.payload;
     }
     
-    public void recycleBuffers() {
-        synchronized(lock) {
-            
-            if(this.header != null) {
-                headerPool.put(this.header);
-                this.header = null;
-            }
-            
-            if(this.payload != null) {
-                payloadPool.put(this.payload);
-                this.payload = null;
-            }
-            
-            setArray();
+    
+    public synchronized void recycleBuffers() {
+        if(this.header != null) {
+            headerPool.put(this.header);
+            this.header = null;
         }
+
+        if(this.payload != null) {
+            payloadPool.put(this.payload);
+            this.payload = null;
+        }
+
+        setArray();
     }
     public boolean hasBuffers() {
-        synchronized(lock) {
-            return  ( ( header != null ) && ( payload != null ) );
-        }
+        return  ( ( header != null ) && ( payload != null ) );
     }
     
     public boolean hasHeader() {
-        synchronized(lock) {
-            return ( header != null );
-        }
+        return ( header != null );
     }
     
     public boolean hasPayload() {
-        synchronized(lock) {
-            return ( payload != null );
-        }
+        return ( payload != null );
     }
     
     public ByteBuffer[] asArray() {
-        synchronized(lock) {
-            return _array;
-        }
+        return _array;
     }
     
     public final boolean useFixedSizeBlocks() {
@@ -99,5 +89,16 @@ public abstract class FDTKeyAttachement {
         return sb.toString();
     }
     
+    public boolean equals(Object o) {
+        if(!(o instanceof FDTKeyAttachement)) {
+            return false;
+        }
+        
+        return ((FDTKeyAttachement)o).seq == this.seq;
+    }
     
+    public int hashCode() {
+        return this.seq;
+    }
+
 }

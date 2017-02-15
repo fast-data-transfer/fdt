@@ -1,6 +1,5 @@
+
 package lia.util.net.copy.monitoring.lisa.xdr;
-
-
 
 import java.io.IOException;
 import java.net.InetAddress;

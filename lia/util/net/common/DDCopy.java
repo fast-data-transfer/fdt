@@ -1,10 +1,10 @@
+
 package lia.util.net.common;
 
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -87,8 +87,8 @@ public class DDCopy {
                 now = System.currentTimeMillis();
                 cCount = bytesNo.get();
                 
-                double speed = (double)(cCount - lastCount)/((now - lastTime)/1000D);
-                double avgSpeed = (double)cCount/((now - START_TIME)/1000D);
+                double speed = (cCount - lastCount)/((now - lastTime)/1000D);
+                double avgSpeed = cCount/((now - START_TIME)/1000D);
                 
                 lastTime = now;
                 lastCount = cCount;
@@ -120,7 +120,7 @@ public class DDCopy {
             final double avgSpeed = totalBytes / (totalTime/1000D);
             
             System.out.println("\n" +
-                    "\n Total Transfer: " + format(totalBytes, reportingFactor, "B") +
+                    "\n Total Transfer: " + format(totalBytes, reportingFactor, "Bytes") + " ( " + totalBytes + " bytes )"+
                     "\n Time: " + totalTime/1000 + " seconds" +
                     "\n Avg Speed: " + format(avgSpeed, reportingFactor, "B/s") +
                     "\n");
@@ -163,7 +163,7 @@ public class DDCopy {
     private static AtomicBoolean hasToRun = new AtomicBoolean(true);
     
     
-    private static String wrFlags = "rwd";
+    private static String wrFlags = "rw";
     
     
     private static long START_TIME;

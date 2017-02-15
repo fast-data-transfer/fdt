@@ -1,7 +1,9 @@
+
 package lia.util.net.copy;
 
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -14,7 +16,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,6 +25,7 @@ import lia.util.net.common.Config;
 import lia.util.net.common.NetMatcher;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.transport.ControlChannel;
+import lia.util.net.copy.transport.gui.ServerSessionManager;
 
 
 public class FDTServer extends AbstractFDTCloseable {
@@ -39,24 +41,33 @@ public class FDTServer extends AbstractFDTCloseable {
 		}
 	}
 
-	AtomicInteger cWorkers = new AtomicInteger(0);
-
 	ServerSocketChannel ssc;
 	ServerSocket ss;
 	Selector sel;
 	int port;
 	ExecutorService executor;
 
-	private class AcceptableTask implements Runnable {
-		SocketChannel sc;
+	private static final class AcceptableTask implements Runnable {
+		final SocketChannel sc;
+		final Socket s;
+		
+		AcceptableTask(final SocketChannel sc) {
+		    
+		    if(sc == null) {
+		        throw new NullPointerException("SocketChannel cannot be null in AcceptableTask");
+		    }
 
-		AcceptableTask(SocketChannel sc) {
+		    if(sc.socket() == null) {
+                throw new NullPointerException("Null Socket for SocketChannel in AcceptableTask");
+            }
+		    
 			this.sc = sc;
+			this.s = sc.socket();
 		}
 
 		public void run() {
 
-			if (!FDTServer.this.filterSourceAddress(sc.socket()))
+			if (!FDTServer.filterSourceAddress(s))
 				return;
 
 			if (logger.isLoggable(Level.FINER)) {
@@ -64,12 +75,11 @@ public class FDTServer extends AbstractFDTCloseable {
 			}
 
 			try {
-				sc.socket().setKeepAlive(true);
+				s.setKeepAlive(true);
 			} catch (Throwable t) {
-				logger.log(Level.WARNING, " Cannot set KEEP_ALIVE for " + sc, t);
+				logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set KEEP_ALIVE for " + sc, t);
 			}
 
-			boolean control = false;
 			ByteBuffer firstByte = ByteBuffer.allocate(1);
 			ByteBuffer clientIDBuff = ByteBuffer.allocate(16);
 
@@ -79,16 +89,15 @@ public class FDTServer extends AbstractFDTCloseable {
 
 			try {
 
-				
 				int count = -1;
 				while (firstByte.hasRemaining()) {
 					count = sc.read(firstByte);
 					if (count < 0) {
+                        logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Unable to read header for socket [ " + s + " ] The stream will be closed.");
 						try {
 							sc.close();
-						} catch (Throwable t1) {
+						} catch (Throwable _) {
 						}
-						;
 						return;
 					}
 
@@ -105,109 +114,127 @@ public class FDTServer extends AbstractFDTCloseable {
 				}
 
 				firstByte.flip();
-				byte fb = firstByte.get();
+				final byte firstB = firstByte.get();
 
-				if (fb == 0) {
-					control = true;
-				}
+				switch(firstB) {
+				    
+				    
+				    case 0: {
+	                    if(config.isGSIModeEnabled() || config.isGSISSHModeEnabled()) {
+	                        logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Got a remote control channel [ " + s +" ] but in GSI mode ... will be rejected.");
+	                        try {
+	                            sc.close();
+	                        } catch (Throwable _) {
 
-				if (!control) {
-					if (config.isBlocking()) {
-						sc.configureBlocking(true);
-					} else {
-						sc.configureBlocking(false);
-					}
+	                        }
+	                        return;
+	                    }
+	                    
+	                    sc.configureBlocking(true);
+	                    ControlChannel ct = null;
 
-					
-					
-					while (clientIDBuff.hasRemaining()) {
-						count = sc.read(clientIDBuff);
-						if (count < 0) {
-							try {
-								sc.close();
-							} catch (Throwable t1) {
-							}
-							;
-							return;
-						}
+	                    try {
+	                        ct = new ControlChannel(s, fdtSessionManager);
+	                        fdtSessionManager.addFDTClientSession(ct);
+	                    } catch (Throwable t) {
+	                        logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot instantiate ControlChannel", t);
+	                        ct = null;
+	                    }
 
-						if (clientIDBuff.hasRemaining()) {
-							
-							if (config.isBlocking()) {
-								logger.log(Level.WARNING, " Blocking mode ... unable to read clientID. The socket will be closed");
-								try {
-									sc.close();
-								} catch (Throwable t1) {
-								}
-								;
-								return;
-							}
-						} else {
-							
-							break;
-						}
+	                    if (ct != null) {
+	                        new Thread(ct, "ControlChannel thread for [ " + s.getInetAddress() + ":" + s.getPort() + " ]").start();
+	                    }
+				        break;
+				    }
+				    
+				    
+				    case 1: {
+	                    if (config.isBlocking()) {
+	                        sc.configureBlocking(true);
+	                    } else {
+	                        sc.configureBlocking(false);
+	                    }
 
-						if (tmpSelector == null) {
-							tmpSelector = Selector.open();
-						}
+	                    
+	                    while (clientIDBuff.hasRemaining()) {
+	                        count = sc.read(clientIDBuff);
+	                        if (count < 0) {
+                                logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Unable to read clientID. The stream will be closed");
+	                            try {
+	                                sc.close();
+	                            } catch (Throwable t1) {
+	                            }
+	                            return;
+	                        }
 
-						if (!config.isBlocking()) {
-							sk = sc.register(tmpSelector, SelectionKey.OP_READ);
-							tmpSelector.select();
-						}
-					}
+	                        if (clientIDBuff.hasRemaining()) {
+	                            
+	                            if (config.isBlocking()) {
+	                                logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Blocking mode ... unable to read clientID. The stream will be closed");
+	                                try {
+	                                    sc.close();
+	                                } catch (Throwable t1) {
+	                                }
+	                                return;
+	                            }
+	                        } else {
+	                            
+	                            break;
+	                        }
 
-					if (sk != null) {
-						sk.cancel();
-					}
+	                        if (tmpSelector == null) {
+	                            tmpSelector = Selector.open();
+	                        }
 
-					clientIDBuff.flip();
-					clientSessionID = new UUID(clientIDBuff.getLong(), clientIDBuff.getLong());
-					if (logger.isLoggable(Level.FINE)) {
-						logger.log(Level.FINE, "new socket from clientID: " + clientSessionID);
-					}
+	                        if (!config.isBlocking()) {
+	                            sk = sc.register(tmpSelector, SelectionKey.OP_READ);
+	                            tmpSelector.select();
+	                        }
+	                    }
 
-					fdtSessionManager.addWorker(clientSessionID, sc);
-				} else {
-                    
-                    if(config.isGSIModeEnabled() || config.isGSISSHModeEnabled()) {
-                        logger.log(Level.INFO, " Got a remote control channel [ " + sc.socket() +" ] but in GSI mode ... will be rejected.");
+	                    if (sk != null) {
+	                        sk.cancel();
+	                    }
+
+	                    clientIDBuff.flip();
+	                    clientSessionID = new UUID(clientIDBuff.getLong(), clientIDBuff.getLong());
+	                    if (logger.isLoggable(Level.FINE)) {
+	                        logger.log(Level.FINE, "[ FDTServer ] [ AcceptableTask ] New socket from clientID: " + clientSessionID);
+	                    }
+
+	                    fdtSessionManager.addWorker(clientSessionID, sc);
+				        break;
+				    }
+				    
+				    
+				    case 2: {
+				        break;
+				    }
+				    
+				    
+				    case 3: {
+                        sc.configureBlocking(true);
+                        ServerSessionManager sm = null;
                         try {
-                            sc.close();
-                        } catch (Throwable ignore) {
-
+                        	 sm = new ServerSessionManager(s);
+                        	 new Thread(sm, "GUIControlChannel thread for [ " + s.getInetAddress() + ":" + s.getPort() + " ]").start();
+                        } catch (Throwable t) {
+                            logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot instantiate GUI ControlChannel", t);
                         }
-                        return;
-                    }
-                    
-					sc.configureBlocking(true);
-					ControlChannel ct = null;
-
-					try {
-						ct = new ControlChannel(sc.socket(), fdtSessionManager);
-						fdtSessionManager.addFDTClientSession(ct);
-					} catch (Throwable t) {
-						logger.log(Level.WARNING, "Cannot instantiate ControlChannel", t);
-						ct = null;
-					}
-
-					if (ct != null) {
-						new Thread(ct, "ControlChannel thread for [ " + sc.socket().getInetAddress() + ":" + sc.socket().getPort() + " ]").start();
-					}
+                        break;
+				    }
 				}
-			} catch (Throwable t) {
-				logger.log(Level.WARNING, " Got exception in AcceptableTask", t);
-				if (sc != null) {
-					try {
-						sc.close();
-					} catch (Throwable ignore) {
 
-					}
-					;
+			} catch (Throwable t) {
+				logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Exception: ", t);
+				try {
+				    sc.close();
+				} catch (Throwable _) {
+
 				}
 			} finally {
 				if (logger.isLoggable(Level.FINER)) {
-					logger.log(Level.FINER, " AcceptableTask for " + sc + " FINISHED!");
+					logger.log(Level.FINER, " AcceptableTask for " + s + " FINISHED!");
 				}
 				if (tmpSelector != null) {
 					try {
@@ -253,9 +280,9 @@ public class FDTServer extends AbstractFDTCloseable {
         }
 	}
 
-	public boolean filterSourceAddress(java.net.Socket socket) {
+	public static final boolean filterSourceAddress(java.net.Socket socket) {
 		
-		final NetMatcher filter = this.config.getSourceAddressFilter();
+		final NetMatcher filter = config.getSourceAddressFilter();
 		if (filter != null) {
 			logger.info("Enforcing source address filter: "+filter);
 			final String sourceIPAddress = socket.getInetAddress().getHostAddress();
@@ -305,10 +332,18 @@ public class FDTServer extends AbstractFDTCloseable {
 
 						ServerSocketChannel ssc = (ServerSocketChannel) sk.channel();
 						SocketChannel sc = ssc.accept();
-
 						
-						
-						executor.execute(new AcceptableTask(sc));
+						try {
+	                        executor.execute(new AcceptableTask(sc));
+						} catch(Throwable t) {
+						    StringBuilder sb = new StringBuilder();
+						    sb.append("[ FDTServer ] got exception in while sumbiting the AcceptableTask for SocketChannel: ").append(sc);
+						    if(sc != null) {
+	                            sb.append(" Socket: ").append(sc.socket());
+						    }
+						    sb.append(" Cause: ");
+						    logger.log(Level.WARNING, sb.toString(), t);
+						}
 					}
 				}
 			}
@@ -329,18 +364,16 @@ public class FDTServer extends AbstractFDTCloseable {
 
 	public void run() {
 
-		
 		try {
 			doWork();
 		} catch (Throwable t) {
-			t.printStackTrace();
+		    logger.log(Level.WARNING, "[ FDTServer ] exception main loop", t);
+		    close("[ FDTServer ] exception main loop", t);
 		}
 
 		close(null, null);
 
 		logger.info(" \n\n FDTServer finishes @ " + new Date().toString() + "!\n\n");
-
-		
 	}
 
 	@Override

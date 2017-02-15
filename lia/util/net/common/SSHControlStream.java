@@ -1,3 +1,4 @@
+
 package lia.util.net.common;
 
 import java.io.BufferedReader;
@@ -15,6 +16,7 @@ import ch.ethz.ssh2.InteractiveCallback;
 import ch.ethz.ssh2.Session;
 import ch.ethz.ssh2.StreamGobbler;
 import ch.ethz.ssh2.util.PasswordReader;
+
 
 public class SSHControlStream implements ControlStream {
 	static final String knownHostPath = System.getProperty("user.home") + "/.ssh/known_hosts";
@@ -50,7 +52,7 @@ public class SSHControlStream implements ControlStream {
 
 					if (key.exists()) {
 						boolean res = false;
-						String password = PasswordReader.readPassword("\n [" + username + "@" + hostname + "] [Public key authentication] Enter password for DSA private key["
+						String password = getPassword("\n [" + username + "@" + hostname + "] [Public key authentication] Enter password for DSA private key["
 								+ idDSAPath + "]: ");
 						try {
 							res = conn.authenticateWithPublicKey(username, key, password);
@@ -69,7 +71,7 @@ public class SSHControlStream implements ControlStream {
 
 					if (key.exists()) {
 						boolean res = false;
-						String password = PasswordReader.readPassword("\n[" + username + "@" + hostname + "] [Public key authentication] Enter password for RSA private key["
+						String password = getPassword("\n[" + username + "@" + hostname + "] [Public key authentication] Enter password for RSA private key["
 								+ idRSAPath + "]: ");
 						try {
 							res = conn.authenticateWithPublicKey(username, key, password);
@@ -119,7 +121,7 @@ public class SSHControlStream implements ControlStream {
 			if (conn.isAuthMethodAvailable(username, "password")) {
 				boolean res = false;
 
-				String password = PasswordReader.readPassword("\n[" + username + "@" + hostname + "] [Password Authentication] Enter password: ");
+				String password = getPassword("\n[" + username + "@" + hostname + "] [Password Authentication] Enter password: ");
 				if (password == null || password.length() == 0) {
 					res = false;
 				} else
@@ -140,6 +142,11 @@ public class SSHControlStream implements ControlStream {
 		this.sess = this.conn.openSession();
 		this.sess.requestPTY("javash", 0, 0, 0, 0, null);
 	}
+	
+	public String getPassword(String message) throws IOException {
+		return PasswordReader.readPassword(message);
+	}
+
 
 	
 	public void startProgram(String cmd) throws IOException {
@@ -259,7 +266,7 @@ public class SSHControlStream implements ControlStream {
 	}
 
 	
-	static class InteractiveLogic implements InteractiveCallback {
+	class InteractiveLogic implements InteractiveCallback {
 		int promptCount = 0;
 
 		String lastError;
@@ -291,7 +298,7 @@ public class SSHControlStream implements ControlStream {
 					sContent.append(instruction).append('\n');
 				sContent.append(prefix).append("[Keyboard Interactive Authentication] ").append(prompt[i]);
 
-				String userResponse = PasswordReader.readPassword(sContent.toString());
+				String userResponse = getPassword(sContent.toString());
 
 				if (userResponse == null)
 					throw new IOException("Login aborted by user");

@@ -1,11 +1,12 @@
-package lia.util.net.copy.monitoring.lisa.xdr;
 
+package lia.util.net.copy.monitoring.lisa.xdr;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 
 public abstract class XDRGenericComm
 		implements Runnable {

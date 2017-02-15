@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.transport;
 
 import java.nio.ByteBuffer;
@@ -8,6 +9,8 @@ import lia.util.net.common.HeaderBufferPool;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.FileBlock;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
+
+
 
 class FDTWriterKeyAttachement extends FDTKeyAttachement implements Comparable<FDTWriterKeyAttachement> {
 
@@ -28,7 +31,6 @@ class FDTWriterKeyAttachement extends FDTKeyAttachement implements Comparable<FD
         if(fileBlock == null) return wsa;
         
         if(wsa.fileBlock != null) {
-            FileBlock.returnFileBlock(wsa.fileBlock);
             wsa.fileBlock = null;
         }
         
@@ -93,19 +95,13 @@ class FDTWriterKeyAttachement extends FDTKeyAttachement implements Comparable<FD
     }
     
     public int compareTo(FDTWriterKeyAttachement o) {
-        if(this == o) return 0;
         
-        
-        if(this.hasBuffers() && !o.hasBuffers()) return -1;
-        if(!this.hasBuffers() && o.hasBuffers()) return 1;
-        
+        if(this.seq == o.seq) return 0;
         
         if(this.lastOperation < o.lastOperation) return -1;
         if(this.lastOperation > o.lastOperation) return 1;
         
         if(this.seq < o.seq) return -1;
-        
-        
         
         return 1;
     }

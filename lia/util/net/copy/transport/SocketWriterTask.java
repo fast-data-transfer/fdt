@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.transport;
 
 import java.nio.channels.SocketChannel;
@@ -7,9 +8,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import lia.util.net.common.Config;
+import lia.util.net.common.Utils;
 import lia.util.net.copy.FileBlock;
 import lia.util.net.copy.FileBlockProducer;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
+
 
 public class SocketWriterTask extends SocketTask {
     
@@ -19,6 +22,7 @@ public class SocketWriterTask extends SocketTask {
     
 
     private static final int BUFF_LEN_SIZE = Config.NETWORK_BUFF_LEN_SIZE;
+
     
     private static final int RETRY_IO_COUNT  =  Config.getInstance().getRetryIOCount();
     
@@ -39,13 +43,33 @@ public class SocketWriterTask extends SocketTask {
         long count = -1;
         final SocketChannel sc = fdtSelectionKey.channel();
         
+        int mss = fdtSelectionKey.getMSS();
+        int bufferSize = BUFF_LEN_SIZE;
+        
+        if(mss > 0) {
+            bufferSize = mss;
+        }
+        
+        if(logger.isLoggable(Level.FINE)) {
+            logger.log(Level.FINE, "Using MSS: " + bufferSize + " for socket channel: " + sc);
+        }
+        
         for(;;) {
             if(!attach.hasBuffers()) {
-                FileBlock fb = fileBlockProducer.poll(500, TimeUnit.MILLISECONDS);
+                FileBlock fb = fileBlockProducer.poll(5, TimeUnit.SECONDS);
                 
                 if(fb == null) {
                     
+                    
+                    
+                    attach.updateLastOperation();
+                    
+                    
+                    
                     readyChannelsQueue.put(fdtSelectionKey);
+                    if(logger.isLoggable(Level.FINEST)) {
+                        logger.log(Level.FINEST, " [ SocketWriterTask ] Empty FD queue. Added SK: " + fdtSelectionKey  + " NEW Sel Queue: " + readyChannelsQueue);
+                    }
                     return 0;
                 }
                 
@@ -60,8 +84,8 @@ public class SocketWriterTask extends SocketTask {
             count = -1;
             long canWrite = (attach.payloadSize - attach.payload.position());
             
-            if(canWrite > BUFF_LEN_SIZE) {
-                canWrite = BUFF_LEN_SIZE;
+            if(canWrite > bufferSize) {
+                canWrite = bufferSize;
             }
             
             if(master.getRateLimit() > 0) {
@@ -73,23 +97,27 @@ public class SocketWriterTask extends SocketTask {
 
             attach.payload.limit(attach.payload.position() + (int)canWrite);
             
-            if ((count = sc.write(attach.asArray())) > 0) {
+            while ((count = sc.write(attach.asArray())) > 0) {
                 attach.payload.limit(attach.payloadSize);
                 
                 fdtSelectionKey.opCount = 0;
                 addAndGetTotalBytes(count);
                 master.addAndGetTotalBytes(count);
                 
+                if(logger.isLoggable(Level.FINEST)) {
+                    logger.log(Level.FINEST, " [ SocketWriterTask ] Socket: " + sc.socket() + " written: " + count);
+                }
+                
                 attach.updateLastOperation();
                 
-                if (attach.isHeaderWritten() && attach.isPayloadWritten()) {
+                if (attach.isPayloadWritten()) {
                     
                     addAndGetUtilBytes(attach.payload.limit());
                     master.addAndGetUtilBytes(attach.payload.limit());
                     
                     attach.recycleBuffers();
                     
-                    FileBlock fb = fileBlockProducer.poll(500, TimeUnit.MILLISECONDS);
+                    FileBlock fb = fileBlockProducer.poll(5, TimeUnit.SECONDS);
                     
                     if(fb == null) {
                         
@@ -107,12 +135,9 @@ public class SocketWriterTask extends SocketTask {
                     }
                 }
                 
-                continue;
-            } else if (count < 0) {
-                attach.payload.limit(attach.payloadSize);
-                return count;
-            } else {
-                
+            }
+            
+            if (count == 0) {
                 attach.payload.limit(attach.payloadSize);
                 
                 if(fdtSelectionKey.opCount++ > RETRY_IO_COUNT) {
@@ -127,7 +152,11 @@ public class SocketWriterTask extends SocketTask {
                 }
                 
                 continue;
-            }
+            } 
+                
+            
+            attach.payload.limit(attach.payloadSize);
+            return count;
             
         }
         
@@ -140,10 +169,6 @@ public class SocketWriterTask extends SocketTask {
                 FDTWriterKeyAttachement attach = (FDTWriterKeyAttachement)fdtSelectionKey.attachment();
                 if(attach != null) {
                     attach.recycleBuffers();
-                    if(attach.fileBlock != null) {
-                        FileBlock.returnFileBlock(attach.fileBlock);
-                    }
-                    
                 }
                 fdtSelectionKey = null;
             }
@@ -186,13 +211,6 @@ public class SocketWriterTask extends SocketTask {
     }
     
     public void run() {
-        String cName = Thread.currentThread().getName();
-        String name = " SocketWriterTask for [ " + master.fdtSession.sessionID() + " / " + " ]";
-        Thread.currentThread().setName(name);
-        
-        if(logger.isLoggable(Level.FINE)) {
-            logger.log(Level.FINE, name + " STARTED !");
-        }
         
         try {
             for(;;) {
@@ -201,25 +219,19 @@ public class SocketWriterTask extends SocketTask {
                     readyChannelsQueue.offer(FDTSelectionKey.END_PROCESSING_NOTIF_KEY);
                     return;
                 }
-                String cName1 = Thread.currentThread().getName();
-                String name1 = cName1 + " / " + fdtSelectionKey.channel();
-                
-                Thread.currentThread().setName(name1);
                 
                 if(logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST, " writeDate for SK: " + fdtSelectionKey + " SQSize : " + readyChannelsQueue.size() + " SelQueue: "  + readyChannelsQueue);
+                    logger.log(Level.FINEST, " writeDate for SK: " + Utils.toStringSelectionKey(fdtSelectionKey) + " SQSize : " + readyChannelsQueue.size() + " SelQueue: "  + readyChannelsQueue);
                 }
                 
                 if(writeData() < 0) {
                     return;
                 }
                 
-                Thread.currentThread().setName(cName1);
             }
         } catch (Throwable t) {
-            logger.log(Level.WARNING, " Got exception writing data to socket on: " + name, t);
             master.workerDown(fdtSelectionKey, t);
-            close(" SocketWriterTask got exception ", t);
+            close("SocketWriterTask got exception ", t);
         } finally {
             try {
                 if(fdtSelectionKey != null && fdtSelectionKey.attachment() != null) {
@@ -230,9 +242,7 @@ public class SocketWriterTask extends SocketTask {
                 logger.log(Level.WARNING, " Got exception trying to return buffers to the pool", t1);
             }
             
-            Thread.currentThread().setName(cName);
             master.workerDown(fdtSelectionKey, null);
-            
             
             close(null, null);
         }

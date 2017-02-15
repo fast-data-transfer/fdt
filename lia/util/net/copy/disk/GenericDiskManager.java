@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.disk;
 
 import java.util.Collections;
@@ -7,6 +8,7 @@ import java.util.TreeSet;
 
 import lia.util.net.common.AbstractFDTIOEntity;
 import lia.util.net.copy.FDTSession;
+
 
 abstract class GenericDiskManager extends AbstractFDTIOEntity {
 
@@ -31,5 +33,9 @@ abstract class GenericDiskManager extends AbstractFDTIOEntity {
     
     public Set<FDTSession> getSessions() {
         return sessions;
+    }
+    
+    public long getSize() {
+        return -1;
     }
 }

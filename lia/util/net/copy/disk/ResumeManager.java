@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.disk;
 
 import java.util.logging.Level;
@@ -12,20 +13,9 @@ public class ResumeManager {
     private static final transient Logger logger = Logger.getLogger(ResumeManager.class.getName());
 
 
-    public static ResumeManager _thisInstance;
-    private static volatile boolean initialized;
+    private static final ResumeManager _thisInstance = new ResumeManager();
     
     public static final ResumeManager getInstance() {
-        
-        if(!initialized) {
-            synchronized(ResumeManager.class) {
-                if(!initialized) {
-                    initialized = true;
-                    _thisInstance = new ResumeManager();
-                }
-            }
-        }
-        
         return _thisInstance;
     }
     

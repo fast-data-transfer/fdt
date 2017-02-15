@@ -1,8 +1,8 @@
+
 package lia.util.net.copy.monitoring.lisa.xdr;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-
 
 
 public class XDRMessage {

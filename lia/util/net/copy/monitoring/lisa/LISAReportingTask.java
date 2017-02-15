@@ -1,31 +1,30 @@
+
 package lia.util.net.copy.monitoring.lisa;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import lia.util.net.common.Config;
+import lia.util.net.common.Utils;
+import lia.util.net.copy.FDTReaderSession;
 import lia.util.net.copy.FDTSession;
-import lia.util.net.copy.disk.DiskReaderManager;
-import lia.util.net.copy.disk.DiskWriterManager;
-import lia.util.net.copy.monitoring.FDTInternalMonitoringTask;
-import lia.util.net.copy.transport.TCPTransportProvider;
+import lia.util.net.copy.FDTWriterSession;
+import lia.util.net.copy.monitoring.FDTReportingTask;
+import lia.util.net.copy.monitoring.FDTSessionMonitoringTask;
 
-public class LISAReportingTask implements Runnable {
+
+public class LISAReportingTask extends FDTReportingTask {
 
     private static final Logger logger = Logger.getLogger(LISAReportingTask.class.getName());
 
-    private static final DiskWriterManager diskWriterManager = DiskWriterManager.getInstance();
-    private static final DiskReaderManager diskReaderManager = DiskReaderManager.getInstance();
     
     private final String lisaHost;
     private final int lisaPort;
     
     MonClient lisaMon;
-    private static final double MEGA_BYTE_FACTOR = 1024D * 1024D;
-    private static final double MEGA_BIT_FACTOR = 1000D * 1000D;
+    
     private boolean errorReported = false;
     
     private static LISAReportingTask _thisInstance;
@@ -40,6 +39,12 @@ public class LISAReportingTask implements Runnable {
         return _thisInstance;
     }
 
+    public static final LISAReportingTask getInstanceNow() {
+        synchronized(LISAReportingTask.class) {
+            return _thisInstance;
+        }
+    }
+    
     public static final LISAReportingTask getInstance() {
         synchronized(LISAReportingTask.class) {
             while(_thisInstance == null) {
@@ -58,6 +63,101 @@ public class LISAReportingTask implements Runnable {
         this.lisaHost = lisaHost;
         this.lisaPort = lisaPort;
         lisaMon = null;
+    }
+    
+    private void publishStartFinishParams(final FDTSession fdtSession) {
+        if(fdtSession != null) {
+            try {
+                final HashMap<String, HashMap<String, Double>> lisaParams = new HashMap<String, HashMap<String, Double>>();
+                final HashMap<String, Double> fdtSessionParams = new HashMap<String, Double>();
+                final FDTSessionMonitoringTask fdtSessionMTask = fdtSession.getMonitoringTask();
+
+                if(fdtSessionMTask != null) {
+                    if(fdtSession instanceof FDTWriterSession) {
+                        final double rate = fdtSessionMTask.getTotalRate()/Utils.MEGA_BYTE;
+                        fdtSessionParams.put("DISK_WRITE_MB", rate);
+                        final double tSize = fdtSession.getSize()/(double)Utils.MEGA_BYTE;
+                        final double cSize = fdtSession.getTotalBytes()/(double)Utils.MEGA_BYTE;
+                        fdtSessionParams.put("TotalMBytes", tSize);
+                        fdtSessionParams.put("TransferredMBytes", cSize);
+                        fdtSessionParams.put("Status", (double)fdtSession.getCurrentStatus());
+
+                        if(fdtSession.getSize() != 0) {
+                            fdtSessionParams.put("TransferRatio", (cSize*100)/tSize);
+                        }
+
+                        final String monID = fdtSession.getMonID(); 
+                        if(monID != null) {
+                            lisaParams.put(monID, fdtSessionParams);
+                        } else {
+                            lisaParams.put(fdtSession.getRemoteAddress().getHostAddress()+":"+fdtSession.getRemotePort(), fdtSessionParams);
+                        }
+
+                        if(lisaParams.size() > 0) {
+                            if(logger.isLoggable(Level.FINE)) {
+                                logger.log(Level.FINE, " Sending to LISA :- Client Params: " + lisaParams);
+                            }
+                            for(Map.Entry<String, HashMap<String, Double>> entry: lisaParams.entrySet()) {
+                                HashMap<String, Double> hToSend = entry.getValue();
+                                if(hToSend.size() > 0) {
+                                    lisaMon.sendServerParameters(entry.getKey(), hToSend);
+                                }
+                            }
+                        }
+
+                    } else if(fdtSession instanceof FDTReaderSession){
+                        final double rate = fdtSessionMTask.getTotalRate()/Utils.MEGA_BYTE;
+                        fdtSessionParams.put("DISK_READ_MB", rate);
+                        final double tSize = fdtSession.getSize()/(double)Utils.MEGA_BYTE;
+                        final double cSize = fdtSession.getTotalBytes()/(double)Utils.MEGA_BYTE;
+                        fdtSessionParams.put("TotalMBytes", tSize);
+                        fdtSessionParams.put("TransferredMBytes", cSize);
+                        if(fdtSession.getSize() != 0) {
+                            fdtSessionParams.put("TransferRatio", (cSize*100)/tSize);
+                        }
+                        fdtSessionParams.put("Status", (double)fdtSession.getCurrentStatus());
+
+                        final String monID = fdtSession.getMonID(); 
+                        if(monID != null) {
+                            lisaParams.put(monID, fdtSessionParams);
+                        } else {
+                            lisaParams.put(fdtSession.getRemoteAddress().getHostAddress()+":"+fdtSession.getRemotePort(), fdtSessionParams);
+                        }
+
+                        if(lisaParams.size() > 0) {
+                            if(logger.isLoggable(Level.FINE)) {
+                                logger.log(Level.FINE, " Sending to LISA :- Server Params: " + lisaParams);
+                            }
+                            for(Map.Entry<String, HashMap<String, Double>> entry: lisaParams.entrySet()) {
+                                HashMap<String, Double> hToSend = entry.getValue();
+                                if(hToSend.size() > 0) {
+                                    lisaMon.sendClientParameters(entry.getKey(), hToSend);
+                                }
+                            }
+                        }
+
+                    } else {
+                        logger.log(Level.WARNING, "[ERROR] FDT Session is not an \"instanceof\" FDTWriterSession or FDTReaderSession!!!");
+                        return;
+                    }
+                } else {
+                    logger.log(Level.WARNING, "[ERROR] FDTSessionMonitoringTask is null in finishFDTSession(fdtSession)!!!");
+                }
+
+            }catch(Throwable t) {
+                logger.log(Level.WARNING, "Got expcetion notifying last params for " + fdtSession.sessionID(), t);
+            }
+        } else {
+            logger.log(Level.WARNING, "[ERROR] FDT Session is null in finishFDTSession(fdtSession)!!!");
+        }
+    }
+    
+    public void startFDTSession(final FDTSession fdtSession) {
+        publishStartFinishParams(fdtSession);
+    }
+    
+    public void finishFDTSession(final FDTSession fdtSession) {
+        publishStartFinishParams(fdtSession);
     }
     
     public void run() {
@@ -79,37 +179,7 @@ public class LISAReportingTask implements Runnable {
             
             errorReported = false;
             
-            FDTSession fdtSession = null;
-            Iterator<FDTSession> it = null;
-            
-            double totalNet = 0;
-            double totalDisk = 0;
-            
-            HashMap<String, HashMap<String, Double>> lisaParams = new HashMap<String, HashMap<String, Double>>();
-            double rate = 0;
-            
-            
-            it = diskReaderManager.getSessions().iterator();
-            while(it.hasNext()) {
-                fdtSession = it.next();
-                TCPTransportProvider transportProvider = fdtSession.getTransportProvider();
-                HashMap<String, Double> fdtSessionParams = new HashMap<String, Double>();
-                
-                if(transportProvider != null && transportProvider.monitoringTask != null) {
-                    rate = ( transportProvider.monitoringTask.getTotalRate() * 8D ) / MEGA_BIT_FACTOR;
-                    totalNet += rate;
-                    fdtSessionParams.put("NET_OUT", rate);
-                }
-                
-
-                if(fdtSession.getMonitoringTask() != null) {
-                    rate = fdtSession.getMonitoringTask().getTotalRate() /MEGA_BYTE_FACTOR;
-                    fdtSessionParams.put("DISK_READ", rate);
-                    totalDisk += rate;
-                }
-
-                lisaParams.put(fdtSession.getRemoteAddress().getHostAddress()+":"+fdtSession.getRemotePort(), fdtSessionParams);
-            }
+            HashMap<String, HashMap<String, Double>> lisaParams = getReaderParams();
             
             if(lisaParams.size() > 0) {
                 if(logger.isLoggable(Level.FINE)) {
@@ -123,35 +193,11 @@ public class LISAReportingTask implements Runnable {
                 }
             }
             
-            lisaParams.clear();
-            
-            
-            it = diskWriterManager.getSessions().iterator();
-            totalNet = 0;
-            totalDisk = 0;
-            
-            while(it.hasNext()) {
-                fdtSession = it.next();
-                TCPTransportProvider transportProvider = fdtSession.getTransportProvider();
-                HashMap<String, Double> fdtSessionParams = new HashMap<String, Double>();
-                
-                if(transportProvider != null && transportProvider.monitoringTask != null) {
-                    rate = ( transportProvider.monitoringTask.getTotalRate() * 8 ) / MEGA_BIT_FACTOR;
-                    totalNet += rate;
-                    fdtSessionParams.put("NET_IN", rate);
-                }
-                
+            lisaParams = getWriterParams();
 
-                if(fdtSession.getMonitoringTask() != null) {
-                    rate = fdtSession.getMonitoringTask().getTotalRate() /MEGA_BYTE_FACTOR;
-                    fdtSessionParams.put("DISK_WRITE", rate);
-                    totalDisk += rate;
-                }
-                
-                lisaParams.put(fdtSession.getRemoteAddress().getHostAddress()+":"+fdtSession.getRemotePort(), fdtSessionParams);
-                
-            }
-            
+            double totalNet = 0;
+            double totalDisk = 0;
+
             if(lisaParams.size() > 0) {
                 if(logger.isLoggable(Level.FINE)) {
                     logger.log(Level.FINE, " Sending to LISA :- Server Params: " + lisaParams);
@@ -159,6 +205,16 @@ public class LISAReportingTask implements Runnable {
                 for(Map.Entry<String, HashMap<String, Double>> entry: lisaParams.entrySet()) {
                     HashMap<String, Double> hToSend = entry.getValue();
                     if(hToSend.size() > 0) {
+                        Double dToAdd = hToSend.get("NET_IN_Mb");
+                        if(dToAdd != null) {
+                            totalNet += dToAdd;
+                        }
+                        
+                        dToAdd = hToSend.get("DISK_WRITE_MB");
+                        if(dToAdd != null) {
+                            totalDisk += dToAdd;
+                        }
+                        
                         lisaMon.sendServerParameters(entry.getKey(), hToSend);
                     }
                 }
@@ -167,43 +223,43 @@ public class LISAReportingTask implements Runnable {
             if(Config.getInstance().getHostName() == null) {
                 HashMap<String, Double> localParams = new HashMap<String, Double>();
                 localParams.put("CLIENTS_NO", (double)lisaParams.size());
-                localParams.put("DISK_WRITE", totalDisk);
-                localParams.put("NET_IN", totalNet);
+                localParams.put("DISK_WRITE_MB", totalDisk);
+                localParams.put("NET_IN_Mb", totalNet);
                 
                 lisaMon.sendServerParameters("FDT_PARAMS", localParams);
             }
             
-            HashMap<String, Double> fdtLisaParams = FDTInternalMonitoringTask.getInstance().getLisaParams();            
-            
-            String key = "FDT_MON:";
-            if(Config.getInstance().getHostName() == null) {
-                key += Config.getInstance().getPort();
-            } else {
-                String rPort = "";
-                it = diskReaderManager.getSessions().iterator();
-                while(it.hasNext()) {
-                    fdtSession = it.next();
-                    rPort += fdtSession.getLocalPort();
-                }
 
-                it = diskWriterManager.getSessions().iterator();
-                while(it.hasNext()) {
-                    fdtSession = it.next();
-                    rPort += fdtSession.getLocalPort();
-                }
-                
-                if(rPort.length() == 0) {
-                    rPort = "UNK";
-                }
-                
-                key += rPort;
-            }
 
-            if(logger.isLoggable(Level.FINER)) {
-                logger.log(Level.FINER, "FDT Params: " + fdtLisaParams + " Key: " + key);
-            }
-            
-            lisaMon.sendServerParameters(key, fdtLisaParams);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             
         }catch(Throwable t) {
             logger.log(Level.INFO, " LISAReportingTask got exception:", t);

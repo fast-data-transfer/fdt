@@ -1,3 +1,4 @@
+
 package lia.util.net.common;
 
 import java.io.FileInputStream;
@@ -20,6 +21,7 @@ public class MassStorage {
     private String storageAccessPoint;
     private String localFilePrefix;
     private String localFileDir;
+    private int nThreads;
     private int verbose;
 
     public String siteStorageID() { return this.siteStorageID; }
@@ -30,6 +32,7 @@ public class MassStorage {
     public String storageAccessPoint() { return this.storageAccessPoint; }
     public String localFilePrefix() { return this.localFilePrefix; }
     public String localFileDir() { return this.localFileDir; }
+    public int nThreads() { return this.nThreads; }
     public int verbose() { return this.verbose; }
     
     static public boolean checkType(String type) {
@@ -64,22 +67,28 @@ public class MassStorage {
 	    = prop.getProperty("storage.localFilePrefix","");
 	this.localFileDir
 	    = prop.getProperty("storage.localFileDir",".");
+        this.nThreads 
+            = (Integer.valueOf(prop.getProperty("storage.nThreads","1")))
+            .intValue();
 	this.verbose 
 	    = (Integer.valueOf(prop.getProperty("storage.verbosity","0")))
 	    .intValue();
 
 	
-	if( this.storageAccessCmd.length()==0 
-	    || this.storageAccessPoint.length()==0 ) {
+	if( this.storageAccessCmd.length() == 0 ) {
 	    logger.log(Level.SEVERE,"Incorrect storage parameters specified.");
 	    return false;
 	}
+        if( this.nThreads == 0 ) {
+            logger.log(Level.SEVERE,"No threads for storage transfer allowed.");
+            return false;
+        }
 
 	
 	try {
 	    Process pro = Runtime.getRuntime().exec("which "+storageAccessCmd);
-	    pro.waitFor();
-	    if( pro.exitValue() != 0 ) {
+	    int exitValue = pro.waitFor();
+	    if( exitValue != 0 ) {
 		logger.log(Level.SEVERE,"Unable to find executable "
 			   +this.storageAccessCmd);
 		return false;
@@ -103,7 +112,8 @@ public class MassStorage {
 			       +"storageAccessPoint = "
 			       +this.storageAccessPoint+"\n"
 			       +"localFilePrefix = "+this.localFilePrefix+"\n"
-			       +"localFileDir = "+this.localFileDir);
+			       +"localFileDir = "+this.localFileDir+"\n"
+                               +"nThreads = "+this.nThreads);
 	}
 
 	

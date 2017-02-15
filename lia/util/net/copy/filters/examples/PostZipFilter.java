@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.filters.examples;
 import java.io.File;
 import java.io.FileInputStream;
@@ -25,7 +26,7 @@ public class PostZipFilter implements Postprocessor {
             ZipInputStream in = new ZipInputStream(new FileInputStream(inFilename));
 
             
-            ZipEntry entry = in.getNextEntry();
+            final ZipEntry entry = in.getNextEntry();
 
             
             String outFilename = inFilename.substring(0, inFilename.length() - 4);

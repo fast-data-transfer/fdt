@@ -1,3 +1,4 @@
+
 package lia.util.net.copy;
 
 import java.io.File;
@@ -108,6 +109,10 @@ public class FileWriterSession extends FileSession {
         if(!isNull && file != null && tmpCopyFile != null && downCause() == null) {
             tmpCopyFile.renameTo(file);
             file.setLastModified(lastModified);
+        } else {
+            if(downCause() != null || downMessage() != null && tmpCopyFile != null) {
+                tmpCopyFile.delete();
+            }
         }
 
         if(isLoop) {

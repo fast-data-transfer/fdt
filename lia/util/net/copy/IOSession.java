@@ -1,3 +1,4 @@
+
 package lia.util.net.copy;
 
 import java.util.UUID;
@@ -7,7 +8,8 @@ import lia.util.net.common.AbstractFDTCloseable;
 public abstract class IOSession extends AbstractFDTCloseable {
  
     
-    protected UUID sessionID;
+    protected final UUID sessionID;
+    public final long startTime;
     
     
     protected long sessionSize;
@@ -18,11 +20,13 @@ public abstract class IOSession extends AbstractFDTCloseable {
     
     public IOSession(UUID sessionID) {
         this.sessionID = sessionID;
+        startTime = System.currentTimeMillis();
     }
     
     public IOSession(UUID sessionID, long sessionSize) {
         this.sessionID = sessionID;
         this.sessionSize = sessionSize;
+        startTime = System.currentTimeMillis();
     }
     
     public UUID sessionID() {
@@ -35,10 +39,6 @@ public abstract class IOSession extends AbstractFDTCloseable {
     
     public void setSessionSize(long sessionSize) {
         this.sessionSize = sessionSize;
-    }
-    
-    public void setSessionID(UUID sessionID) {
-        this.sessionID = sessionID;
     }
     
 }

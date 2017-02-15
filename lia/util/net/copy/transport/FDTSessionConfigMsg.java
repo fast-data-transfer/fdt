@@ -1,8 +1,10 @@
+
 package lia.util.net.copy.transport;
 
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.UUID;
+
 
 public class FDTSessionConfigMsg implements Serializable {
 

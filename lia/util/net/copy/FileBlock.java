@@ -1,9 +1,8 @@
+
 package lia.util.net.copy;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class FileBlock {
@@ -11,50 +10,34 @@ public class FileBlock {
     
     public static final FileBlock EOF_FB = new FileBlock(UUID.randomUUID(), UUID.randomUUID(), -1, ByteBuffer.allocate(0));
     
-    public UUID fileSessionID;
-    public UUID fdtSessionID;
+    public final UUID fdtSessionID;
+    public final UUID fileSessionID;
     public long fileOffset;
-    public ByteBuffer buff;
+    public final ByteBuffer buff;
 
-    private static ConcurrentLinkedQueue<FileBlock> cache = new ConcurrentLinkedQueue<FileBlock>();
-    private static AtomicInteger count = new AtomicInteger(0);
-    
-    public static final int MAX_FB_CACHE = 500;
-    
-    
-    private FileBlock(UUID fdtSessionID, UUID fileSessionID, long fileOffset, ByteBuffer buff) {
-        init(fdtSessionID, fileSessionID, fileOffset, buff);
-    }
-    
-    private void init(UUID fdtSessionID, UUID fileSessionID, long fileOffset, ByteBuffer buff) {
+    private FileBlock(final UUID fdtSessionID, final UUID fileSessionID, final long fileOffset, final ByteBuffer buff) {
+        if(fdtSessionID == null) {
+            throw new NullPointerException(" [ FDT Bug ? ] fdtSessionID cannot be null; fileSessionID: " + fileSessionID);
+        }
+        
+        if(fileSessionID == null) {
+            throw new NullPointerException(" [ FDT Bug ? ] fileSessionID cannot be null; fdtSessionID: " + fdtSessionID);
+        }
+        
+        if(buff == null) {
+            throw new NullPointerException(" [ FDT Bug ? ] buff cannot be null; fdtSessionID: " + fdtSessionID + " fileSessionID: " + fileSessionID);
+        }
+        
+        this.fdtSessionID = fdtSessionID;
         this.fileSessionID = fileSessionID;
         this.fileOffset = fileOffset;
         this.buff = buff;
-        this.fdtSessionID = fdtSessionID;
-
     }
+    
+    
     
     public static FileBlock getInstance(UUID fdtSessionID, UUID fileSessionID, long fileOffset, ByteBuffer buff) {
-        if(fileSessionID == null || buff == null) {
-            throw new NullPointerException();
-        }
-        FileBlock fb = cache.poll();
-        if(fb == null) {
-            return new FileBlock(fdtSessionID, fileSessionID, fileOffset, buff);
-        }
-        
-        count.decrementAndGet();
-        fb.init(fdtSessionID, fileSessionID, fileOffset, buff);
-        
-        return fb;
-    }
-    
-    public static void returnFileBlock(FileBlock fb) {
-        if( count.get() > MAX_FB_CACHE ) {
-            return;
-        }
-        count.incrementAndGet();
-        cache.add(fb);
+        return new FileBlock(fdtSessionID, fileSessionID, fileOffset, buff);
     }
     
     public String toString() {

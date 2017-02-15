@@ -1,3 +1,4 @@
+
 package lia.util.net.common;
 import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -14,15 +15,15 @@ public class HeaderBufferPool {
     private static final transient Logger logger = Logger.getLogger(HeaderBufferPool.class.getName());
 
     
-    public static int BUFFER_SIZE;
+    private static int BUFFER_SIZE;
     
     
     
     
-    public AtomicInteger POOL_SIZE;
+    public static final AtomicInteger POOL_SIZE = new AtomicInteger(0);;
     
     
-    public static HeaderBufferPool _theInstance;
+    private static HeaderBufferPool _theInstance;
     
     
     private static volatile boolean initialized = false;
@@ -33,7 +34,6 @@ public class HeaderBufferPool {
 
     private HeaderBufferPool() {
         thePool = new LinkedBlockingQueue<ByteBuffer>();
-        POOL_SIZE = new AtomicInteger(0);
     }
     
     public static final HeaderBufferPool getInstance() {
@@ -62,9 +62,10 @@ public class HeaderBufferPool {
             }catch(OutOfMemoryError oom) {
                 if(limitReached.compareAndSet(false, true)) {
                     logger.log(Level.WARNING,
-                            "\n\n !! ByteBuffer reached max limit. The copy may be slow!!" +
-                            "\n You may consider to increase to higher values ( e.g. -XX:MaxDirectMemorySize=256m )," +
-                            "\n or decrease either the buffer size( -bs param) or the number of workers (-P) \n\n\n");
+                               "\n\n !! Direct ByteBuffer memory pool reached max limit. Allocated: " + (totalAllocated() + DirectByteBufferPool.totalAllocated())/(1024*1024) + " MB. " +
+                               "\n FDT reuses the existing buffers, but the copy may be slow!!" +
+                               "\n You may consider to increase the default value used by the JVM ( e.g. -XX:MaxDirectMemorySize=256m )," +
+                               "\n or decrease either the buffer size( -bs param) or the number of workers (-P param) \n\n\n");
                 }
                 return null;
             }catch(Throwable t) {
@@ -80,6 +81,11 @@ public class HeaderBufferPool {
         return null;
     }
 
+    
+    public static final long totalAllocated() {
+        return POOL_SIZE.get() * BUFFER_SIZE;
+    }
+
     public static final void initInstance() {
         
         synchronized(HeaderBufferPool.class) {
@@ -89,7 +95,7 @@ public class HeaderBufferPool {
 
                 _theInstance = new HeaderBufferPool();
                 
-                for(int i=0; i< Runtime.getRuntime().availableProcessors() * 20; i++) {
+                for(int i=0; i< Runtime.getRuntime().availableProcessors() * 2; i++) {
                     _theInstance.thePool.offer(_theInstance.tryAllocateBuffer());
                 }
 

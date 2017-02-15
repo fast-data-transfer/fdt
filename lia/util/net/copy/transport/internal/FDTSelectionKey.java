@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.transport.internal;
 
 import java.nio.channels.SelectionKey;
@@ -5,6 +6,8 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import lia.util.net.common.Utils;
 
 
 public class FDTSelectionKey {
@@ -28,6 +31,8 @@ public class FDTSelectionKey {
 
     public int opCount;
     private Object attachment;
+    
+    int MSS = -1;
     
     public FDTSelectionKey(UUID fdtSessionID, SocketChannel channel, int interests, SelectionHandler handler, Object attachement) {
         this.channel = channel;
@@ -122,4 +127,19 @@ public class FDTSelectionKey {
         return attachment;
     }
     
+    public int getMSS() {
+        return MSS;
+    }
+    
+    public void setMSS(int MSS) {
+        this.MSS = MSS;
+    }
+    
+    public Selector selector() {
+        return selector;
+    }
+    
+    public String toString() {
+        return Utils.toStringSelectionKey(this);
+    }
 }

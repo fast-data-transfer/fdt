@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.transport;
 
 import java.io.IOException;
@@ -35,6 +36,7 @@ import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import lia.util.net.copy.transport.internal.SelectionHandler;
 import lia.util.net.copy.transport.internal.SelectionManager;
 
+
 public abstract class TCPTransportProvider extends AbstractFDTIOEntity implements SelectionHandler, SpeedLimiter {
     
     private static final Logger logger = Logger.getLogger(TCPTransportProvider.class.getName());
@@ -68,8 +70,6 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
         this.fdtSession = fdtSession;
         if(!isClosed()) {
             this.monitoringTask = new NetSessionMonitoringTask(this);
-            ScheduledExecutorService monitoringService = Utils.getMonitoringExecService();
-            monitoringTaskFuture = monitoringService.scheduleWithFixedDelay(monitoringTask, 1, 5, TimeUnit.SECONDS);
             limiterTask = SpeedLimitManager.getInstance().addLimiter(this);
         }
     }
@@ -80,6 +80,10 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
     
     public final boolean localLoop() {
         return fdtSession.localLoop();
+    }
+    
+    public long getSize() {
+        return -1;
     }
     
     public long getNotifyDelay() {
@@ -126,24 +130,25 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
                     sc.socket().setSendBufferSize(windowSize);
                 }
                 
-                usedWindowSize = sc.socket().getSendBufferSize();
-                
-                if (noDelay) {
-                    sc.socket().setTcpNoDelay(true);
-                } else {
-                    sc.socket().setTcpNoDelay(false);
-                }
-                
-                try {
-                    sc.socket().setKeepAlive(true);
-                }catch(Throwable t) {
-                    logger.log(Level.WARNING, " Cannot set KEEP_ALIVE", t);
-                }
-                
                 if(!sc.isBlocking()) {
                     sc.register(tmpSelector, SelectionKey.OP_CONNECT | SelectionKey.OP_WRITE);
                 } else {
                     sc.finishConnect();
+
+                    try {
+                        sc.socket().setTcpNoDelay(!noDelay);
+                    } catch(Throwable t) {
+                        logger.log(Level.WARNING, " Cannot enable/disable Nagle's alg", t);
+                    }
+                    
+                    try {
+                        sc.socket().setKeepAlive(true);
+                    }catch(Throwable t) {
+                        logger.log(Level.WARNING, " Cannot set KEEP_ALIVE", t);
+                    }
+
+                    usedWindowSize = sc.socket().getSendBufferSize();
+
                     if(connectCookie != null) {
                         if(sc.write(connectCookie) >= 0 && !connectCookie.hasRemaining()) {
                             connectedChannels.add(sc);
@@ -155,8 +160,6 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
                 }
                 
             }
-            
-            logger.log(Level.INFO, "Requested window size " + windowSize +". Using window size: " + usedWindowSize);
             
             
             int i=0;
@@ -180,6 +183,20 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
                             Thread.yield();
                         }
                     } else {
+                        try {
+                            sc.socket().setTcpNoDelay(!noDelay);
+                        } catch(Throwable t) {
+                            logger.log(Level.WARNING, " Cannot enable/disable Nagle's alg", t);
+                        }
+                        
+                        try {
+                            sc.socket().setKeepAlive(true);
+                        }catch(Throwable t) {
+                            logger.log(Level.WARNING, " Cannot set KEEP_ALIVE", t);
+                        }
+
+                        usedWindowSize = sc.socket().getSendBufferSize();
+
                         ssk.interestOps(ssk.interestOps() & ~SelectionKey.OP_WRITE);
                         if(connectCookie != null) {
                             while(sc.write(connectCookie) >= 0 && connectCookie.hasRemaining()) {
@@ -196,7 +213,9 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
                     }
                 }
             }
-            
+
+            logger.log(Level.INFO, "Requested window size " + windowSize +". Using window size: " + usedWindowSize);
+
         } catch(Throwable t) {
             logger.log(Level.WARNING, "Unable to connect to " + addr.toString(), t);
             for(SocketChannel sc: tmpChannels) {
@@ -281,6 +300,7 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
             monitoringService.purge();
         }
         
+        
         if(executor != null) {
             executor.shutdown();
         }
@@ -289,10 +309,8 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
             fdtSession.close(downMessage(), downCause());
         }
         
-        int cSize = 1;
         
         if(channels != null) {
-            cSize = channels.size();
             synchronized(channels) {
                 for(Map.Entry<SocketChannel, FDTSelectionKey> entry: channels.entrySet()) {
                     try {
@@ -323,26 +341,12 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
             }
         }
         
+        
         if(executor != null) {
-            for( ;; ) {
-                
-                clearSelectionQueue();
-                if(executor.isTerminated()) {
-                    clearSelectionQueue();
-                    break;
-                }
-                
-                if(logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, "TCPTrasportProvider waiting for TCPWorkers tasks to finish");
-                }
-                try {
-                    closeLock.wait(1 * 1000);
-                }catch(Throwable t1){}
-                
-            }
-        } else {
-            clearSelectionQueue();
+            executor.shutdownNow();
         }
+        
+        clearSelectionQueue();
         
     }
     
@@ -390,7 +394,7 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
     
     public void handleSelection(FDTSelectionKey fdtSelectionKey) {
         if(logger.isLoggable(Level.FINEST)) {
-            logger.log(Level.FINEST, "    [ SELECTION ] [ NBIO ] handle selection for " + fdtSelectionKey);
+            logger.log(Level.FINEST, " [ TCPTransportProvider ]  [ SELECTION ] [ NBIO ] handle selection for " + Utils.toStringSelectionKey(fdtSelectionKey));
         }
         selectionQueue.add(fdtSelectionKey);
     }
@@ -420,11 +424,16 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
     }
     
     public void addWorkerStream(SocketChannel channel) throws Exception {
-        if(isClosed()) throw new FDTProcolException("The transport provider is down");
         synchronized(this.channels) {
             if(logger.isLoggable(Level.FINER)) {
                 logger.log(Level.FINER, " TCPTransportProvider add working stream for channel: " + channel);
             }
+            
+            if(monitoringTaskFuture == null) {
+                final ScheduledExecutorService monitoringService = Utils.getMonitoringExecService();
+                monitoringTaskFuture = monitoringService.scheduleWithFixedDelay(monitoringTask, 1, 1, TimeUnit.SECONDS);
+            }
+
             this.channels.put(channel, null);
         }
     }

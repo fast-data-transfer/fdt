@@ -1,13 +1,19 @@
+
 package lia.util.net.copy;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Hashtable;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 
 public class PartitionMap {
-	
+
+    
+    private static final Logger logger = Logger.getLogger(PartitionMap.class.getName());
+
     public static final String osname = System.getProperty("os.name");
     
     public static final int getPartition(String fileName) {
@@ -24,57 +30,75 @@ public class PartitionMap {
 			command="stat -L -f \"%Hd\" \""+fileName+"\"";
 		}
 		if ( command!=null ) {
-			
-			BufferedReader br = null;
-			br = runCommand(command);
-			if ( br!=null ) {
-				try {
-					String sId = br.readLine();
-					return Integer.parseInt(sId);
-				} catch( Exception ex) {
-					
-				}
-			}
+		    final String fLine = runICommand(command);
+		    if ( fLine!=null ) {
+		        try {
+		            return Integer.parseInt(fLine);
+		        } catch( Throwable t) {
+		            if(logger.isLoggable(Level.FINE)) {
+		                logger.log(Level.FINE, " [ PartitionMap ] exception parsing line: " + fLine + " for cmd: " + command);
+		            }
+		        }
+		    }
 		}
         return 0;
     }
 
 
 	
-	private static BufferedReader runCommand(String cmd) {
+	private static String runICommand(final String cmd) {
+	    BufferedReader br = null;
+	    BufferedReader err = null;
+	    
+	    String retLine = null;
+	    
 		try {
 			Process pro = null;
 
 			if (osname.startsWith("Linux") || osname.startsWith("Mac")) {
-				pro =
-					Runtime.getRuntime().exec(
-							new String[] { "/bin/sh", "-c", cmd });
+				pro = Runtime.getRuntime().exec(cmd);
 			} else if (osname.startsWith("Windows")) {
 				String exehome = System.getProperty("user.home");
 				pro = Runtime.getRuntime().exec(exehome + cmd);
 			}
 
-			InputStream out = pro.getInputStream();
-			BufferedReader br = new BufferedReader(new InputStreamReader(out));
-			BufferedReader err = new BufferedReader(new InputStreamReader(pro.getErrorStream()));
+			if(pro == null) {
+			    return null;
+			}
+			
+			br = new BufferedReader(new InputStreamReader(pro.getInputStream()));
+			err = new BufferedReader(new InputStreamReader(pro.getErrorStream()));
 
-			String buffer = "";
-			String ret = "";
-			while((buffer = err.readLine())!= null) {
-				ret += buffer+"\n'";
+			String line = null;
+			StringBuilder ret = new StringBuilder();
+			while((line = err.readLine())!= null) {
+			    ret.append(line).append("\n");
 			}
 
-			if (ret.length() != 0){
-				return null;
+			if (ret.length() == 0){
+			    retLine = br.readLine();
 			}
 
-			return br;
-
-		} catch (Exception e) {
-			Thread.currentThread().interrupt();
+		} catch (Throwable t) {
+		    if(logger.isLoggable(Level.FINE)) {
+		        logger.log(Level.FINE, " [ PartiotionMap ] [ runICommand ] got exception for cmd: " + cmd, t);
+		    }
+		    retLine = null;
+		} finally {
+            if(err != null) {
+                try {
+                    err.close();
+                }catch(Throwable _) {}
+            }
+            
+            if(br != null) {
+                try {
+                    br.close();
+                }catch(Throwable _) {}
+            }
 		}
-
-		return null;
+		
+		return retLine;
 	}
 
 	private static Hashtable<String,Integer> hLocations = new Hashtable<String,Integer>();

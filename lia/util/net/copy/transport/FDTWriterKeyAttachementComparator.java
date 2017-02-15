@@ -1,11 +1,17 @@
+
 package lia.util.net.copy.transport;
 
+import java.io.Serializable;
 import java.util.Comparator;
 
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
 
-public class FDTWriterKeyAttachementComparator implements Comparator<FDTSelectionKey> {
+
+public class FDTWriterKeyAttachementComparator implements Comparator<FDTSelectionKey>, Serializable {
     
+    
+    private static final long serialVersionUID = -9190255291921632210L;
+
     public int compare(final FDTSelectionKey sk1, final FDTSelectionKey sk2) {
         
         if(sk1 == sk2) return 0;

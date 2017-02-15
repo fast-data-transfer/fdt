@@ -1,3 +1,4 @@
+
 package lia.util.net.copy.transport;
 
 import java.io.BufferedInputStream;
@@ -10,8 +11,13 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -22,7 +28,7 @@ import lia.gsi.net.GSIGssSocketFactory;
 import lia.util.net.common.AbstractFDTCloseable;
 import lia.util.net.common.Config;
 import lia.util.net.common.DirectByteBufferPool;
-import lia.util.net.copy.FDTSessionManager;
+import lia.util.net.common.Utils;
 
 
 public class ControlChannel extends AbstractFDTCloseable implements Runnable {
@@ -40,6 +46,8 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
     private ConcurrentLinkedQueue<Object> qToSend = new ConcurrentLinkedQueue<Object>();
     
+    private AtomicBoolean cleanupFinished = new AtomicBoolean(false);
+    
     private UUID fdtSessionID;
     private ObjectOutputStream oos = null;
     private ObjectInputStream ois = null;
@@ -48,7 +56,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     
     private String fullRemoteVersion;
     
-    public HashMap<String, Object> remoteConf;
+    public Map<String, Object> remoteConf;
     
     public final InetAddress remoteAddress;
     public final int remotePort;
@@ -57,13 +65,9 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     public Subject subject;
     
     private String myName;
-    
-    private ControlChannel() {
-        this.remoteAddress = null;
-        this.remotePort = -1;
-        this.localPort = -1;
-    }
 
+    private int endSession2Count = 0;
+    
     
     public ControlChannel(String address, int port, UUID sessionID, ControlChannelNotifier notifier) throws Exception {
         this(InetAddress.getByName(address), port, sessionID, notifier);
@@ -108,6 +112,9 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         }
     }
 
+    public boolean isSocketClosed() {
+        return (this.controlSocket == null)?true:controlSocket.isClosed();
+    }
     
     
     public ControlChannel(Socket s, ControlChannelNotifier notifier) throws Exception {
@@ -158,6 +165,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         return (controlSocket == null)?"null":controlSocket.toString();
     }
     
+    @SuppressWarnings("unchecked")
     private void initStreams() throws Exception {
         oos = new ObjectOutputStream(new BufferedOutputStream(controlSocket.getOutputStream()));
 
@@ -189,12 +197,12 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         try {
            
             if(DirectByteBufferPool.initInstance(Integer.parseInt((String)remoteConf.get("-bs")))) {
-                if(logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, "The buffer pool has been initialized");
+                if(logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, "The buffer pool has been initialized");
                 }
            } else {
-               if(logger.isLoggable(Level.FINE)) {
-                   logger.log(Level.FINE, "The buffer pool is already initialized");
+               if(logger.isLoggable(Level.FINER)) {
+                   logger.log(Level.FINER, "The buffer pool is already initialized");
                }
            }
            
@@ -214,50 +222,52 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         }
         myName = " ControlThread for ( " + fdtSessionID + " ) " + controlSocket.getInetAddress() + ":" + controlSocket.getPort();
         logger.log(Level.INFO, "NEW CONTROL stream for " + fdtSessionID + " initialized ");
-        
     }
     
     public String remoteVersion() {
         return fullRemoteVersion;
     }
     
-    private void cleanup() {
-        if(ois != null) {
-            try {
-                ois.close();
-            }catch(Throwable t){
-                
+    private final void cleanup(){
+        if(cleanupFinished.compareAndSet(false, true)) {
+            if(ois != null) {
+                try {
+                    ois.close();
+                }catch(Throwable _){}
             }
-            ois = null;
-        }
 
-        if(oos != null) {
-            try {
-                oos.close();
-            }catch(Throwable t){
-                
+            if(oos != null) {
+                try {
+                    oos.close();
+                }catch(Throwable _){}
             }
-            oos = null;
-        }
 
-        if(controlSocket != null) {
-            try {
-                controlSocket.close();
-            }catch(Throwable t){
-                
+            if(controlSocket != null) {
+                try {
+                    controlSocket.close();
+                }catch(Throwable _){}
             }
-            controlSocket = null;
+            
+            if(notifier != null) {
+                try {
+                    notifier.notifyCtrlSessionDown(this, downCause());
+                }catch(Throwable _) {}
+            }
         }
     }
 
-    public void sendCtrlMessage(Object ctrlMsg) throws IOException, FDTProcolException {
+    public void sendCtrlMessage(final Object ctrlMsg) {
         
-        if(isClosed()) {
-            throw new FDTProcolException("Control channel already closed");
+        if(ctrlMsg == null) {
+            throw new NullPointerException("Control message cannot be null over the ControlChannel");
         }
         
         if(logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, "CtrlChannel Queuing for send: " + ctrlMsg.toString());
+            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+            if(logger.isLoggable(Level.FINEST)) {
+                
+                Thread.dumpStack();
+            }
         }
         
         qToSend.add(ctrlMsg);
@@ -266,7 +276,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
     private void sendAllMsgs() throws Exception {
         for(;;) {
-            Object ctrlMsg = qToSend.poll();
+            final Object ctrlMsg = qToSend.poll();
             if(ctrlMsg == null) break;
             sendMsgImpl(ctrlMsg);
         }
@@ -274,61 +284,150 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     
     private void sendMsgImpl(Object o) throws Exception {
         try {
+            if(logger.isLoggable(Level.FINE)) {
+                logger.log(Level.FINE, " [ ControlChannel ] sending message " + o);
+            }
             oos.writeObject(o);
             oos.reset();
             oos.flush();
         } catch(Throwable t) {
-            logger.log(Level.WARNING, "Got exception sending ctrl message", t);
-            close("Exception sending control data", t);
-            throw new IOException(" Cannot send ctrl message ( "  + t.getCause() + " ) ");
+            if(!isClosed()) {
+                close("Exception sending control data", t);
+                throw new IOException(" Cannot send ctrl message ( "  + t.getCause() + " ) ");
+            }
         }
     }
     
     public void run() {
-        if(logger.isLoggable(Level.FINE)) {
-            logger.log(Level.FINE, myName + " STARTED");
+        final BlockingQueue<Object> notifQueue = new ArrayBlockingQueue<Object>(10);
+
+        final Thread iNotif = new Thread() {
+            public void run() {
+                setName( "INotifier for: " + myName );
+                while(controlSocket != null && !controlSocket.isClosed()) {
+                    try {
+                        final Object toNotif = notifQueue.poll(1, TimeUnit.SECONDS);
+                        if(toNotif == null) continue;
+                        if(logger.isLoggable(Level.FINEST)) {
+                            logger.log(Level.FINEST, "[ ControlChannel ] [ INotifier ] notifying msg: " + toNotif);
+                        }
+                        notifier.notifyCtrlMsg(ControlChannel.this, toNotif);
+                    }catch(Throwable t) {
+                        if(logger.isLoggable(Level.FINER)) {
+                            StringBuilder sb = new StringBuilder();
+                            sb.append("[ ControlChannel ] [ INotifier ] Got exception. ControlChannel isClosed(): ").append(isClosed());
+                            if(isClosed()) {
+                                sb.append(" downMessage: ").append(downMessage()).append(" downCause: ").append(Utils.getStackTrace(downCause()));
+                            }
+                            sb.append(" Inotifier Exception: ");
+                            logger.log(Level.FINER, sb.toString(), t);
+                        }
+                        close("INotifier got exception ", t);
+                        cleanup();
+                    }
+                }
+            }
+        };
+        iNotif.setDaemon(true);
+        iNotif.start();
+        
+        if(logger.isLoggable(Level.FINER)) {
+            logger.log(Level.FINER, myName + " STARTED main loop");
         }
+        
+        String internalDownMsg = null;
+        Throwable internalDownCause = null;
+        
         try {
 
-            while(!isClosed()) {
+            while(controlSocket != null && !controlSocket.isClosed()) {
                 try {
                     sendAllMsgs();
                     Object o = ois.readObject();
                     if(o == null) continue;
-                    notifier.notifyCtrlMsg(this, o);
+                    
+                    if(logger.isLoggable(Level.FINE)) {
+                        logger.log(Level.FINE, " [ ControlChannel ] received msg: " + o);
+                    }
+                    
+                    if(o instanceof CtrlMsg) {
+                        final CtrlMsg ctrlMsg = (CtrlMsg)o;
+                        if(ctrlMsg.tag == CtrlMsg.END_SESSION_FIN2) {
+                            if(endSession2Count++ == 2) {
+                                break;
+                            }
+                        }
+                    }
+                    notifQueue.add(o);
                 } catch(SocketTimeoutException ste) {
                     
-                } catch(FDTProcolException fdte) {
-                    logger.log(Level.WARNING, myName, fdte);
-                    close("FDTProtocolException", fdte);
+                } catch(IOException ioe) {
+                    close("Control channel got I/O Exception", ioe);
+                    cleanup();
+                } catch(Throwable t) {
+                    t.printStackTrace();
+                    close("Control channel got general exception. Will close!", t);
+                    cleanup();
                 }
             }
             
         } catch(Throwable t) {
             if(!isClosed()) {
-                if(logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, "Control Thread for " + myName + " got exception in main loop", t);
+                
+                internalDownMsg = myName + " got exception in main loop: " + t.getMessage();
+                internalDownCause = t;
+                
+                if(logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, "Control Thread for " + myName + " got exception in main loop", t);
                 }
             }
-            close(null, t);
+        } finally {
+            if(downMessage() != null || downCause() != null)
+                close(downMessage(), downCause());
+            else
+                close(internalDownMsg, internalDownCause);
         }
         
         logger.log(Level.INFO, myName + " FINISHED");
-        close(downMessage(), downCause());
-        FDTSessionManager.getInstance().finishSession(fdtSessionID, downMessage(), downCause());
-        
     }
 
     protected void internalClose() {
-        try {
-            cleanup();
-        }catch(Throwable ignore){}
         
         try {
-            if(notifier != null) {
-                notifier.notifyCtrlSessionDown(this, downCause());
-            }
-        }catch(Throwable ignore){}
+            final Thread t = new Thread() {
+                
+                public void run() {
+                    setName("(ML) ControlChannel Graceful stopper thread");
+                    
+                    try {
+                        int retry = 0;
+                        
+                        while(retry++ < 3) {
+                            try {
+                                Thread.sleep(1 * 1000);
+                            } catch(Throwable _){}
+                            
+                            try {
+                                if(controlSocket == null || controlSocket.isClosed()) break;
+                                qToSend.add(new CtrlMsg(CtrlMsg.END_SESSION_FIN2, downMessage() + Utils.getStackTrace(downCause())));
+                            }catch(Throwable _){}
+                            
+                        }
+                    } finally {
+                        cleanup();
+                    }
+                }
+            };
+            
+            
+            t.setDaemon(true);
+            t.start();
+        }catch(Throwable _) {
+            
+            try {
+                cleanup();
+            }catch(Throwable _2){}
+        }
     }
     
 }

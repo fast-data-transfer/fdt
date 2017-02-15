@@ -1,3 +1,4 @@
+
 package lia.util.net.jiperf.control;
 
 import java.io.BufferedReader;
@@ -7,6 +8,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 
 import lia.util.net.common.LocalHost;
+
 
 public class ControlStream implements StreamConsumer {
 	

@@ -1,4 +1,6 @@
+
 package lia.util.net.jiperf.control;
+
 
 public interface StreamConsumer {
     
