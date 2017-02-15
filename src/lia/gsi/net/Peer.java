@@ -1,5 +1,5 @@
 /*
- * $Id: Peer.java 341 2007-08-16 12:42:32Z ramiro $
+ * $Id: Peer.java 621 2010-09-03 14:31:24Z ramiro $
  */
 package lia.gsi.net;
 
@@ -14,13 +14,14 @@ import lia.gsi.authz.LocalMappingAuthorization;
  * @author Adrian Muraru
  */
 public class Peer {
-	private Socket socket=null;
-	private  LocalMappingAuthorization authorization = null;
+	private final Socket socket;
+	private final LocalMappingAuthorization authorization;
 	
 	public Peer(Socket socket, LocalMappingAuthorization authz) {
 		this.socket=socket;
 		this.authorization = authz;		
 	}
+	
 	public Socket getSocket() {
 		return this.socket;
 	}

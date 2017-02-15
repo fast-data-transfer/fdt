@@ -1,5 +1,5 @@
 /*
- * $Id: FileWriterSession.java 610 2010-06-21 16:19:39Z ramiro $
+ * $Id: FileWriterSession.java 632 2011-02-08 15:02:37Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -196,6 +196,7 @@ public class FileWriterSession extends FileSession {
                 closed = false;
             }
         } finally {
+            final FileLock fLock = this.fLock;
             if (fLock != null) {
                 try {
                     if(fLock.isValid()) {

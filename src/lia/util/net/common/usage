@@ -87,9 +87,9 @@ Client/Server:
    			 It must be specified in the "sender" and the
    			 "receiver" will print am `md5sum`-like list at the end
    			 of the transfer. Default is the checksum is disabled.
-   -bio			 Blocking I/O mode. In the blocking mode every
+   -(n)bio		 (Non-)Blocking I/O mode. In the blocking mode every
    			 stream(socket) will use a thread to perform the I/O.
-   			 By default non-blocking mode is used
+   			 By default (since 0.9.20) blocking mode is used
    -iof <iof>		 Non blocking I/O retry factor. Repeat every
    			 read/write operation (non-blocking I/O mode only),
    			 which returns 0, up to <iof> times before waiting for

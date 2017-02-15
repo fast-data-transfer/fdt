@@ -1,5 +1,5 @@
 /*
- * $Id: Config.java 618 2010-08-31 18:05:06Z ramiro $
+ * $Id: Config.java 637 2011-02-08 16:10:56Z ramiro $
  */
 package lia.util.net.common;
 
@@ -72,9 +72,9 @@ public class Config {
     // all of this are set by the ant script
     public static final String FDT_MAJOR_VERSION = "0";
     public static final String FDT_MINOR_VERSION = "9";
-    public static final String FDT_MAINTENANCE_VERSION = "17";
+    public static final String FDT_MAINTENANCE_VERSION = "20";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "." + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2010-08-31";
+    public static final String FDT_RELEASE_DATE = "2011-02-08";
     private volatile static Config _thisInstance;
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )
@@ -306,6 +306,10 @@ public class Config {
         isGenTest = (configMap.get("-genb") != null);
         bGSIMode = (configMap.get("-gsi") != null);
         isBlocking = (configMap.get("-bio") != null);
+        if(!isBlocking) {
+            isBlocking = (configMap.get("-nbio") == null);
+        }
+        
         apMonHosts = Utils.getStringValue(configMap, "-enable_apmon", null);
         bRecursive = (configMap.get("-r") != null);
         bUseFixedBlocks = (configMap.get("-fbs") != null);
@@ -319,6 +323,7 @@ public class Config {
 
         if (isNetTest) {
             destDir = "/dev/null";
+            @SuppressWarnings("unchecked")
             List<String> lastParams = (List<String>) configMap.get("LastParams");
             lastParams.add("/dev/zero");
         }
@@ -433,6 +438,7 @@ public class Config {
         }
 
         // try to get the fileList[]
+        @SuppressWarnings("unchecked")
         List<String> lastParams = (List<String>) configMap.get("LastParams");
         if (lastParams == null || lastParams.isEmpty()) {
             String fList = Utils.getStringValue(configMap, "-fl", null);

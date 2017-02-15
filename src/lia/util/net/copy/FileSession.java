@@ -1,5 +1,5 @@
 /*
- * $Id: FileSession.java 605 2010-06-11 10:20:46Z ramiro $
+ * $Id: FileSession.java 632 2011-02-08 15:02:37Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -112,6 +112,7 @@ public abstract class FileSession extends IOSession {
     
     @Override
     protected void internalClose() {
+        final FileChannel fileChannel = this.fileChannel;
         if(fileChannel != null) {
             try {
                 fileChannel.close();

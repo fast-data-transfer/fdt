@@ -1,5 +1,5 @@
 /*
- * $Id: FDTSelectionKey.java 567 2010-01-28 06:06:01Z ramiro $
+ * $Id: FDTSelectionKey.java 634 2011-02-08 15:47:26Z ramiro $
  */
 package lia.util.net.copy.transport.internal;
 
@@ -27,9 +27,9 @@ public class FDTSelectionKey {
 
     protected final SelectionTask selectionTask;
 
-    protected SocketChannel channel;
+    protected final SocketChannel channel;
 
-    SelectionKey selectionKey;
+    volatile SelectionKey selectionKey;
 
     final SelectionHandler handler;
 
@@ -43,7 +43,7 @@ public class FDTSelectionKey {
 
     protected final UUID fdtSessionID;
 
-    public volatile int opCount;
+    public int opCount;
 
     private volatile FDTKeyAttachement attachment;
 
@@ -120,6 +120,7 @@ public class FDTSelectionKey {
             }
 
             // Is it even possible ... only if the registration failed in the first place !!
+            final SelectionKey selectionKey = this.selectionKey;
             if (selectionKey != null) {
                 try {
                     selectionKey.cancel();

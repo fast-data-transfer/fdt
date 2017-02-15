@@ -1,5 +1,5 @@
 /*
- * $Id: SocketReaderTask.java 567 2010-01-28 06:06:01Z ramiro $
+ * $Id: SocketReaderTask.java 631 2011-02-08 15:01:56Z ramiro $
  */
 
 package lia.util.net.copy.transport;
@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,7 +30,7 @@ public class SocketReaderTask extends SocketTask {
 
     private static final int RETRY_IO_COUNT = Config.getInstance().getRetryIOCount();
 
-    volatile FDTSelectionKey fdtSelectionKey;
+    final AtomicReference<FDTSelectionKey> fdtSelectionKeyRef = new AtomicReference<FDTSelectionKey>();
 
     private final TCPSessionReader master;
 
@@ -49,6 +50,7 @@ public class SocketReaderTask extends SocketTask {
     }
 
     private final boolean checkForData() throws InterruptedException {
+        final FDTSelectionKey fdtSelectionKey = fdtSelectionKeyRef.get();
         final FDTReaderKeyAttachement attach = (FDTReaderKeyAttachement) fdtSelectionKey.attachment();
 
         if (attach.isHeaderRead() && attach.isPayloadRead()) {// everything has been read
@@ -99,6 +101,7 @@ public class SocketReaderTask extends SocketTask {
 
     private boolean readData() throws Exception {
 
+        final FDTSelectionKey fdtSelectionKey = fdtSelectionKeyRef.get();
         final FDTReaderKeyAttachement attach = (FDTReaderKeyAttachement) fdtSelectionKey.attachment();
         final SocketChannel sc = fdtSelectionKey.channel();
 
@@ -225,12 +228,12 @@ public class SocketReaderTask extends SocketTask {
 
     private void recycleBuffers() {
         try {
+            final FDTSelectionKey fdtSelectionKey = this.fdtSelectionKeyRef.get();
             if (fdtSelectionKey != null) {
                 FDTKeyAttachement attach = fdtSelectionKey.attachment();
                 if (attach != null) {
                     attach.recycleBuffers();
                 }
-                fdtSelectionKey = null;
             }
         } catch (Throwable t1) {
             logger.log(Level.WARNING, " Got exception trying to recover the buffers and returning them to pool", t1);
@@ -238,18 +241,24 @@ public class SocketReaderTask extends SocketTask {
     }
 
     public void internalClose() {
+        final FDTSelectionKey fdtSelectionKey = fdtSelectionKeyRef.getAndSet(null);
         if (fdtSelectionKey != null) {
             fdtSelectionKey.cancel();
 
-            SocketChannel sc = fdtSelectionKey.channel();
-            try {
-                sc.close();
-            } catch (Throwable t) {
+            final SocketChannel sc = fdtSelectionKey.channel();
+            if (sc != null) {
+                try {
+                    sc.close();
+                } catch (Throwable t) {
+                }
             }
 
-            try {
-                fdtSelectionKey.attachment().recycleBuffers();
-            } catch (Throwable t) {
+            final FDTKeyAttachement keyAttachement = fdtSelectionKey.attachment();
+            if (keyAttachement != null) {
+                try {
+                    keyAttachement.recycleBuffers();
+                } catch (Throwable t) {
+                }
             }
         }
     }
@@ -266,11 +275,13 @@ public class SocketReaderTask extends SocketTask {
         try {
             for (;;) {
                 // use a local FDTSelKey for a little speed-up
-                fdtSelectionKey = null;
-                FDTSelectionKey iSelKey = null;
+                FDTSelectionKey iSel = null;
+                fdtSelectionKeyRef.set(null);
                 try {
-                    while ((iSelKey = readyChannelsQueue.poll(2, TimeUnit.SECONDS)) == null) {
-                        if (isClosed() || Thread.currentThread().isInterrupted()) {
+                    while (iSel == null) {
+                        fdtSelectionKeyRef.getAndSet(readyChannelsQueue.poll(2, TimeUnit.SECONDS));
+                        iSel = fdtSelectionKeyRef.get();
+                        if (isClosed()) {
                             break;
                         }
                     }
@@ -282,27 +293,24 @@ public class SocketReaderTask extends SocketTask {
                     }
                     Thread.interrupted();
                     close("Got interrupted exception", ie);
-                } finally {
-                    fdtSelectionKey = iSelKey;
                 }
 
-                if (isClosed())
+                final FDTSelectionKey fdtSelectionKey = iSel;
+                if (isClosed() || fdtSelectionKey == null)
                     break;
 
                 try {
                     if (!readData()) {
                         if (!isClosed()) {
-                            readyChannelsQueue.offer(fdtSelectionKey);
+                            if(readyChannelsQueue.offer(fdtSelectionKeyRef.getAndSet(null))) {
+                                throw new FDTProcolException(" Unable to add selection key in the selection queue");
+                            }
                         } else {
                             recycleBuffers();
                         }
                     }
                 } catch (Throwable t) {
-                    if (fdtSelectionKey == null) {
-                        master.close("Null selection key - FDTProtocolException", new FDTProcolException("Null selection key", t));
-                    } else {
-                        master.close("Exception reading data", t);
-                    }
+                    master.close("Exception reading data", t);
 
                     recycleBuffers();
 
@@ -313,6 +321,8 @@ public class SocketReaderTask extends SocketTask {
 
         } finally {
             try {
+                final FDTSelectionKey fdtSelectionKey = fdtSelectionKeyRef.get();
+
                 if (fdtSelectionKey != null) {
                     final FDTKeyAttachement attach = fdtSelectionKey.attachment();
                     if (attach != null) {

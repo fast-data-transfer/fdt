@@ -1,5 +1,5 @@
 /*
- * $Id: GSIServer.java 342 2007-08-16 13:00:44Z ramiro $
+ * $Id: GSIServer.java 621 2010-09-03 14:31:24Z ramiro $
  */
 package lia.gsi;
 
@@ -157,16 +157,15 @@ public class GSIServer extends GSIBaseServer {
 			socket.getInputStream();
 			// peer.authorizer called
 			peerSubject = peer.getPeerSubject();
-		} catch (IOException e) {
-			logger.log(Level.INFO, "Authentication failed:", e);
-			if (!socket.isClosed()) {
+		} catch (Throwable t) {
+			logger.log(Level.INFO, "Authentication failed:", t);
+			if (socket != null) {
+                if (logger.isLoggable(Level.INFO)) {
+                    logger.log(Level.INFO, "Client disconnected");
+                }
 				try {
 					socket.close();
-					if (logger.isLoggable(Level.INFO)) {
-						logger.log(Level.INFO, "Client disconnected");
-					}
-				} catch (IOException e1) {
-					e1.printStackTrace();
+				} catch (Throwable ignore) {
 				}
 			}
 			return;

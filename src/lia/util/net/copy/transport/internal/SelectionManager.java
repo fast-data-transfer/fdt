@@ -1,5 +1,5 @@
 /*
- * $Id: SelectionManager.java 567 2010-01-28 06:06:01Z ramiro $
+ * $Id: SelectionManager.java 635 2011-02-08 15:47:33Z ramiro $
  */
 package lia.util.net.copy.transport.internal;
 
@@ -84,16 +84,14 @@ public class SelectionManager {
                     sb.append("[ SelectionManager ] [ checkRenew ] for ").append(Utils.toStringSelectionKey(fdtSelectionKey));
                     logger.log(Level.FINEST, sb.toString());
                 }
-                
+
                 final SelectionKey sk = fdtSelectionKey.selectionKey;
-                
+
                 if (!sk.isValid()) {
-                    if (fdtSelectionKey != null) {
-                        fdtSelectionKey.cancel();
-                    }
+                    fdtSelectionKey.cancel();
                     continue;
                 }
-                
+
                 sk.interestOps(fdtSelectionKey.selectionKey.interestOps() | fdtSelectionKey.interests);
             }
         }
@@ -109,8 +107,7 @@ public class SelectionManager {
             while (!l.isEmpty()) {
                 try {
                     final FDTSelectionKey fdtSelectionKey = l.remove();
-                    fdtSelectionKey.selectionKey = fdtSelectionKey.channel.register(selector, fdtSelectionKey.interests);
-                    fdtSelectionKey.selectionKey.attach(fdtSelectionKey);
+                    fdtSelectionKey.selectionKey = fdtSelectionKey.channel.register(selector, fdtSelectionKey.interests, fdtSelectionKey);
                     if (finest) {
                         StringBuilder sb = new StringBuilder();
                         sb.append("[ SelectionManager ] [ checkNew ] for ").append(Utils.toStringSelectionKey(fdtSelectionKey));

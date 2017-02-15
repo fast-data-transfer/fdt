@@ -47,7 +47,7 @@ import org.ietf.jgss.GSSName;
 // -Dorg.globus.gsi.gssapi.net.provider
 public class GSIGssSocketFactory extends GssSocketFactory {
 
-	private static final int GSI_CONNECT_TIMEOUT = Integer.getInteger("GSI_CONNECT_TIMEOUT", 20000);
+	private static final int GSI_CONNECT_TIMEOUT = Integer.getInteger("GSI_CONNECT_TIMEOUT", 20 * 1000);
 
 	private static final Log logger = LogFactory.getLog(GSIGssSocketFactory.class.getName());
 
@@ -120,11 +120,10 @@ public class GSIGssSocketFactory extends GssSocketFactory {
 			if (socket != null) {
 				try {
 					socket.close();
-				} catch (Exception e1) {
-					logger.debug("Socket is already closed.");
+				} catch (Throwable ignore) {
 				}
 			}
-			throw new IOException(e.toString());
+			throw new IOException(e);
 		}
 		// return the wrapped socket
 		return socket;

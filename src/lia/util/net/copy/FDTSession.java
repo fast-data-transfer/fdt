@@ -1,5 +1,5 @@
 /*
- * $Id: FDTSession.java 567 2010-01-28 06:06:01Z ramiro $
+ * $Id: FDTSession.java 633 2011-02-08 15:46:30Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -437,7 +437,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             }
 
             if (downCause != null) {
-                close("the file session: " + sessionID + " /  " + fs.fileName + "finished with errors: " + downCause.getMessage(), downCause);
+                close("the file session: " + sessionID + " / " + fs.fileName + " finished with errors: " + downCause.getMessage(), downCause);
             }
         } // end sync
         try {

@@ -1,5 +1,5 @@
 /*
- * $Id: SocketWriterTask.java 605 2010-06-11 10:20:46Z ramiro $
+ * $Id: SocketWriterTask.java 631 2011-02-08 15:01:56Z ramiro $
  */
 package lia.util.net.copy.transport;
 
@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,7 +30,7 @@ public class SocketWriterTask extends SocketTask {
     /** Logger used by this class */
     private static final Logger logger = Logger.getLogger(SocketWriterTask.class.getName());
 
-    volatile FDTSelectionKey fdtSelectionKey;
+    private final AtomicReference<FDTSelectionKey> fdtSelectionKeyRef = new AtomicReference<FDTSelectionKey>(null);
 
     // private static final int MSS_SIZE = 16 * 1024 * 1024;
     private static final int BUFF_LEN_SIZE = Config.NETWORK_BUFF_LEN_SIZE;
@@ -38,9 +39,9 @@ public class SocketWriterTask extends SocketTask {
 
     // private static final int RETRY_IO_COUNT = Config.getInstance().getRetryIOCount();
 
-    private TCPSessionWriter master;
+    private final TCPSessionWriter master;
 
-    private FileBlockProducer fileBlockProducer;
+    private final FileBlockProducer fileBlockProducer;
 
     private final boolean isNetTest;
 
@@ -64,6 +65,7 @@ public class SocketWriterTask extends SocketTask {
     }
 
     private long writeData() throws IOException, InterruptedException {
+        final FDTSelectionKey fdtSelectionKey = fdtSelectionKeyRef.get();
         final FDTWriterKeyAttachement attach = (FDTWriterKeyAttachement) fdtSelectionKey.attachment();
         final boolean connectCookieSent = attach.connectCookieSent.get();
 
@@ -347,12 +349,13 @@ public class SocketWriterTask extends SocketTask {
 
     private void recycleBuffers() {
         try {
+            final FDTSelectionKey fdtSelectionKey = fdtSelectionKeyRef.getAndSet(null);
+ 
             if (fdtSelectionKey != null) {
                 FDTWriterKeyAttachement attach = (FDTWriterKeyAttachement) fdtSelectionKey.attachment();
                 if (attach != null) {
                     attach.recycleBuffers();
                 }
-                fdtSelectionKey = null;
             }
         } catch (Throwable t1) {
             logger.log(Level.WARNING, " Got exception trying to recover the buffers and returning them to pool", t1);
@@ -361,6 +364,7 @@ public class SocketWriterTask extends SocketTask {
 
     public void internalClose() {
         try {
+            final FDTSelectionKey fdtSelectionKey = fdtSelectionKeyRef.getAndSet(null);
             if (fdtSelectionKey != null) {
                 fdtSelectionKey.cancel();
                 FDTWriterKeyAttachement attach = (FDTWriterKeyAttachement) fdtSelectionKey.attachment();
@@ -394,15 +398,17 @@ public class SocketWriterTask extends SocketTask {
 
         try {
             for (;;) {
-                fdtSelectionKey = null;
-                FDTSelectionKey iFDTSelectionKey = null;// small speed-up; avoid a volatile R/W
-                while ((iFDTSelectionKey = readyChannelsQueue.poll(2, TimeUnit.SECONDS)) == null) {
+                fdtSelectionKeyRef.set(null);
+                FDTSelectionKey iSel = null;
+                while (iSel == null) {
+                    fdtSelectionKeyRef.getAndSet(readyChannelsQueue.poll(2, TimeUnit.SECONDS));
+                    iSel = fdtSelectionKeyRef.get();
                     if (isClosed()) {
                         break;
                     }
                 }
 
-                fdtSelectionKey = iFDTSelectionKey;
+                final FDTSelectionKey fdtSelectionKey = iSel;
 
                 if (isClosed())
                     break;
@@ -416,12 +422,15 @@ public class SocketWriterTask extends SocketTask {
                 }
             }
         } catch (Throwable t) {
+            final FDTSelectionKey fdtSelectionKey = fdtSelectionKeyRef.get();
             master.workerDown(fdtSelectionKey, t);
             close("SocketWriterTask got exception ", t);
         } finally {
+            final FDTSelectionKey fdtSelectionKey = fdtSelectionKeyRef.getAndSet(null);
+
             try {
                 if (fdtSelectionKey != null) {
-                    FDTKeyAttachement attach = fdtSelectionKey.attachment();
+                    final FDTKeyAttachement attach = fdtSelectionKey.attachment();
                     if (attach != null) {
                         attach.recycleBuffers();
                     }

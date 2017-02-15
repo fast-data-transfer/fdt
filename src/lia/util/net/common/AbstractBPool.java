@@ -144,9 +144,12 @@ public abstract class AbstractBPool {
             }
 
             retBuff = thePool.take();
-
+            
             return retBuff;
         } finally {
+            if (retBuff != null) {
+                retBuff.clear();
+            }
             if (logFiner) {
                 StringBuilder sb = new StringBuilder();
                 sb.append("<ByteBufferPool> TAKE FROM POOL in poll(): buffer: ").append(Utils.buffToString(retBuff));
@@ -196,9 +199,11 @@ public abstract class AbstractBPool {
             }
 
             retBuff = thePool.poll();
-
             return retBuff;
         } finally {
+            if(retBuff != null) {
+                retBuff.clear();
+            }
             if (logFiner) {
                 StringBuilder sb = new StringBuilder();
                 sb.append("<ByteBufferPool> TAKE FROM POOL in poll(): buffer: ").append(Utils.buffToString(retBuff));
@@ -241,6 +246,9 @@ public abstract class AbstractBPool {
 
             return retBuff;
         } finally {
+            if(retBuff != null) {
+                retBuff.clear();
+            }
             if (logFiner) {
                 StringBuilder sb = new StringBuilder();
                 sb.append("<ByteBufferPool> TAKE FROM POOL: buffer: ").append(Utils.buffToString(retBuff));
@@ -287,8 +295,6 @@ public abstract class AbstractBPool {
             }
         }
 
-        // TODO - extra checks here
-        buff.clear();
         // test and clear the interrupted flag
         for (;;) {
             final boolean isInterrupted = Thread.interrupted();

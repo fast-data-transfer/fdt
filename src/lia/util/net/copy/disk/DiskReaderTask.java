@@ -1,5 +1,5 @@
 /*
- * $Id: DiskReaderTask.java 531 2009-08-09 18:14:40Z ramiro $
+ * $Id: DiskReaderTask.java 628 2011-02-08 15:00:19Z ramiro $
  */
 package lia.util.net.copy.disk;
 
@@ -14,6 +14,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import lia.util.net.common.Config;
+import lia.util.net.common.DirectByteBufferPool;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.FDTReaderSession;
 import lia.util.net.copy.FileBlock;
@@ -101,11 +102,14 @@ public class DiskReaderTask extends GenericDiskTask {
         
         FileSession currentFileSession = null;
         FileChannel cuurentFileChannel = null;
+        final DirectByteBufferPool bufferPool = DiskReaderTask.bufferPool;
+        final boolean computeMD5 = this.computeMD5;
+        final FDTReaderSession fdtSession = this.fdtSession;
+        if(fdtSession == null) {
+            logger.log(Level.WARNING, "\n\n FDT Session is null in DiskReaderTask !! Will stop reader task\n\n");
+        }
         
         try {
-            if(fdtSession == null) {
-                logger.log(Level.WARNING, " FDT Session is null in DiskReaderTask !!");
-            }
             while(!fdtSession.isClosed()) {
                 for(final FileSession fileSession: fileSessions) {
                     currentFileSession = fileSession;
@@ -252,14 +256,16 @@ public class DiskReaderTask extends GenericDiskTask {
             }//for
             
         } catch(IOException ioe) {
-            if(!isFinished.getAndSet(true) && !fdtSession.isClosed()) {//most likely a normal error
-                logger.log(Level.INFO, " [ HANDLED ] Got I/O Exception reading FileSession (" + currentFileSession.sessionID() + ") / "  + currentFileSession.fileName(), ioe);
-                return;
-            }
-            ioe.printStackTrace();
             //check for down
             if(isFinished.get() || fdtSession.isClosed()) {//most likely a normal error
                 logger.log(Level.FINEST, " [ HANDLED ] Got I/O Exception reading FileSession (" + currentFileSession.sessionID() + ") "  + currentFileSession.fileName(), ioe);
+                return;
+            }
+            
+            if(!isFinished.getAndSet(true) && !fdtSession.isClosed()) {//most likely a normal error
+                logger.log(Level.INFO, " [ HANDLED ] Got I/O Exception reading FileSession (" + currentFileSession.sessionID() + ") / "  + currentFileSession.fileName(), ioe);
+                downCause = ioe;
+                fdtSession.finishFileSession(currentFileSession.sessionID(), downCause);
                 return;
             }
             

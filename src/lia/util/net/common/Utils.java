@@ -1,5 +1,5 @@
 /*
- * $Id: Utils.java 615 2010-06-29 15:08:57Z ramiro $
+ * $Id: Utils.java 636 2011-02-08 15:47:52Z ramiro $
  */
 package lia.util.net.common;
 
@@ -1016,6 +1016,7 @@ public final class Utils {
     public static final int drainFileBlockQueue(Queue<FileBlock> fileBlockQueue) {
         final boolean isInterrupted = Thread.interrupted();
         int status = 0;
+        final DirectByteBufferPool bPool = DirectByteBufferPool.getInstance();
         try {
             if (fileBlockQueue == null)
                 return status;
@@ -1026,7 +1027,7 @@ public final class Utils {
                     if (fb == null) {
                         return status;
                     }
-                    DirectByteBufferPool.getInstance().put(fb.buff);
+                    bPool.put(fb.buff);
                     status++;
                 } catch (Throwable t) {
                     logger.log(Level.WARNING, " Got exception draining fileBlockQueue", t);
@@ -1476,24 +1477,29 @@ public final class Utils {
         if (fsk == null) {
             return " Null FDTSelectionKey ! ";
         }
-        final SocketChannel sc = fsk.channel();
-        final Selector sel = fsk.selector();
-
         final StringBuilder sb = new StringBuilder("Socket ");
-        if (sc == null) {
-            sb.append(" NULL! ");
-        } else {
-            sb.append(sc.socket());
-            if (sel == null) {
-                sb.append(" NULL SELECTOR! ");
+
+        try {
+            final SocketChannel sc = fsk.channel();
+            final Selector sel = fsk.selector();
+
+            if (sc == null) {
+                sb.append(" NULL! ");
             } else {
-                final SelectionKey sk = sc.keyFor(sel);
-                if (sk == null) {
-                    sb.append(" no such SelectionKey for selector! ");
+                sb.append(sc.socket());
+                if (sel == null) {
+                    sb.append(" NULL SELECTOR! ");
                 } else {
-                    sb.append(" ").append(toStringSelectionKey(sk));
+                    final SelectionKey sk = sc.keyFor(sel);
+                    if (sk == null) {
+                        sb.append(" no such SelectionKey for selector! ");
+                    } else {
+                        sb.append(" ").append(toStringSelectionKey(sk));
+                    }
                 }
             }
+        }catch(Throwable t) {
+            sb.append(" [ toStringSelectionKey ] Exception " + t);
         }
         return sb.toString();
     }

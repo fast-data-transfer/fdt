@@ -1,5 +1,5 @@
 /*
- * $Id: FDT.java 612 2010-06-25 13:44:03Z ramiro $
+ * $Id: FDT.java 637 2011-02-08 16:10:56Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -44,7 +44,7 @@ public class FDT {
 
     private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
 
-    public static final String FDT_FULL_VERSION = "0.9.17-201008311824";
+    public static final String FDT_FULL_VERSION = "0.9.20-201102081638";
 
     String mlDestinations = "monalisa2.cern.ch:28884,monalisa2.caltech.edu:28884";
 
@@ -494,6 +494,7 @@ public class FDT {
                 throw new IllegalArgumentException("No destination specified");
             }
 
+            @SuppressWarnings("unchecked")
             final List<String> lParams = (List<String>) argsMap.get("LastParams");
 
             if (argsMap.get("-nettest") == null && argsMap.get("-fl") == null && (lParams == null || lParams.size() == 0) && argsMap.get("Files") == null) {
@@ -594,6 +595,7 @@ public class FDT {
         }
 
         config = Config.getInstance();
+        System.out.println("FDT uses" + ((!config.isBlocking())?" *non-":" *") + "blocking* I/O mode.");
 
         processSCPSyntax(args);
 
