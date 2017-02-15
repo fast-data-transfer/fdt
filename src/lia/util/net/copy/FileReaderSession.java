@@ -1,5 +1,5 @@
 /*
- * $Id: FileReaderSession.java 591 2010-04-07 08:30:25Z ramiro $
+ * $Id: FileReaderSession.java 603 2010-06-11 05:47:16Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -17,14 +17,19 @@ import lia.util.net.common.FileChannelProvider;
  */
 public class FileReaderSession extends FileSession {
 
-    private static final Logger logger = Logger.getLogger(FileSession.class.getName());
-
-    public FileReaderSession(String fileName, boolean isLoop, FileChannelProvider fileChannelProvider) throws IOException {
-        this(UUID.randomUUID(), fileName, isLoop, fileChannelProvider);
+    @Override
+    public String toString() {
+        return "FileReaderSession [file=" + file + ", partitionID=" + partitionID + ", sessionID=" + sessionID + ", sessionSize=" + sessionSize + "]";
     }
 
-    public FileReaderSession(UUID uid, String fileName, boolean isLoop, FileChannelProvider fileChannelProvider) throws IOException {
-        super(uid, fileName, isLoop, fileChannelProvider);
+    private static final Logger logger = Logger.getLogger(FileSession.class.getName());
+
+    public FileReaderSession(String fileName, FDTSession fdtSession, boolean isLoop, FileChannelProvider fileChannelProvider) throws IOException {
+        this(UUID.randomUUID(), fdtSession, fileName, isLoop, fileChannelProvider);
+    }
+
+    public FileReaderSession(UUID uid, FDTSession fdtSession, String fileName, boolean isLoop, FileChannelProvider fileChannelProvider) throws IOException {
+        super(uid, fdtSession, fileName, isLoop, fileChannelProvider);
 
         this.fileName = file.getAbsolutePath();
         this.file = this.fileChannelProvider.getFile(fileName);

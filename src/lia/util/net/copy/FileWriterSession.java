@@ -1,5 +1,5 @@
 /*
- * $Id: FileWriterSession.java 598 2010-04-12 22:45:42Z ramiro $
+ * $Id: FileWriterSession.java 605 2010-06-11 10:20:46Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -20,23 +20,26 @@ import lia.util.net.common.FileChannelProvider;
  */
 public class FileWriterSession extends FileSession {
 
+    @Override
+    public String toString() {
+        return "FileWriterSession [tmpCopyFile=" + tmpCopyFile + ", file=" + file + ", partitionID=" + partitionID + ", sessionID=" + sessionID + ", sessionSize=" + sessionSize + "]";
+    }
+
     private static final Logger logger = Logger.getLogger(FileSession.class.getName());
 
     private volatile boolean channelInitialized;
 
-    private File tmpCopyFile;
+    private volatile File tmpCopyFile;
 
     private String openMode = "rw";
 
-    private final boolean noTmp;
+    protected volatile FileLock fLock = null;
+    protected final boolean noLock;
 
-    private FileLock fLock = null;
+    public FileWriterSession(UUID uid, FDTSession fdtSession, String fileName, long size, long lastModified, boolean isLoop, String writeMode, boolean noTmp, boolean noLock, FileChannelProvider fcp) throws IOException {
+        super(uid, fdtSession, fileName, isLoop, fcp);
 
-    public FileWriterSession(UUID uid, String fileName, long size, long lastModified, boolean isLoop, String writeMode, boolean noTmp, FileChannelProvider fcp) throws IOException {
-        super(uid, fileName, isLoop, fcp);
-
-        this.noTmp = noTmp;
-		
+        this.noLock = noLock;
 		file = fcp.getFile(file.getAbsolutePath());
 		
         if (!isNull) {
@@ -118,12 +121,19 @@ public class FileWriterSession extends FileSession {
             try {
                 fileChannel = this.fileChannelProvider.getFileChannel(tmpCopyFile, openMode);
 
-                if (!noTmp && !isNull) {
+                if (!noLock && !isNull) {
                     try {
                         fLock = fileChannel.lock();
+                        if(logger.isLoggable(Level.FINE)) {
+                            logger.log(Level.FINE, "[ FileWriterSession ] File lock for: " + tmpCopyFile + " taken!");
+                        }
                     } catch (Throwable t) {
                         fLock = null;
                         logger.log(Level.WARNING, "[ FileWriterSession ] Cannot lock file: " + tmpCopyFile + "; will try to write without lock taken. Cause:", t);
+                    }
+                } else {
+                    if(logger.isLoggable(Level.FINE)) {
+                        logger.log(Level.FINE, "[ FileWriterSession ] Not using file lock for: " + tmpCopyFile);
                     }
                 }
                 channelInitialized = true;
@@ -136,35 +146,83 @@ public class FileWriterSession extends FileSession {
         return fileChannel;
     }
 
+    @Override
     protected void internalClose() {
         super.internalClose();
 
-        if (!isNull && file != null && tmpCopyFile != null && downCause() == null) {
-            if (!tmpCopyFile.equals(file)) {
-                tmpCopyFile.renameTo(file);
-            }
-            file.setLastModified(lastModified);
-            if (fLock != null) {
-                try {
-                    fLock.release();
-                } catch (Throwable t) {
-                    if(logger.isLoggable(Level.FINE)) {
-                        logger.log(Level.FINE, "[ FileWriterSession ] Unable to release the lock for file: " + file + "; Cause: ", t);
+        final boolean logFine = logger.isLoggable(Level.FINE);
+        boolean bRename = channelInitialized && !isNull && downCause() == null && file != null && tmpCopyFile != null;
+        try {
+            if (bRename) {
+                if (!tmpCopyFile.equals(file)) {
+                    if(file.exists()) {
+                        if(!file.delete()) {
+                            logger.log(Level.WARNING, "Unable to delete existing file: " + file + ". Will try to replace it with: " + tmpCopyFile);
+                        } else {
+                            if(logFine) {
+                                logger.log(Level.FINE, "Deleted existing file: " + file + ". Will replace it with: " + tmpCopyFile);
+                            }
+                        }
+                    } else {
+                        if(logFine) {
+                            logger.log(Level.FINE, "No existing file: " + file + ". Will move temp file: " + tmpCopyFile + " to " + file);
+                        }
+                    }
+                    bRename = tmpCopyFile.renameTo(file);
+                } else {
+                    bRename = true;
+                }
+                if(!file.setLastModified(lastModified)) {
+                    logger.log(Level.WARNING, "Unable to set modification time for file: " + file);
+                }
+            } else {
+                bRename = true;
+                if (downCause() != null || downMessage() != null && tmpCopyFile != null) {
+                    if (!isNull) {
+                        if(!tmpCopyFile.delete()) {
+                            logger.log(Level.WARNING, "Unable to delete temporary file: " + tmpCopyFile);
+                        }
                     }
                 }
             }
-        } else {
-            if (downCause() != null || downMessage() != null && tmpCopyFile != null) {
-                if (!isNull) {
-                    tmpCopyFile.delete();
+
+            if (isLoop) {
+                // reset the state
+                channelInitialized = false;
+                closed = false;
+            }
+        } finally {
+            if (fLock != null) {
+                try {
+                    if(fLock.isValid()) {
+                        fLock.release();
+                        if(logFine) {
+                            logger.log(Level.FINE, "[ FileWriterSession ] Released the lock for file: " + file);
+                        }
+                    } else {
+                        if(logFine) {
+                            logger.log(Level.FINE, "[ FileWriterSession ] The lock for file: " + file + " no longer valid. File chanel open: " + fileChannel.isOpen() );
+                        }
+                    }
+                } catch (Throwable t) {
+                    logger.log(Level.WARNING, "[ FileWriterSession ] Unable to release the lock for file: " + file + " file channel opened: " + fileChannel.isOpen() + "; Cause: ", t);
                 }
             }
-        }
-
-        if (isLoop) {
-            // reset the state
-            channelInitialized = false;
-            closed = false;
+            
+            if(!bRename) {
+                final String msg = "Unable to rename temporary file: [ " + tmpCopyFile + " ] to destination file: [ " + file + " ]. Check your file system.";
+                logger.log(Level.WARNING, msg);
+                if (!isNull & tmpCopyFile != null) {
+                    if(tmpCopyFile.delete()) {
+                        logger.log(Level.INFO, "Temporary file: " + tmpCopyFile + " deleted");
+                    } else {
+                        logger.log(Level.WARNING, "Unable to delete temporary file: " + tmpCopyFile + " deleted. Check your file system.");
+                    }
+                }
+                
+                //close the file session with errors
+                fdtSession.close(msg, new IOException(msg));
+            }
         }
     }
 }

@@ -1,11 +1,12 @@
 /*
- * $Id: TCPTransportProvider.java 567 2010-01-28 06:06:01Z ramiro $
+ * $Id: TCPTransportProvider.java 605 2010-06-11 10:20:46Z ramiro $
  */
 package lia.util.net.copy.transport;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -155,7 +156,7 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
             final int bSockConn = config.getBulkSockConnect();
             final long bSockConnWait = config.getBulkSockConnectWait();
 
-            logger.log(Level.INFO, " bSockConn: " + bSockConn + " bSockConnWait: " + bSockConnWait);
+            logger.log(Level.FINER, " bSockConn: " + bSockConn + " bSockConnWait: " + bSockConnWait);
             int cCounter = 0;
             for (int i = 0; i < numberOfStreams; i++) {
 
@@ -178,10 +179,25 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
                 sc.connect(addr);
                 tmpChannels.add(sc);
 
+                final Socket s = sc.socket();
+                
                 if (windowSize > 0) {
-                    sc.socket().setSendBufferSize(windowSize);
+                    s.setSendBufferSize(windowSize);
+                }
+                
+                try {
+                    s.setKeepAlive(true);
+                } catch (Throwable t) {
+                    logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set KEEP_ALIVE for " + sc + ". Will ignore the error. Contact your sys admin.", t);
                 }
 
+                try {
+                    //IPTOS_LOWCOST (0x02) IPTOS_RELIABILITY (0x04) IPTOS_THROUGHPUT (0x08) IPTOS_LOWDELAY (0x10)
+                    s.setTrafficClass(0x04 | 0x08 | 0x010);
+                } catch (Throwable t) {
+                    logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set traffic class for " + sc + "[ IPTOS_RELIABILITY (0x04) | IPTOS_THROUGHPUT (0x08) | IPTOS_LOWDELAY (0x10) ] Will ignore the error. Contact your sys admin.", t);
+                }
+                
                 if (!sc.isBlocking()) {
                     sc.register(tmpSelector, SelectionKey.OP_CONNECT | SelectionKey.OP_WRITE);
                 } else {

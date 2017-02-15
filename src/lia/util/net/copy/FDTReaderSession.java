@@ -1,5 +1,5 @@
 /*
- * $Id: FDTReaderSession.java 588 2010-03-07 22:25:27Z ramiro $
+ * $Id: FDTReaderSession.java 603 2010-06-11 05:47:16Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -24,9 +25,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import lia.util.net.common.Config;
-import lia.util.net.common.DirectByteBufferPool;
 import lia.util.net.common.FileChannelProvider;
-import lia.util.net.common.FileChannelProviderFactory;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.disk.DiskReaderManager;
 import lia.util.net.copy.disk.DiskReaderTask;
@@ -189,9 +188,9 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             logger.log(Level.INFO, sb.toString());
         }
 
-        TreeMap<String, String> initialMapping = new TreeMap<String, String>();
+        Map<String, String> initialMapping = new HashMap<String, String>();
         List<String> newFileList = new ArrayList<String>();
-        List<String> newRemappedFileList = new ArrayList<String>();
+        Map<String, String> newRemappedFileList = new HashMap<String, String>();
 
         if (filtersCount > 0) {
             this.processorInfo = processorInfo;
@@ -225,11 +224,21 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                         }
                     }
                     newFileList.addAll(tmpFL);
-                    newRemappedFileList.addAll(tmpRFL);
+                    int c = 0;
+                    for(String fname: tmpFL) {
+                        newRemappedFileList.put(fName, tmpRFL.get(c++));
+                    }
                 }
             } else {
                 newFileList = Arrays.asList(fileList);
-                newRemappedFileList = (remappedFileList == null)?null:Arrays.asList(remappedFileList);
+                int c = 0;
+                if(remappedFileList != null) {
+                    for(String f: newFileList) {
+                        newRemappedFileList.put(f, remappedFileList[c++]);
+                    }
+                } else {
+                    newRemappedFileList = null;
+                }
             }
         }
 
@@ -237,7 +246,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 this);
 
         for (final String fName : newFileList) {
-            FileReaderSession frs = new FileReaderSession(fName, isLoop, fcp);
+            FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);
             fileSessions.put(frs.sessionID, frs);
             setSessionSize(sessionSize() + frs.sessionSize());
         }
@@ -259,7 +268,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         return sessionSize();
     }
 
-    private void sendRemoteSessions(final TreeMap<String, String> initialMapping, final List<String> newRemappedFileList)
+    private void sendRemoteSessions(final Map<String, String> initialMapping, Map<String, String> newRemappedFileList)
             throws Exception {
         FDTSessionConfigMsg sccm = new FDTSessionConfigMsg();
 
@@ -276,13 +285,14 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
         count = 0;
         for (Map.Entry<UUID, FileSession> entry : fileSessions.entrySet()) {
+            
             FileSession fs = entry.getValue();
 
             sccm.fileIDs[count] = fs.sessionID;
 
             if (isFileList) {// -fl specified ... I don't care about the names
                 sccm.fileLists[count] = fs.fileName;
-                sccm.remappedFileLists[count] = (newRemappedFileList == null)?null:newRemappedFileList.get(count);
+                sccm.remappedFileLists[count] = (newRemappedFileList == null)?null:newRemappedFileList.get(fs.fileName);
             } else if (initialMapping.size() == 0) { // only files ... no
                 // -r(ecursive)
                 // specified

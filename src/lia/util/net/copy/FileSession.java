@@ -1,5 +1,5 @@
 /*
- * $Id: FileSession.java 561 2010-01-10 22:46:49Z ramiro $
+ * $Id: FileSession.java 605 2010-06-11 10:20:46Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -32,7 +32,7 @@ public abstract class FileSession extends IOSession {
     protected volatile FileChannel fileChannel;
     
     protected volatile File file;
-    
+    protected final FDTSession fdtSession;
     public final AtomicLong cProcessedBytes = new AtomicLong(0);
     protected int partitionID;
     
@@ -43,8 +43,9 @@ public abstract class FileSession extends IOSession {
     
     protected final FileChannelProvider fileChannelProvider;
     
-    public FileSession(UUID uid, String fileName, boolean isLoop, FileChannelProvider fileChannelProvider) {
+    public FileSession(UUID uid, FDTSession fdtSession, String fileName, boolean isLoop, FileChannelProvider fileChannelProvider) {
         super(uid, -1);
+        this.fdtSession = fdtSession;
         
         boolean bNull = false;
         boolean bZero = false;
@@ -109,6 +110,7 @@ public abstract class FileSession extends IOSession {
         this.lastModified = lastModified;
     }
     
+    @Override
     protected void internalClose() {
         if(fileChannel != null) {
             try {

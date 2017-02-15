@@ -1,5 +1,5 @@
 /*
- * $Id: FDTServer.java 567 2010-01-28 06:06:01Z ramiro $
+ * $Id: FDTServer.java 605 2010-06-11 10:20:46Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -82,12 +82,19 @@ public class FDTServer extends AbstractFDTCloseable {
 				logger.log(Level.FINER, " AcceptableTask for " + sc + " STARTED!");
 			}
 
-//			try {
-//				s.setKeepAlive(true);
-//			} catch (Throwable t) {
-//				logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set KEEP_ALIVE for " + sc, t);
-//			}
+			try {
+				s.setKeepAlive(true);
+			} catch (Throwable t) {
+                logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set KEEP_ALIVE for " + sc + ". Will ignore the error. Contact your sys admin.", t);
+			}
 
+            try {
+                //IPTOS_LOWCOST (0x02) IPTOS_RELIABILITY (0x04) IPTOS_THROUGHPUT (0x08) IPTOS_LOWDELAY (0x10)
+                s.setTrafficClass(0x04 | 0x08 | 0x010);
+            } catch (Throwable t) {
+                logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set traffic class for " + sc + "[ IPTOS_RELIABILITY (0x04) | IPTOS_THROUGHPUT (0x08) | IPTOS_LOWDELAY (0x10) ] Will ignore the error. Contact your sys admin.", t);
+            }
+            
 			ByteBuffer firstByte = ByteBuffer.allocate(1);
 			ByteBuffer clientIDBuff = ByteBuffer.allocate(16);
 

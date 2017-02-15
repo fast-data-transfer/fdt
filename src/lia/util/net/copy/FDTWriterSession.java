@@ -1,5 +1,5 @@
 /*
- * $Id: FDTWriterSession.java 594 2010-04-12 06:13:38Z ramiro $
+ * $Id: FDTWriterSession.java 603 2010-06-11 05:47:16Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -289,15 +289,19 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
         if(config.isNoTmpFlagSet() || controlChannel.remoteConf.get("-notmp") != null) {
             noTmp = true;
         }
+        boolean noLock = false;
+        if(config.isNoLockFlagSet() || controlChannel.remoteConf.get("-nolock") != null) {
+            noLock = true;
+        }
         
         final FileChannelProvider fcp = Config.getInstance().getFileChannelProviderFactory().newWriterFileChannelProvider(this);
 
         for (int i = 0; i < fCount; i++) {
             final String fName = (sccm.remappedFileLists == null || sccm.remappedFileLists[i] == null)?sccm.fileLists[i]:sccm.remappedFileLists[i];
-            FileWriterSession fws = new FileWriterSession(sccm.fileIDs[i], this.destinationDir
+            FileWriterSession fws = new FileWriterSession(sccm.fileIDs[i], this, this.destinationDir
                                                           + File.separator
                                                           + ((shouldReplace) ? fName.replace(remoteCharSeparator, File.separatorChar)
-                                                                  : fName), sccm.fileSizes[i], sccm.lastModifTimes[i], isLoop, writeMode, noTmp, fcp);
+                                                                  : fName), sccm.fileSizes[i], sccm.lastModifTimes[i], isLoop, writeMode, noTmp, noLock, fcp);
             fileSessions.put(fws.sessionID, fws);
             setSessionSize(sessionSize() + fws.sessionSize());
         }

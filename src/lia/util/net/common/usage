@@ -50,6 +50,9 @@ Client/Server:
    			 FDT will act only as a network benchmark tool.
    			 If the server is started with this flag *ALL* network
    			 transfers will be considered benchmark transfers!
+   -nolock		 Disables file locking on the writer side. Default this
+			 flag is false, which means that FDT tries to aquire
+			 an exclusive file lock for the file which is written.
    -notmp		 Disables intermediate hidden file creation. Without 
    			 this flag FDT transfers a /localDir/fileName to an 
 			 intermediate hidden file /destinationDir/.fileName 

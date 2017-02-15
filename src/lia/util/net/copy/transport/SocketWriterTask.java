@@ -1,5 +1,5 @@
 /*
- * $Id: SocketWriterTask.java 567 2010-01-28 06:06:01Z ramiro $
+ * $Id: SocketWriterTask.java 605 2010-06-11 10:20:46Z ramiro $
  */
 package lia.util.net.copy.transport;
 
@@ -77,8 +77,9 @@ public class SocketWriterTask extends SocketTask {
             bufferSize = mss;
         }
 
-        if (logger.isLoggable(Level.FINE)) {
-            logger.log(Level.FINE, "Using MSS: " + bufferSize + " for socket channel: " + sc);
+        final boolean logFinest = logger.isLoggable(Level.FINEST); 
+        if (logFinest) {
+            logger.log(Level.FINEST, "Using MSS: " + bufferSize + " for socket channel: " + sc);
         }
 
         final DirectByteBufferPool dbPool = DirectByteBufferPool.getInstance();
@@ -125,7 +126,7 @@ public class SocketWriterTask extends SocketTask {
                         // END BUG FIXED!!
 
                         readyChannelsQueue.offer(fdtSelectionKey);
-                        if (logger.isLoggable(Level.FINEST)) {
+                        if (logFinest) {
                             logger.log(Level.FINEST, " [ SocketWriterTask ] Empty FD queue. Added SK: " + fdtSelectionKey + " NEW Sel Queue: " + readyChannelsQueue);
                         }
                         return 0;
@@ -150,7 +151,7 @@ public class SocketWriterTask extends SocketTask {
                         // END BUG FIXED!!
 
                         readyChannelsQueue.offer(fdtSelectionKey);
-                        if (logger.isLoggable(Level.FINEST)) {
+                        if (logFinest) {
                             logger.log(Level.FINEST, " [ SocketWriterTask ] Empty FD queue. Added SK: " + fdtSelectionKey + " NEW Sel Queue: " + readyChannelsQueue);
                         }
                         return 0;
@@ -241,7 +242,7 @@ public class SocketWriterTask extends SocketTask {
                 addAndGetTotalBytes(count);
                 master.addAndGetTotalBytes(count);
 
-                if (logger.isLoggable(Level.FINEST)) {
+                if (logFinest) {
                     logger.log(Level.FINEST, " [ SocketWriterTask ] Socket: " + sc.socket() + " written: " + count);
                 }
 

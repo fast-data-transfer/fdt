@@ -1,5 +1,5 @@
 /*
- * $Id: Config.java 583 2010-03-01 16:38:44Z ramiro $
+ * $Id: Config.java 602 2010-06-09 16:49:13Z ramiro $
  */
 package lia.util.net.common;
 
@@ -54,7 +54,7 @@ public class Config {
     // public static final String SINGLE_CMDLINE_ARGS[] = { "-S", "-pull", "-N", "-gsi", "-bio", "-r", "-fbs", "-ll",
     // "-loop", "-enableLisaRestart", "-md5", "-printStats", "-gsissh", "-noupdates", "-silent"};
     public static final String[] SINGLE_CMDLINE_ARGS = {
-        "-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats", "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nettest", "-genb"
+        "-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats", "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nettest", "-genb"
     };
     public static final String[] VALUE_CMDLINE_ARGS = {
         "-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters", "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d", "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay"
@@ -72,9 +72,9 @@ public class Config {
     // all of this are set by the ant script
     public static final String FDT_MAJOR_VERSION = "0";
     public static final String FDT_MINOR_VERSION = "9";
-    public static final String FDT_MAINTENANCE_VERSION = "14";
+    public static final String FDT_MAINTENANCE_VERSION = "15";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "." + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2010-04-13";
+    public static final String FDT_RELEASE_DATE = "2010-06-11";
     private volatile static Config _thisInstance;
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )
@@ -146,6 +146,7 @@ public class Config {
     private Level statsLevel = null;
     private final Map<String, Object> configMap;
     private boolean isNoTmpFlagSet = false;
+    private boolean isNoLockFlagSet = false;
     private long consoleReportingTaskDelay = 5;
     private final boolean isNetTest;
     private final boolean isGenTest;
@@ -339,6 +340,8 @@ public class Config {
         }
 
         isNoTmpFlagSet = (configMap.get("-notmp") != null);
+        isNoLockFlagSet = (configMap.get("-nolock") != null);
+        
         writeMode = Utils.getStringValue(configMap, "-writeMode", null);
 
         String sLisa = Utils.getStringValue(configMap, "-lisafdtclient", null);
@@ -486,7 +489,7 @@ public class Config {
                 StringBuilder sb = new StringBuilder();
                 sb.append("Source file list --> remaped file list:\n");
                 for (int i = 0; fileList != null && i < fileList.length; i++) {
-                    sb.append(fileList[i]).append(" ---> ").append((remappedFileList[i] == null)? " default mapping: " + fileList[i]: " rmapped to: " + remappedFileList[i]).append("\n");
+                    sb.append(fileList[i]).append(" ---> ").append((remappedFileList[i] == null)? " default mapping: " + fileList[i]: " remapped to: " + remappedFileList[i]).append("\n");
                 }
                 logger.log(Level.FINE, sb.toString());
                 logger.log(Level.FINE, "Remote destination directory: {0}\nRemote host: {1} port: {2}", new Object[]{destDir, hostname, portNo});
@@ -609,6 +612,10 @@ public class Config {
         return isNoTmpFlagSet;
     }
 
+    public boolean isNoLockFlagSet() {
+        return isNoLockFlagSet;
+    }
+    
     public void setHostName(String hostname) {
         this.configMap.put("-destinationHost", hostname);
         this.hostname = hostname;
