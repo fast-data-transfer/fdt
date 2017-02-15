@@ -144,8 +144,6 @@ public class DiskWriterTask extends GenericDiskTask {
                     continue;
                 }
 
-                fileChannel = null;
-
                 sTimeWrite = System.nanoTime();
 
                 fileChannel = fileSession.getChannel();
@@ -227,7 +225,9 @@ public class DiskWriterTask extends GenericDiskTask {
                     if (fileSession.cProcessedBytes.get() == fileSession.sessionSize()) {// EOF
                         if (!fdtSession.loop()) {
                             try {
-                                fileSession.getChannel().force(true);
+                                if(!fileSession.isNull() && !fileSession.isZero()) {
+                                    fileSession.getChannel().force(true);
+                                }
                             } catch (Throwable t1) {
                                 logger.log(Level.WARNING, myName + " got exception forcing data to  writer channel for file writer session " + fileSession, t1);
                             }
@@ -276,21 +276,21 @@ public class DiskWriterTask extends GenericDiskTask {
             } catch (IOException ioe) {
                 sTimeFinish = System.nanoTime();
                 logger.log(Level.SEVERE, myName + " ... Got I/O Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + fileBlock.fileOffset, ioe);
-                if (fdtSession != null && fileSession.sessionID() != null) {
+                if (fileSession.sessionID() != null) {
                     fdtSession.finishFileSession(fileSession.sessionID(), ioe);
                 }
             } catch (InterruptedException ie) {
                 if (fileSession == null) {
-                    logger.log(Level.SEVERE, myName + " ... Got InterruptedException Exception writing to file [  ( fileSession is null ) ] offset: " + ((fileBlock == null) ? " fileBlock is null" : fileBlock.fileOffset), ie);
+                    logger.log(Level.SEVERE, myName + " ... Got InterruptedException Exception writing to file [  ( fileSession is null ) ] offset: " + ((fileBlock == null) ? " fileBlock is null" : ""+fileBlock.fileOffset), ie);
                 } else {
-                    logger.log(Level.SEVERE, myName + " ... Got InterruptedException Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + ((fileBlock == null) ? " fileBlock is null" : fileBlock.fileOffset), ie);
+                    logger.log(Level.SEVERE, myName + " ... Got InterruptedException Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + ((fileBlock == null) ? " fileBlock is null" : ""+fileBlock.fileOffset), ie);
                 }
             } catch (Throwable t) {
                 sTimeFinish = System.nanoTime();
                 if (fileSession == null) {
-                    logger.log(Level.SEVERE, myName + " ... Got GeneralException Exception writing to file [  ( fileSession is null ) ] offset: " + ((fileBlock == null) ? " fileBlock is null" : fileBlock.fileOffset), t);
+                    logger.log(Level.SEVERE, myName + " ... Got GeneralException Exception writing to file [  ( fileSession is null ) ] offset: " + ((fileBlock == null) ? " fileBlock is null" : ""+fileBlock.fileOffset), t);
                 } else {
-                    logger.log(Level.SEVERE, myName + " ... Got GeneralException Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + ((fileBlock == null) ? " fileBlock is null" : fileBlock.fileOffset), t);
+                    logger.log(Level.SEVERE, myName + " ... Got GeneralException Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + ((fileBlock == null) ? " fileBlock is null" : ""+fileBlock.fileOffset), t);
                 }
 
                 if (fdtSession != null && fileSession.sessionID() != null) {
@@ -312,11 +312,13 @@ public class DiskWriterTask extends GenericDiskTask {
         try {
             Utils.drainFileBlockQueue(queue);
         } catch (Throwable t) {
+            logger.log(Level.SEVERE, "Possbile buff loss from the pool", t);
         }
 
         try {
             Thread.currentThread().setName(cName);
         } catch (Throwable t) {
+            //does not matter if did not succeed
         }
 
         stopIt();
