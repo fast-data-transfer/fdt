@@ -466,6 +466,19 @@ public final class Utils {
         }
     }
 
+    public static final boolean isCustomLog() {
+        final String customLogProperty = System.getProperty("CustomLog");
+        boolean bCustomLog = false;
+        if(customLogProperty != null) {
+            final String trimLower = customLogProperty.trim().toLowerCase();
+            if(!trimLower.isEmpty()) {
+                bCustomLog = trimLower.startsWith("t") || trimLower.startsWith("1") || trimLower.startsWith("on");
+            }
+        }
+
+        return bCustomLog;
+    }
+
     public static final String buffToString(final ByteBuffer bb) {
 
         if (bb == null) {

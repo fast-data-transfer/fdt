@@ -4,9 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +44,7 @@ public class FDT {
 
     private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
 
-    public static final String FDT_FULL_VERSION = "0.22.0-201512031423";
+    public static final String FDT_FULL_VERSION = "0.24.0-201512041353";
 
     String mlDestinations = "monalisa2.cern.ch:28884";
 
@@ -120,17 +118,17 @@ public class FDT {
                 loggingProps.put("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
             }
 
-            if(logFile != null) {
-                if(loggingProps.contains("handlers")) {
+            if (logFile != null) {
+                if (loggingProps.contains("handlers")) {
                     loggingProps.remove("handlers");
                 }
 
                 loggingProps.put("handlers", "java.util.logging.FileHandler");
                 loggingProps.put("java.util.logging.FileHandler.level", "FINEST");
                 loggingProps.put("java.util.logging.FileHandler.formatter", "java.util.logging.SimpleFormatter");
-                loggingProps.put("java.util.logging.FileHandler.pattern", ""+logFile);
+                loggingProps.put("java.util.logging.FileHandler.pattern", "" + logFile);
                 loggingProps.put("java.util.logging.FileHandler.append", "true");
-                
+
                 System.setProperty("CustomLog", "true");
             }
 
@@ -525,7 +523,7 @@ public class FDT {
                         //Java 6 still to be used for a while, will take it down next year ...
                         final File logF = new File(logPathParam);
                         final File logFParent = logF.getParentFile();
-                        if (!logFParent.exists()) {
+                        if (logFParent != null && !logFParent.exists()) {
                             try {
                                 final boolean mkdirsResult = logFParent.mkdirs();
                                 if (!mkdirsResult) {

@@ -69,11 +69,11 @@ public class Config {
 
     // all of this are set by the ant script
     public static final String FDT_MAJOR_VERSION = "0";
-    public static final String FDT_MINOR_VERSION = "22";
+    public static final String FDT_MINOR_VERSION = "24";
     public static final String FDT_MAINTENANCE_VERSION = "0";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "."
             + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2015-12-03";
+    public static final String FDT_RELEASE_DATE = "2015-12-04";
     private volatile static Config _thisInstance;
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )

@@ -49,10 +49,7 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
         if (logger.isLoggable(Level.FINER)) {
             logger.log(Level.FINER, "\n\n  [ ConsoleReportingTask ] initiated !!!! \n\n");
         }
-
-        final String customLogProperty = System.getProperty("CustomLog");
-        customLog = (customLogProperty != null && customLogProperty.trim().startsWith("t")
-                || customLogProperty.trim().startsWith("1"));
+        customLog = Utils.isCustomLog();
     }
 
     public static final ConsoleReportingTask getInstance() {

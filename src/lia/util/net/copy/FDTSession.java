@@ -144,8 +144,11 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
     final ScheduledFuture<?> monitoringTaskFuture;
 
+    protected final boolean customLog;
+
     public FDTSession(short role) throws Exception {
         super();
+        customLog = Utils.isCustomLog();
 
         currentStatus = 0;
         this.totalProcessedBytes = new AtomicLong(0);
@@ -208,6 +211,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     public FDTSession(ControlChannel controlChannel, short role) throws Exception {
         // it is possible to throw a NPE?
         super(controlChannel.fdtSessionID());
+        customLog = Utils.isCustomLog();
 
         currentStatus = 0;
 
