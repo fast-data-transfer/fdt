@@ -1,5 +1,5 @@
 /*
- * $Id: DiskWriterTask.java 558 2009-12-15 06:42:31Z ramiro $
+ * $Id: DiskWriterTask.java 596 2010-04-12 06:14:52Z ramiro $
  */
 package lia.util.net.copy.disk;
 
@@ -273,7 +273,10 @@ public class DiskWriterTask extends GenericDiskTask {
 
             } catch(IOException ioe) {
                 sTimeFinish = System.nanoTime();
-                logger.log(Level.SEVERE, myName + " ... Got I/O Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + fileBlock.fileOffset, ioe); 
+                logger.log(Level.SEVERE, myName + " ... Got I/O Exception writing to file [  ( " + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: " + fileBlock.fileOffset, ioe);
+                if(fdtSession != null && fileSession.sessionID() != null) {
+                    fdtSession.finishFileSession(fileSession.sessionID(), ioe);
+                }
             } catch (InterruptedException ie) {
                 if(fileSession == null) {
                     logger.log(Level.SEVERE, myName + " ... Got InterruptedException Exception writing to file [  ( fileSession is null ) ] offset: " + ((fileBlock == null)?" fileBlock is null":fileBlock.fileOffset), ie); 

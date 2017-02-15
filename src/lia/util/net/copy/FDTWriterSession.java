@@ -1,5 +1,5 @@
 /*
- * $Id: FDTWriterSession.java 584 2010-03-01 23:53:08Z ramiro $
+ * $Id: FDTWriterSession.java 594 2010-04-12 06:13:38Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -286,7 +286,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
         //check for temp file
         boolean noTmp = false;
-        if(config.isNoTmpFlagSet() || controlChannel.remoteConf.get("notmp") != null) {
+        if(config.isNoTmpFlagSet() || controlChannel.remoteConf.get("-notmp") != null) {
             noTmp = true;
         }
         

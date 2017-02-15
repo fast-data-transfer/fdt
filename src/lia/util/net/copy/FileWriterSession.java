@@ -1,12 +1,10 @@
 /*
- * $Id: FileWriterSession.java 591 2010-04-07 08:30:25Z ramiro $
+ * $Id: FileWriterSession.java 595 2010-04-12 06:13:58Z ramiro $
  */
 package lia.util.net.copy;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.util.UUID;

@@ -50,7 +50,12 @@ Client/Server:
    			 FDT will act only as a network benchmark tool.
    			 If the server is started with this flag *ALL* network
    			 transfers will be considered benchmark transfers!
-   -gsi			 enables the GSI authentication scheme. It must be used
+   -notmp		 Disables intermediate hidden file creation. Without 
+   			 this flag FDT transfers a /localDir/fileName to an 
+			 intermediate hidden file /destinationDir/.fileName 
+			 and, after the content of the file is transfered,
+			 it moves the file to /destinationDir/fileName. 
+   -gsi			 Enables the GSI authentication scheme. It must be used
    			 for both the FDT client and server.If the flag is
    			 enabled, the FDT server will accept only GSI
    			 authenticated FDT clients.
