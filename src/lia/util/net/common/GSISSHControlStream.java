@@ -1,5 +1,5 @@
 /*
- * $Id: GSISSHControlStream.java 564 2010-01-27 23:04:52Z ramiro $
+ * $Id: GSISSHControlStream.java 642 2011-02-13 13:58:42Z catac $
  */
 package lia.util.net.common;
 
@@ -28,16 +28,20 @@ import com.sshtools.j2ssh.session.SessionChannelClient;
  */
 public class GSISSHControlStream implements ControlStream {
 
+	// configuration parameters
+	private final String hostname;
+	private final String username;
+	private final int port;
+
 	/**
 	 * the SSH connection & session
 	 */
-	private final SshClient conn;
+	private SshClient conn;
 
-	private final SessionChannelClient sess;
+	private SessionChannelClient sess;
 
 	private String cmd;
 
-	private final String hostname;
 
     /**
      * Creates a new GSI SSH control connection on the default ssh port.
@@ -51,7 +55,7 @@ public class GSISSHControlStream implements ControlStream {
      * @throws IOException
      *             in case of failure
      */
-    public GSISSHControlStream(String hostname, String username) throws IOException {
+    public GSISSHControlStream(String hostname, String username) {
         this(hostname, username, 22);
     }
     
@@ -67,8 +71,13 @@ public class GSISSHControlStream implements ControlStream {
 	 * @throws IOException
 	 *             in case of failure
 	 */
-	public GSISSHControlStream(String hostname, String username, int port) throws IOException {
+	public GSISSHControlStream(String hostname, String username, int port) {
 		this.hostname = hostname;
+		this.username = username;
+		this.port = port;
+	}
+	
+	public void connect() throws IOException {
 		lia.gsi.ssh.GSIAuthenticationClient gsiAuth = null;
 		try {
 			gsiAuth = new lia.gsi.ssh.GSIAuthenticationClient();

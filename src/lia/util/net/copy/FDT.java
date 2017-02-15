@@ -1,5 +1,5 @@
 /*
- * $Id: FDT.java 637 2011-02-08 16:10:56Z ramiro $
+ * $Id: FDT.java 642 2011-02-13 13:58:42Z catac $
  */
 package lia.util.net.copy;
 
@@ -44,7 +44,7 @@ public class FDT {
 
     private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
 
-    public static final String FDT_FULL_VERSION = "0.9.20-201102081638";
+    public static final String FDT_FULL_VERSION = "0.9.22-201105021412";
 
     String mlDestinations = "monalisa2.cern.ch:28884,monalisa2.caltech.edu:28884";
 
@@ -354,11 +354,14 @@ public class FDT {
                 case Config.SSH_REMOTE_SERVER_LOCAL_CLIENT_PUSH:
                     System.err.println("[SSH Mode] SSH_REMOTE_SERVER_LOCAL_CLIENT_PUSH. Remote ssh port: " + sshPort);
                     try {// here we can have some class-not-found exceptions if GSI libraries are not loaded
-                        sshConn = config.isGSISSHModeEnabled() ? new lia.util.net.common.GSISSHControlStream(config.getHostName(), config.getDestinationUser(), sshPort) : new SSHControlStream(config.getHostName(),
-                                                                                                                                                                                       config.getDestinationUser(), sshPort);
+                        sshConn = config.isGSISSHModeEnabled() ? //
+                        		new lia.util.net.common.GSISSHControlStream(config.getHostName(), config.getDestinationUser(), sshPort) 
+                        		: //
+                        		new SSHControlStream(config.getHostName(), config.getDestinationUser(), sshPort);
                     } catch (NoClassDefFoundError t) {
                         throw new Exception("GSI libraries not loaded. You should set CLASSPATH accordingly!");
                     }
+                    sshConn.connect();
                     localAddresses = config.getLocalAddresses();
                     // append the required options to the configurable java command
                     remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -silent -S -f " + localAddresses;

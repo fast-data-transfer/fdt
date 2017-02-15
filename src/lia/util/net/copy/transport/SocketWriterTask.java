@@ -1,5 +1,5 @@
 /*
- * $Id: SocketWriterTask.java 631 2011-02-08 15:01:56Z ramiro $
+ * $Id: SocketWriterTask.java 644 2011-04-28 17:00:22Z ramiro $
  */
 package lia.util.net.copy.transport;
 
@@ -417,7 +417,7 @@ public class SocketWriterTask extends SocketTask {
                     logger.log(Level.FINEST, " writeDate for SK: " + Utils.toStringSelectionKey(fdtSelectionKey) + " SQSize : " + readyChannelsQueue.size() + " SelQueue: " + readyChannelsQueue);
                 }
 
-                if (writeData() < 0) {
+                if (writeData() < 0 || master.isClosed()) {
                     return;
                 }
             }

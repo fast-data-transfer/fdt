@@ -1,5 +1,5 @@
 /*
- * $Id: SSHControlStream.java 564 2010-01-27 23:04:52Z ramiro $
+ * $Id: SSHControlStream.java 642 2011-02-13 13:58:42Z catac $
  */
 package lia.util.net.common;
 
@@ -32,11 +32,17 @@ public class SSHControlStream implements ControlStream {
     static final String knownHostPath = System.getProperty("user.home") + "/.ssh/known_hosts";
     static final String idDSAPath = System.getProperty("user.home") + "/.ssh/id_dsa.fdt";
     static final String idRSAPath = System.getProperty("user.home") + "/.ssh/id_rsa.fdt";
+    
+    // configuration parameters
+    private final String hostname;
+    private final String username;
+    private final int port;
+    
     /**
      * the SSH connection & session
      */
-    private final Connection conn;
-    private final Session sess;
+    private Connection conn;
+    private Session sess;
     private String cmd;
 
     /**
@@ -51,7 +57,7 @@ public class SSHControlStream implements ControlStream {
      * @throws IOException
      *             in case of failure
      */
-    public SSHControlStream(String hostname, String username) throws IOException {
+    public SSHControlStream(String hostname, String username) {
         this(hostname, username, 22);
     }
 
@@ -67,7 +73,13 @@ public class SSHControlStream implements ControlStream {
      * @throws IOException
      *             in case of failure
      */
-    public SSHControlStream(String hostname, String username, int port) throws IOException {
+    public SSHControlStream(String hostname, String username, int port) {
+    	this.hostname = hostname;
+    	this.username = username;
+    	this.port = port;
+    }
+    
+    public void connect() throws IOException {
         this.conn = new Connection(hostname, port);
         conn.connect();
 

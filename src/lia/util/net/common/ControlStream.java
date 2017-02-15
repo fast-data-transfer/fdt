@@ -1,5 +1,5 @@
 /*
- * $Id: ControlStream.java 346 2007-08-16 13:48:25Z ramiro $
+ * $Id: ControlStream.java 642 2011-02-13 13:58:42Z catac $
  */
 package lia.util.net.common;
 
@@ -13,6 +13,9 @@ import java.io.InputStream;
  */
 public interface ControlStream {
 
+	/** Start the connection with the configured parameters */
+	void connect() throws IOException;
+	
 	public void startProgram(String cmd) throws IOException;
 
 	public InputStream getProgramStdOut() throws IOException;
