@@ -1,5 +1,5 @@
 /*
- * $Id: FDT.java 651 2011-07-29 09:44:24Z ramiro $
+ * $Id: FDT.java 676 2012-07-12 21:05:47Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -44,7 +44,7 @@ public class FDT {
 
     private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
 
-    public static final String FDT_FULL_VERSION = "0.12.0-201206251500";
+    public static final String FDT_FULL_VERSION = "0.12.2-201207122110";
 
     String mlDestinations = "monalisa2.cern.ch:28884,monalisa2.caltech.edu:28884";
 
@@ -260,6 +260,7 @@ public class FDT {
 
     private static void printVersion() {
         System.out.println(name + " " + FDT_FULL_VERSION);
+        System.out.println("Contact: support-fdt@monalisa.cern.ch");
     }
 
     private int doWork() {
