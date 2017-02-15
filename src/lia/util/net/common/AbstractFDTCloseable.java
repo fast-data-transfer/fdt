@@ -1,5 +1,5 @@
 /*
- * $Id: AbstractFDTCloseable.java 488 2008-01-11 17:48:36Z ramiro $
+ * $Id$
  */
 package lia.util.net.common;
 

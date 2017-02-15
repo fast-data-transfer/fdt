@@ -1,5 +1,5 @@
 /*
- * $Id: ProcessorInfo.java 659 2012-03-04 20:07:24Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.filters;
 

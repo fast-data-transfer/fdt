@@ -1,5 +1,5 @@
 /*
- * $Id: NetSessionMonitoringTask.java 459 2007-10-09 10:18:00Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring;
 

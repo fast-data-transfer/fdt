@@ -1,5 +1,5 @@
 /*
- * $Id: HeaderBufferPool.java 684 2012-07-31 09:12:18Z ramiro $
+ * $Id$
  */
 package lia.util.net.common;
 import java.util.logging.Level;

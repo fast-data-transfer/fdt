@@ -1,5 +1,5 @@
 /*
- * $Id: FDTBufferPool.java 346 2007-08-16 13:48:25Z ramiro $
+ * $Id$
  */
 package lia.util.net.common;
 import java.nio.ByteBuffer;

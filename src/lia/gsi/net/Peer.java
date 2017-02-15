@@ -1,5 +1,5 @@
 /*
- * $Id: Peer.java 621 2010-09-03 14:31:24Z ramiro $
+ * $Id$
  */
 package lia.gsi.net;
 

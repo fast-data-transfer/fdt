@@ -1,5 +1,5 @@
 /*
- * $Id: FileSession.java 694 2012-11-19 16:48:08Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy;
 

@@ -1,5 +1,5 @@
 /*
- * $Id: FDTInternalMonitoringTask.java 682 2012-07-30 18:11:41Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring;
 

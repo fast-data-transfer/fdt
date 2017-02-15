@@ -1,5 +1,5 @@
 /*
- * $Id: FDTReaderSession.java 712 2013-10-10 22:56:25Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy;
 

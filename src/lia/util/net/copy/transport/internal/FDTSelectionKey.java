@@ -1,5 +1,5 @@
 /*
- * $Id: FDTSelectionKey.java 634 2011-02-08 15:47:26Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.transport.internal;
 

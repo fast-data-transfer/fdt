@@ -53,7 +53,7 @@ import apmon.ApMon;
 
 /**
  * Various utilities functions used in the entire application
- * 
+ *
  * @author ramiro
  */
 public final class Utils {
@@ -118,7 +118,7 @@ public final class Utils {
     private static final String[] SELECTION_KEY_OPS_NAMES = { "OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE" };
 
     private static final int[] SELECTION_KEY_OPS_VALUES = { SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT,
-            SelectionKey.OP_READ, SelectionKey.OP_WRITE };
+        SelectionKey.OP_READ, SelectionKey.OP_WRITE };
 
     //
     // END this should not be here any more after FDT will use only Java6
@@ -189,15 +189,15 @@ public final class Utils {
         ThreadPoolExecutor texecutor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, 2 * 60, TimeUnit.SECONDS,
                 taskQueue, new ThreadFactory() {
 
-                    final AtomicLong l = new AtomicLong(0);
+            final AtomicLong l = new AtomicLong(0);
 
-                    public Thread newThread(Runnable r) {
-                        Thread t = new Thread(r, name + " - WorkerTask " + l.getAndIncrement());
-                        t.setPriority(threadPriority);
-                        t.setDaemon(true);
-                        return t;
-                    }
-                });
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, name + " - WorkerTask " + l.getAndIncrement());
+                t.setPriority(threadPriority);
+                t.setDaemon(true);
+                return t;
+            }
+        });
         texecutor.setRejectedExecutionHandler(new RejectedExecutionHandler() {
 
             public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
@@ -362,7 +362,7 @@ public final class Utils {
 
     /**
      * Works with both Java5 and Java6 ....... Uncooment the code and remove ............
-     * 
+     *
      * @param value
      * @param unit
      * @return the ETA as String representation
@@ -1106,7 +1106,7 @@ public final class Utils {
                     lastCheck = now;
                     try {
                         System.out
-                                .println("\n\nChecking for remote updates ... This may be disabled using -noupdates flag.");
+                        .println("\n\nChecking for remote updates ... This may be disabled using -noupdates flag.");
                         bHaveUpdates = updateFDT(currentVersion, updateURL, false, noLock);
                         if (bHaveUpdates) {
                             System.out.println("FDT may be updated using: java -jar fdt.jar -update");
@@ -1236,7 +1236,7 @@ public final class Utils {
         // final String finalPath =
         // FDT.class.getProtectionDomain().getCodeSource().getLocation().getPath().replaceAll("%20", " ");
         final String finalPath = new URI(FDT.class.getProtectionDomain().getCodeSource().getLocation().toString())
-                .getPath();
+        .getPath();
 
         if ((finalPath == null) || (finalPath.length() == 0)) {
             throw new IOException("Cannot determine the path to current fdt jar");
@@ -1322,7 +1322,7 @@ public final class Utils {
                         //
                         logger.log(Level.WARNING,
                                 "[ WARNING CHECK ] The OS reported that is unable to write in parent dir: " + parentDir
-                                        + " continue anyway; the call might be broken.");
+                                + " continue anyway; the call might be broken.");
                     }
 
                     final File bkpJar = new File(parentDir.getPath() + File.separator + "fdt_"
@@ -1403,7 +1403,7 @@ public final class Utils {
 
     /**
      * Optimized file transfer method. In most moder OS-es "zero-copy" should be used by the underlying OS.
-     * 
+     *
      * @param s
      *            source file
      * @param d
@@ -1504,40 +1504,62 @@ public final class Utils {
     }
 
     /**
+     * Helper method to close a {@link FDTCloseable} ignoring eventual exceptions
+     *
+     * @param closeable
+     *            to be closed
+     */
+    public static final void closeIgnoringExceptions(FDTCloseable closeable, String downMessage, Throwable downCause) {
+        if (closeable != null) {
+            try {
+                closeable.close(downMessage, downCause);
+            } catch (Throwable ign) {
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, "Exceptions closing FDTCloseable '" + closeable + "'. Cause: ", ign);
+                }
+            }
+        }
+    }
+
+    /**
      * Helper method to close a {@link Closeable} ignoring eventual exceptions
-     * 
+     *
      * @param closeable
      *            to be closed
      */
     public static final void closeIgnoringExceptions(Closeable closeable) {
-        try {
-            if (closeable != null) {
+        if (closeable != null) {
+            try {
                 closeable.close();
+            } catch (Throwable ign) {
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, "Exceptions closing Closeable '" + closeable + "'. Cause: ", ign);
+                }
             }
-        } catch (Throwable _) {
-            // not interested
         }
     }
 
     /**
      * Helper method to close a {@link Selector} ignoring eventual exceptions
-     * 
+     *
      * @param selector
      *            to be closed
      */
     public static final void closeIgnoringExceptions(Selector selector) {
-        try {
-            if (selector != null) {
+        if (selector != null) {
+            try {
                 selector.close();
+            } catch (Throwable ign) {
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, "Exceptions closing Selector '" + selector + "'. Cause: ", ign);
+                }
             }
-        } catch (Throwable _) {
-            // not interested
         }
     }
 
     /**
      * Helper method to close a {@link Socket} ignoring eventual exceptions
-     * 
+     *
      * @param socket
      *            to be closed
      */
@@ -1545,25 +1567,32 @@ public final class Utils {
         if (socket != null) {
             try {
                 socket.close();
-            } catch (Throwable ignore) {
-                // not interested
+            } catch (Throwable ign) {
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, "Exceptions closing Socket '" + socket + "'. Cause: ", ign);
+                }
             }
         }
     }
 
     public static final boolean cancelFutureIgnoringException(Future<?> f, boolean mayInterruptIfRunning) {
-        try {
-            return f.cancel(mayInterruptIfRunning);
-        } catch (Throwable ignore) {
-            //not interested
+        if (f != null) {
+            try {
+                return f.cancel(mayInterruptIfRunning);
+            } catch (Throwable ign) {
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, "Exceptions canceling Future '" + f + "'. Cause: ", ign);
+                }
+            }
         }
-        //should not reach this point anyway
+
+        //should not reach this point but life is full of misteries!
         return false;
     }
 
     /**
      * Helper method to close a {@link ServerSocket} ignoring eventual exceptions
-     * 
+     *
      * @param serverSocket
      *            to be closed
      */
@@ -1571,8 +1600,10 @@ public final class Utils {
         if (serverSocket != null) {
             try {
                 serverSocket.close();
-            } catch (Throwable ignore) {
-                // not interested
+            } catch (Throwable ign) {
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, "Exceptions closing ServerSocket '" + serverSocket + "'. Cause: ", ign);
+                }
             }
         }
     }

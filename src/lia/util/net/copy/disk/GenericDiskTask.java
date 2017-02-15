@@ -1,5 +1,5 @@
 /*
- * $Id: GenericDiskTask.java 397 2007-08-29 17:36:44Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.disk;
 

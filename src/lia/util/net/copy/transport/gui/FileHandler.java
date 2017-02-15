@@ -1,5 +1,5 @@
 /*
- * $Id: FileHandler.java 377 2007-08-20 16:30:15Z ramiro $
+ * $Id$
  * Created on Aug 20, 2007
  *
  * moved from lia.util.net.copy.gui

@@ -1,5 +1,5 @@
 /*
- * $Id: FDTSessionMonitoringTask.java 495 2008-02-20 15:07:50Z catac $
+ * $Id$
  */
 package lia.util.net.copy.monitoring;
 

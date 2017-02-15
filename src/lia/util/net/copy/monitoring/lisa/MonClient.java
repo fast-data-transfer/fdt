@@ -1,5 +1,5 @@
 /*
- * $Id: MonClient.java 491 2008-02-20 13:02:19Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring.lisa;
 

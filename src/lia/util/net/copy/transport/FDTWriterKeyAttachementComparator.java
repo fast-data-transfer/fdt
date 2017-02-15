@@ -1,5 +1,5 @@
 /*
- * $Id: FDTWriterKeyAttachementComparator.java 548 2009-11-27 16:09:03Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.transport;
 

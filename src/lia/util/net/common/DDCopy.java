@@ -1,5 +1,5 @@
 /*
- * $Id: DDCopy.java 396 2007-08-29 17:33:34Z ramiro $
+ * $Id$
  */
 package lia.util.net.common;
 

@@ -1,5 +1,5 @@
 /*
- * $Id: ServerSessionManager.java 530 2009-06-04 13:38:13Z cipsm $
+ * $Id$
  */
 package lia.util.net.copy.transport.gui;
 

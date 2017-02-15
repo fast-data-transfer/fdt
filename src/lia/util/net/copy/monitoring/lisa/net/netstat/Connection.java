@@ -1,5 +1,5 @@
 /*
- * $Id: Connection.java 353 2007-08-16 14:22:15Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring.lisa.net.netstat;
 

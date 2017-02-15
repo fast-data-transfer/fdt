@@ -1,5 +1,5 @@
 /*
- * $Id: KernelTest.java 346 2007-08-16 13:48:25Z ramiro $
+ * $Id$
  *
  * Created on December 9, 2006, 4:14 PM
  *

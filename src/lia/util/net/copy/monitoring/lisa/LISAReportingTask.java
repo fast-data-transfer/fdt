@@ -1,5 +1,5 @@
 /*
- * $Id: LISAReportingTask.java 493 2008-02-20 15:04:43Z catac $
+ * $Id$
  */
 package lia.util.net.copy.monitoring.lisa;
 

@@ -1,5 +1,5 @@
 /*
- * $Id: SocketWriterTask.java 644 2011-04-28 17:00:22Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.transport;
 

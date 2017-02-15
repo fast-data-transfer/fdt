@@ -1,5 +1,5 @@
 /*
- * $Id: FileBlock.java 555 2009-12-14 17:16:27Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy;
 

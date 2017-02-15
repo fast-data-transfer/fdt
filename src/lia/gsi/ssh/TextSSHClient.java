@@ -1,5 +1,5 @@
 /*
- * $Id: TextSSHClient.java 345 2007-08-16 13:10:18Z ramiro $
+ * $Id$
  */
 package lia.gsi.ssh;
 

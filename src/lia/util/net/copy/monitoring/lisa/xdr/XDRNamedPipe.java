@@ -1,7 +1,7 @@
 /*
  * Created on Jun 20, 2006
  * 
- * $Id: XDRNamedPipe.java 356 2007-08-16 14:31:17Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring.lisa.xdr;
 

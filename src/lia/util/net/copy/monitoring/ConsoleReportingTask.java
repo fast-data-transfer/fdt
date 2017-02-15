@@ -1,5 +1,5 @@
 /*
- * $Id: ConsoleReportingTask.java 558 2009-12-15 06:42:31Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring;
 
@@ -27,37 +27,40 @@ import lia.util.net.copy.transport.TCPTransportProvider;
  */
 public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
 
-    private static final Logger               logger            = Logger.getLogger(ConsoleReportingTask.class.getName());
+    private static final Logger logger = Logger.getLogger(ConsoleReportingTask.class.getName());
 
-    private static final DiskWriterManager    diskWriterManager = DiskWriterManager.getInstance();
+    private static final DiskWriterManager diskWriterManager = DiskWriterManager.getInstance();
 
-    private static final DiskReaderManager    diskReaderManager = DiskReaderManager.getInstance();
+    private static final DiskReaderManager diskReaderManager = DiskReaderManager.getInstance();
 
     // private final DateFormat dateFormat = new SimpleDateFormat("dd/MM/yy HH:mm:ss");
-    private final DateFormat                  dateFormat        = new SimpleDateFormat("dd/MM HH:mm:ss");
+    private final DateFormat dateFormat = new SimpleDateFormat("dd/MM HH:mm:ss");
 
-    private final Set<FDTSession>             oldReaderSessions = new TreeSet<FDTSession>();
+    private final Set<FDTSession> oldReaderSessions = new TreeSet<FDTSession>();
 
-    private final Set<FDTSession>             oldWriterSessions = new TreeSet<FDTSession>();
+    private final Set<FDTSession> oldWriterSessions = new TreeSet<FDTSession>();
 
-    private static final ConsoleReportingTask thisInstace       = new ConsoleReportingTask();
+    private static final ConsoleReportingTask thisInstace = new ConsoleReportingTask();
+
+    private final boolean customLog;
 
     private ConsoleReportingTask() {
         super(null);
         if (logger.isLoggable(Level.FINER)) {
             logger.log(Level.FINER, "\n\n  [ ConsoleReportingTask ] initiated !!!! \n\n");
         }
+
+        final String customLogProperty = System.getProperty("CustomLog");
+        customLog = (customLogProperty != null && customLogProperty.trim().startsWith("t")
+                || customLogProperty.trim().startsWith("1"));
     }
 
     public static final ConsoleReportingTask getInstance() {
         return thisInstace;
     }
 
-    private final boolean reportStatus(
-            final Set<FDTSession> currentSessionSet,
-            final Set<FDTSession> oldSessionSet,
-            final String tag,
-            final StringBuilder sb) {
+    private final boolean reportStatus(final Set<FDTSession> currentSessionSet, final Set<FDTSession> oldSessionSet,
+            final String tag, final StringBuilder sb) {
         boolean shouldReport = false;
 
         if (oldSessionSet.size() > 0) {
@@ -77,10 +80,9 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                     if (tcpTransportProvider == null) {
                         // this is real big .... BUG?????
                         logger.log(Level.WARNING,
-                                   " [ ConsoleReportingTask ] The session: "
-                                           + fdtSession.sessionID()
-                                           + " is no longer "
-                                           + "available, but canot remove trasport provider from monitoring queue. It's probably a BUG in FDT");
+                                " [ ConsoleReportingTask ] The session: " + fdtSession
+                                        .sessionID() + " is no longer "
+                                + "available, but canot remove trasport provider from monitoring queue. It's probably a BUG in FDT");
                         continue;
                     }
                     if (logger.isLoggable(Level.FINE)) {
@@ -105,10 +107,8 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                     if (reportMultipleSessions) {
                         sb.append("\n").append(fdtSession.sessionID());
                     }
-                    sb.append(tag)
-                      .append(Utils.formatWithBitFactor(8 * totalRate, 0, "/s"))
-                      .append("\tAvg: ")
-                      .append(Utils.formatWithBitFactor(8 * avgTotalRate, 0, "/s"));
+                    sb.append(tag).append(Utils.formatWithBitFactor(8 * totalRate, 0, "/s")).append("\tAvg: ")
+                            .append(Utils.formatWithBitFactor(8 * avgTotalRate, 0, "/s"));
 
                     final long dtMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - fdtSession.startTimeNanos);
                     if (fdtSession.getSize() > 0 && dtMillis > 20 * 1000) {
@@ -117,13 +117,12 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                         if (cSize > 0) {
                             final double tSize = (fdtSession.getSize() <= 0L) ? 0D : fdtSession.getSize();
                             sb.append(" ").append(Utils.percentDecimalFormat((cSize * 100) / tSize)).append("%");
-                            final double remainingSeconds = (fdtSession.getSize() - cSize)
-                                    / avgTotalRate;
+                            final double remainingSeconds = (fdtSession.getSize() - cSize) / avgTotalRate;
                             sb.append(" ( ").append(Utils.getETA((long) remainingSeconds)).append(" )");
                         }
                     }
                 }
-            }// for all old sessions
+            } // for all old sessions
 
             if (reportMultipleSessions) {
                 // get it in bits/s from bytes/s
@@ -161,13 +160,15 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
         StringBuilder sb = new StringBuilder(8192);
         sb.append(dateFormat.format(new Date())).append("\t");
 
-        boolean shouldReport = (reportStatus(diskWriterManager.getSessions(), oldWriterSessions, "Net In: ", sb) || reportStatus(diskReaderManager.getSessions(),
-                                                                                                                                 oldReaderSessions,
-                                                                                                                                 "Net Out: ",
-                                                                                                                                 sb));
+        boolean shouldReport = (reportStatus(diskWriterManager.getSessions(), oldWriterSessions, "Net In: ", sb)
+                || reportStatus(diskReaderManager.getSessions(), oldReaderSessions, "Net Out: ", sb));
 
         if (shouldReport) {
-            System.out.println(sb.toString());
+            if (customLog) {
+                logger.info(sb.toString());
+            } else {
+                System.out.println(sb.toString());
+            }
         }
     }
 

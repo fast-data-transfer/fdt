@@ -1,5 +1,5 @@
 /*
- * $Id: GSISSHControlStream.java 642 2011-02-13 13:58:42Z catac $
+ * $Id$
  */
 package lia.util.net.common;
 

@@ -1,5 +1,5 @@
 /*
- * $Id: GUIMessage.java 530 2009-06-04 13:38:13Z cipsm $
+ * $Id$
  * Created on Aug 20, 2007
  *
  * moved from lia.util.net.copy.gui

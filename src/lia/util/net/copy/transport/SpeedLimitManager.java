@@ -1,5 +1,5 @@
 /*
- * $Id: SpeedLimitManager.java 701 2013-02-13 19:25:45Z ramiro $
+ * $Id$
  * Created on December 13, 2006, 11:16 AM
  */
 package lia.util.net.copy.transport;

@@ -1,5 +1,5 @@
 /*
- * $Id: SpeedLimiter.java 360 2007-08-16 14:51:52Z ramiro $
+ * $Id$
  *
  * Created on December 14, 2006, 10:17 AM
  */

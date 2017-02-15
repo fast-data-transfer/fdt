@@ -1,5 +1,5 @@
 /*
- * $Id: MTUSet.java 352 2007-08-16 14:20:55Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring.lisa.net.dev;
 

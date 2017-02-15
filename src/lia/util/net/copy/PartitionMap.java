@@ -1,5 +1,5 @@
 /*
- * $Id: PartitionMap.java 691 2012-11-02 14:52:32Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy;
 

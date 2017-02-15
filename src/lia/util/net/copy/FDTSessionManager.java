@@ -1,5 +1,5 @@
 /*
- * $Id: FDTSessionManager.java 577 2010-02-23 23:25:05Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy;
 
@@ -18,6 +18,7 @@ import java.util.logging.Logger;
 
 import lia.util.net.common.AbstractFDTCloseable;
 import lia.util.net.common.Config;
+import lia.util.net.common.Utils;
 import lia.util.net.copy.transport.ControlChannel;
 import lia.util.net.copy.transport.ControlChannelNotifier;
 import lia.util.net.copy.transport.FDTProcolException;
@@ -30,193 +31,181 @@ import lia.util.net.copy.transport.FDTProcolException;
  * @author ramiro
  */
 public class FDTSessionManager extends AbstractFDTCloseable implements ControlChannelNotifier {
-    
+
     private static final Logger logger = Logger.getLogger(FDTSessionManager.class.getName());
-    
+
     private static final FDTSessionManager _thisInstanceManager = new FDTSessionManager();
     private static final Config config = Config.getInstance();
 
     //the map with all the FDT sessions
     private final Map<UUID, FDTSession> fdtSessionMap;
-    
+
     //used to wait for the sessions to finish
     private final Lock lock;
     private final Condition isSessionMapEmpty;
-    
+
     //at least one session started
     private final AtomicBoolean inited;
-    
+
     private volatile String lastDownMsg;
     private volatile Throwable lastDownCause;
-    
+
     public static final FDTSessionManager getInstance() {
         return _thisInstanceManager;
     }
-    
-    
-    
+
     private FDTSessionManager() {
         lock = new ReentrantLock();
         isSessionMapEmpty = lock.newCondition();
         fdtSessionMap = new ConcurrentHashMap<UUID, FDTSession>();
         inited = new AtomicBoolean(false);
     }
-    
+
     public void addFDTClientSession(ControlChannel controlChannel) throws Exception {
-        
+
         FDTSession fdtSession = null;
         try {
-            if(controlChannel.remoteConf.get("-pull") != null) {
+            if (controlChannel.remoteConf.get("-pull") != null) {
                 //-> Start a reader and connect to the server
                 fdtSession = new FDTReaderSession(controlChannel);
-                if(logger.isLoggable(Level.FINER)) {
-                    logger.log(Level.FINER, " Adding FDTReaderSession ( " + fdtSession.sessionID + " ) to the FDTSessionManager");
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, " Adding FDTReaderSession ( " + fdtSession.sessionID
+                            + " ) to the FDTSessionManager");
                 }
             } else {
                 //-> Start a writer and connect to the server
                 fdtSession = new FDTWriterSession(controlChannel);
-                if(logger.isLoggable(Level.FINER)) {
-                    logger.log(Level.FINER, " Adding FDTWriterSession ( " + fdtSession.sessionID + " ) to the FDTSessionManager");
+                if (logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, " Adding FDTWriterSession ( " + fdtSession.sessionID
+                            + " ) to the FDTSessionManager");
                 }
             }
-            
+
             fdtSessionMap.put(fdtSession.sessionID(), fdtSession);
             inited.set(true);
-            
-        } catch(Throwable t) {
+
+        } catch (Throwable t) {
             logger.log(Level.WARNING, " Got exception instantiate Session/RemoteConn ", t);
-            
-            if(fdtSession != null) {
-                try {
-                    fdtSession.close("exception instantiate Session/RemoteConn", t);
-                }catch(Throwable ignore){}
-            }
-            
-            if(controlChannel != null) {
-                try {
-                    controlChannel.close("exception instantiate Session/RemoteConn", t);
-                }catch(Throwable ignore){}
-            }
-            
+
+            //close the session
+            Utils.closeIgnoringExceptions(fdtSession, "Exception instantiate Session/RemoteConn", t);
+
+            //and the control channel
+            Utils.closeIgnoringExceptions(controlChannel, "Exception instantiate Session/RemoteConn", t);
+
             throw new Exception(t);
         }
     }
+
     //called from
     public FDTSession addFDTClientSession() throws Exception {
-        
+
         FDTSession fdtSession = null;
-        
+
         try {
-            
-            if(config.isPullMode()) {
+
+            if (config.isPullMode()) {
                 //-> Start a writer and connect to the server
                 fdtSession = new FDTWriterSession();
             } else {
                 //-> Start a reader and connect to the server
                 fdtSession = new FDTReaderSession();
             }
-            
+
             fdtSessionMap.put(fdtSession.sessionID(), fdtSession);
             inited.set(true);
-            
+
             //I may start the control thread now; FindBugs suggestion
             fdtSession.startControlThread();
-            
-        } catch(Throwable t) {
-            logger.log(Level.WARNING, " Got exception initiation Session/RemoteConn ", t);
-            
-            if(fdtSession != null) {
-                try {
-                    fdtSession.close(null, t);
-                }catch(Throwable ignore){}
-            }
+
+        } catch (Throwable t) {
+            logger.log(Level.WARNING, "Got exception initiation Session/RemoteConn ", t);
+
+            Utils.closeIgnoringExceptions(fdtSession, "Got exception initiation Session/RemoteConn ", t);
+
             throw new Exception(t);
         }
         return fdtSession;
     }
-    
+
     public int sessionsNumber() {
         return fdtSessionMap.size();
     }
-    
+
     public boolean isInited() {
         return inited.get();
     }
-    
+
     public FDTSession getSession(UUID fdtSessionID) {
         return fdtSessionMap.get(fdtSessionID);
     }
-    
+
     public boolean finishSession(UUID fdtSessionID, String downMessage, Throwable downCause) {
         final FDTSession fdtSession = fdtSessionMap.remove(fdtSessionID);
-        if(logger.isLoggable(Level.FINER)) {
-        	logger.log(Level.FINER, " FDTSessionManager removed sessionID " + fdtSessionID + "; removed == " + (fdtSession != null) + " new size: " + fdtSessionMap.size());
+        if (logger.isLoggable(Level.FINER)) {
+            logger.log(Level.FINER, " FDTSessionManager removed sessionID " + fdtSessionID + "; removed == "
+                    + (fdtSession != null) + " new size: " + fdtSessionMap.size());
         }
         //I know ... it's not very well sync, but should be enough for the client side ... which will have only one FDT Session
         if (fdtSessionMap.size() == 0) {
             lock.lock();
             try {
-                
+
                 lastDownMsg = downMessage;
                 lastDownCause = downCause;
-                
+
                 isSessionMapEmpty.signalAll();
             } finally {
                 lock.unlock();
             }
         }
-        
-        if(fdtSession == null) {
+
+        if (fdtSession == null) {
             return false;
         }
-        
+
         return fdtSession.close(downMessage, downCause);
     }
-    
+
     public void addWorker(final UUID fdtSessionID, final SocketChannel sc) throws Exception {
         final FDTSession fdtSession = fdtSessionMap.get(fdtSessionID);
-        if(fdtSession != null) {
+        if (fdtSession != null) {
             fdtSession.transportProvider.addWorkerStream(sc, true);
         } else {
-            logger.log(Level.WARNING, "\n\n [ FDTSessionManager ] No such session " + fdtSessionID + " for worker: " + sc + ". The channel will be closed");
-            try {
-                sc.close();
-            }catch(Throwable _) {}
+            logger.log(Level.WARNING, "\n\n [ FDTSessionManager ] No such session " + fdtSessionID + " for worker: "
+                    + sc + ". The channel will be closed");
+            Utils.closeIgnoringExceptions(sc);
         }
     }
-    
+
     public void notifyCtrlMsg(ControlChannel controlChannel, Object o) throws FDTProcolException {
-        if(controlChannel == null) {
+        if (controlChannel == null) {
             throw new NullPointerException("ControlChannel cannot be null in notifier!");
         }
-        
-        FDTSession fdtSession = fdtSessionMap.get(controlChannel.fdtSessionID());
-        if(fdtSession == null) {
-            try {
-                
-                
-            } catch(Throwable t) {
-                controlChannel.close("No such session in my Map", t);
-            }
-        } else {
-            fdtSession.notifyCtrlMsg(controlChannel, o);
+
+        final FDTSession fdtSession = fdtSessionMap.get(controlChannel.fdtSessionID());
+        if (fdtSession == null) {
+            throw new FDTProcolException("No FDTSession for ID: " + controlChannel.fdtSessionID());
         }
+
+        fdtSession.notifyCtrlMsg(controlChannel, o);
     }
-    
+
     public void awaitTermination() throws InterruptedException {
         lock.lock();
         try {
-            while(fdtSessionMap.size() > 0) {
+            while (fdtSessionMap.size() > 0) {
                 isSessionMapEmpty.await(5, TimeUnit.SECONDS);
-                if(logger.isLoggable(Level.FINEST)) {
-                	logger.log(Level.FINEST, " waiting for [ " + fdtSessionMap.size() + " ] sessions to finish. -> " + Arrays.toString(fdtSessionMap.keySet().toArray(new UUID[0])));
+                if (logger.isLoggable(Level.FINEST)) {
+                    logger.log(Level.FINEST, " waiting for [ " + fdtSessionMap.size() + " ] sessions to finish. -> "
+                            + Arrays.toString(fdtSessionMap.keySet().toArray(new UUID[0])));
                 }
             }
         } finally {
             lock.unlock();
         }
     }
-    
+
     public Throwable getLasDownCause() {
         lock.lock();
         try {
@@ -225,7 +214,7 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
             lock.unlock();
         }
     }
-    
+
     public String getLasDownMessage() {
         lock.lock();
         try {
@@ -234,16 +223,16 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
             lock.unlock();
         }
     }
-    
+
     public void notifyCtrlSessionDown(ControlChannel controlChannel, Throwable cause) {
         final FDTSession fdtSession = fdtSessionMap.get(controlChannel.fdtSessionID());
-        if(fdtSession != null) {
+        if (fdtSession != null) {
             fdtSession.notifyCtrlSessionDown(controlChannel, cause);
         }
     }
 
     @Override
     protected void internalClose() throws Exception {
-        
+
     }
 }

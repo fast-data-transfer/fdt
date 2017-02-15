@@ -128,7 +128,7 @@ public class FDTServer extends AbstractFDTCloseable {
                                 + " ] The stream will be closed.");
                         try {
                             sc.close();
-                        } catch (Throwable _) {
+                        } catch (Throwable ignored) {
                             // ignore
                         }
                         return;
@@ -158,7 +158,7 @@ public class FDTServer extends AbstractFDTCloseable {
                                     + " ] but in GSI mode ... will be rejected.");
                             try {
                                 sc.close();
-                            } catch (Throwable _) {
+                            } catch (Throwable ignored) {
                                 // ignore
                             }
                             return;

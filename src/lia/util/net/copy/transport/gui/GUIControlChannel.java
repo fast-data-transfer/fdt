@@ -1,5 +1,5 @@
 /*
- * $Id: GUIControlChannel.java 408 2007-09-03 16:03:54Z cipsm $
+ * $Id$
  */
 package lia.util.net.copy.transport.gui;
 

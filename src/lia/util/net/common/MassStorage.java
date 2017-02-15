@@ -1,5 +1,5 @@
 /*
- * $Id: MassStorage.java 528 2009-01-27 16:11:33Z ramiro $
+ * $Id$
  */
 package lia.util.net.common;
 

@@ -1,5 +1,5 @@
 /*
- * $Id: DiskWriterMonitoringTask.java 547 2009-11-27 08:49:03Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring;
 

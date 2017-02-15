@@ -1,5 +1,5 @@
 /*
- * $Id: AbstractFDTIOEntity.java 553 2009-12-11 16:42:24Z ramiro $
+ * $Id$
  */
 package lia.util.net.common;
 

@@ -1,5 +1,5 @@
 /*
- * $Id: HostPropertiesMonitor.java 357 2007-08-16 14:35:18Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring.lisa;
 

@@ -1,5 +1,5 @@
 /*
- * $Id: ClientTest.java 341 2007-08-16 12:42:32Z ramiro $
+ * $Id$
  */
 package lia.gsi;
 

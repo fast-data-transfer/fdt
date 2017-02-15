@@ -1,5 +1,5 @@
 /*
- * $Id: TCPTransportProvider.java 701 2013-02-13 19:25:45Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.transport;
 

@@ -1,5 +1,5 @@
 /*
- * $Id: PingDaemon.java 360 2007-08-16 14:51:52Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.transport;
 

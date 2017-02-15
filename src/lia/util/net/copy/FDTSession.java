@@ -1,5 +1,5 @@
 /*
- * $Id: FDTSession.java 710 2013-10-04 11:39:06Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy;
 

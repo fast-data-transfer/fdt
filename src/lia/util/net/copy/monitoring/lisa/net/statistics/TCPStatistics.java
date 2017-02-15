@@ -1,5 +1,5 @@
 /*
- * $Id: TCPStatistics.java 354 2007-08-16 14:23:41Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring.lisa.net.statistics;
 

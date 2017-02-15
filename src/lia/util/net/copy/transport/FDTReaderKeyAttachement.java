@@ -1,5 +1,5 @@
 /*
- * $Id: FDTReaderKeyAttachement.java 549 2009-11-27 17:14:49Z ramiro $
+ * $Id$
  */
 
 package lia.util.net.copy.transport;

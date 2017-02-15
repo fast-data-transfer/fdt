@@ -1,5 +1,5 @@
 /*
- * $Id: ControlChannel.java 707 2013-07-01 14:33:43Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.transport;
 
@@ -342,7 +342,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
             if (notifier != null) {
                 try {
                     notifier.notifyCtrlSessionDown(this, downCause());
-                } catch (Throwable _) {
+                } catch (Throwable ignored) {
                     //not interested
                 }
             }
@@ -526,7 +526,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
                         while (retry++ < 3) {
                             try {
                                 Thread.sleep(1 * 1000);
-                            } catch (Throwable _) {
+                            } catch (Throwable ignored) {
                                 //if we're interruped - tough luck
                             }
 
@@ -536,7 +536,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
                                 }
                                 qToSend.add(new CtrlMsg(CtrlMsg.END_SESSION_FIN2, downMessage()
                                         + Utils.getStackTrace(downCause())));
-                            } catch (Throwable _) {
+                            } catch (Throwable ignored) {
                                 //if we're interruped - tough luck
                             }
 
@@ -551,7 +551,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
             // if main is out ... please let me die like a real thread :)
             t.setDaemon(true);
             t.start();
-        } catch (Throwable _) {
+        } catch (Throwable ignored) {
             // smth went dreadfully wrong ... just close the session now!
             try {
                 cleanup();

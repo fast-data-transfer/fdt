@@ -1,5 +1,5 @@
 /*
- * $Id: NetMatcher.java 685 2012-07-31 09:12:30Z ramiro $
+ * $Id$
  */
 
 /***********************************************************************
@@ -159,7 +159,7 @@ class InetNetwork {
     public static final InetAddress maskIP(final byte[] ip, final byte[] mask) {
         try {
             return getByAddress(new byte[] { (byte) (mask[0] & ip[0]), (byte) (mask[1] & ip[1]), (byte) (mask[2] & ip[2]), (byte) (mask[3] & ip[3])});
-        } catch (final Exception _) {
+        } catch (final Exception ignored) {
         }
         return null;
     }

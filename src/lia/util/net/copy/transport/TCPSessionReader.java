@@ -1,5 +1,5 @@
 /*
- * $Id: TCPSessionReader.java 690 2012-10-30 18:48:50Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.transport;
 

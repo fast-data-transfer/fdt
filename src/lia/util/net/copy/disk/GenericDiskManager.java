@@ -1,5 +1,5 @@
 /*
- * $Id: GenericDiskManager.java 347 2007-08-16 13:56:39Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.disk;
 

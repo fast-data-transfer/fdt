@@ -1,5 +1,5 @@
 /*
- * $Id: ResumeManager.java 669 2012-06-22 15:08:05Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.disk;
 

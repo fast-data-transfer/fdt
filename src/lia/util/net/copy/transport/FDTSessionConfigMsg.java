@@ -1,5 +1,5 @@
 /*
- * $Id: FDTSessionConfigMsg.java 582 2010-03-01 07:23:28Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.transport;
 

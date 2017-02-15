@@ -1,5 +1,5 @@
 /*
- * $Id: FDTNetPerf.java 368 2007-08-20 12:54:50Z ramiro $
+ * $Id$
  */
 package lia.util.net.jiperf.test;
 

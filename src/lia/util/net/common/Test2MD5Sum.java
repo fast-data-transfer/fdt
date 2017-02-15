@@ -1,6 +1,6 @@
 /* 
  * 
- * $Id: Test2MD5Sum.java 346 2007-08-16 13:48:25Z ramiro $
+ * $Id$
  *
  * Created on December 19, 2006, 2:37 AM
  *

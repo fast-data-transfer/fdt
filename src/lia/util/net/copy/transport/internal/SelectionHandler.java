@@ -1,5 +1,5 @@
 /*
- * $Id: SelectionHandler.java 359 2007-08-16 14:44:10Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.transport.internal;
 

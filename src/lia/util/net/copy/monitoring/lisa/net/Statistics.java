@@ -1,5 +1,5 @@
 /*
- * $Id: Statistics.java 355 2007-08-16 14:24:55Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy.monitoring.lisa.net;
 

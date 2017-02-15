@@ -1,5 +1,5 @@
 /*
- * $Id: AccountableEntity.java 358 2007-08-16 14:42:47Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy;
 

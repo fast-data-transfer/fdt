@@ -1,5 +1,5 @@
 /*
- * $Id: XDRClient.java 492 2008-02-20 15:03:54Z catac $
+ * $Id$
  */
 package lia.util.net.copy.monitoring.lisa.xdr;
 

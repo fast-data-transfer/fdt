@@ -1,5 +1,5 @@
 /*
- * $Id: IOSession.java 668 2012-06-21 17:50:12Z ramiro $
+ * $Id$
  */
 package lia.util.net.copy;
 
