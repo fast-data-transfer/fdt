@@ -1,6 +1,3 @@
-/*
- * $Id: Utils.java 695 2012-11-19 18:13:06Z ramiro $
- */
 package lia.util.net.common;
 
 import java.io.BufferedReader;
@@ -14,6 +11,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.io.StringWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
@@ -116,12 +115,11 @@ public final class Utils {
 
     private static final Object lock = new Object();
 
-    // this should not be here any more after FDT will use only Java6
-    private static final long SECONDS_IN_MINUTE = 60;
+    private static final long SECONDS_IN_MINUTE = TimeUnit.MINUTES.toSeconds(1);
 
-    private static final long SECONDS_IN_HOUR = 60 * SECONDS_IN_MINUTE;
+    private static final long SECONDS_IN_HOUR = TimeUnit.HOURS.toSeconds(1);
 
-    private static final long SECONDS_IN_DAY = 24 * SECONDS_IN_HOUR;
+    private static final long SECONDS_IN_DAY = TimeUnit.DAYS.toSeconds(1);
 
     private static final String[] SELECTION_KEY_OPS_NAMES = {
             "OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE"
@@ -180,6 +178,9 @@ public final class Utils {
                     try {
                         Thread.sleep(SLEEP_TIME);
                     } catch (Throwable ignore) {
+                        if (logger.isLoggable(Level.FINER)) {
+                            ignore.printStackTrace();
+                        }
                     }
                     System.err.println("\n\n [ RejectedExecutionHandler ] for " + name + " WorkerTask slept for " + SLEEP_TIME);
                     executor.execute(r);
@@ -190,10 +191,15 @@ public final class Utils {
         });
     }
 
-    public static final ExecutorService getStandardExecService(final String name, final int corePoolSize, final int maxPoolSize, BlockingQueue<Runnable> taskQueue, final int threadPriority) {
+    public static final ExecutorService getStandardExecService(
+            final String name,
+            final int corePoolSize,
+            final int maxPoolSize,
+            BlockingQueue<Runnable> taskQueue,
+            final int threadPriority) {
         ThreadPoolExecutor texecutor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, 2 * 60, TimeUnit.SECONDS, taskQueue, new ThreadFactory() {
 
-            AtomicLong l = new AtomicLong(0);
+            final AtomicLong l = new AtomicLong(0);
 
             public Thread newThread(Runnable r) {
                 Thread t = new Thread(r, name + " - WorkerTask " + l.getAndIncrement());
@@ -214,6 +220,9 @@ public final class Utils {
                     try {
                         Thread.sleep(SLEEP_TIME);
                     } catch (Throwable ignore) {
+                        if (logger.isLoggable(Level.FINER)) {
+                            ignore.printStackTrace();
+                        }
                     }
                     System.err.println("\n\n [ RejectedExecutionHandler ] [ Full Throttle ] for " + name + " WorkerTask slept for " + SLEEP_TIME);
                     executor.getQueue().put(r);
@@ -222,14 +231,18 @@ public final class Utils {
                 }
             }
         });
-        // it will be added in 1.6
-        // texecutor.allowCoreThreadTimeOut(true);
+
+        texecutor.allowCoreThreadTimeOut(true);
         texecutor.prestartAllCoreThreads();
 
         return texecutor;
     }
 
-    public static final ExecutorService getStandardExecService(final String name, final int corePoolSize, final int maxPoolSize, final int threadPriority) {
+    public static final ExecutorService getStandardExecService(
+            final String name,
+            final int corePoolSize,
+            final int maxPoolSize,
+            final int threadPriority) {
         return getStandardExecService(name, corePoolSize, maxPoolSize, new SynchronousQueue<Runnable>(), threadPriority);
     }
 
@@ -364,7 +377,7 @@ public final class Utils {
      * 
      * @param value
      * @param unit
-     * @return
+     * @return the ETA as String representation
      * @since Java 1.6
      */
     public final static String getETA(final long value, TimeUnit unit) {
@@ -621,7 +634,7 @@ public final class Utils {
 
         int sshHostsNo = sshUsers.size();
         if (sshHostsNo > 0) {
-            rHM.put("SCPSyntaxUsed", true);
+            rHM.put("SCPSyntaxUsed", Boolean.TRUE);
 
             if (rHM.get("destinationDir") == null) {
                 // the last one should be the destination
@@ -945,7 +958,9 @@ public final class Utils {
 
             } catch (Throwable t) {
                 if (logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, "Unable to update properties file for property: " + property + " contor: " + total + " file: " + confFile, t);
+                    logger.log(Level.FINE,
+                               "Unable to update properties file for property: " + property + " contor: " + total + " file: " + confFile,
+                               t);
                 }
                 return false;
             } finally {
@@ -988,6 +1003,9 @@ public final class Utils {
                         props.store(fos, null);
                         fos.flush();
                     } catch (Throwable ignore) {
+                        if (logger.isLoggable(Level.FINEST)) {
+                            ignore.printStackTrace();
+                        }
                     } finally {
                         closeIgnoringExceptions(fos);
                     }
@@ -1038,6 +1056,7 @@ public final class Utils {
                 try {
                     Thread.currentThread().interrupt();
                 } catch (Throwable ignore) {
+                    // not interested
                 }
             }
         }
@@ -1121,7 +1140,8 @@ public final class Utils {
                 }
             } else {
                 if (logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, " [ checkForUpdate ] Cannot read or write the update conf file: " + parentFDTConfDirName + File.separator + fdtUpdateConfFileName);
+                    logger.log(Level.FINE, " [ checkForUpdate ] Cannot read or write the update conf file: " + parentFDTConfDirName + File.separator
+                            + fdtUpdateConfFileName);
                 }
                 return false;
             }
@@ -1209,13 +1229,14 @@ public final class Utils {
             p.remove("totalWrite_rst");
         }
 
-        if (p != null && p.size() > 0) {
+        if (p.size() > 0) {
             for (final Map.Entry<Object, Object> entry : p.entrySet()) {
                 urlBuilder.append("&").append(entry.getKey()).append("=").append(entry.getValue());
             }
         }
 
-        //final String finalPath = FDT.class.getProtectionDomain().getCodeSource().getLocation().getPath().replaceAll("%20", " ");
+        // final String finalPath =
+        // FDT.class.getProtectionDomain().getCodeSource().getLocation().getPath().replaceAll("%20", " ");
         final String finalPath = new URI(FDT.class.getProtectionDomain().getCodeSource().getLocation().toString()).getPath();
 
         if (finalPath == null || finalPath.length() == 0) {
@@ -1286,7 +1307,7 @@ public final class Utils {
             if (shouldUpdate) {
                 try {
 
-                    //basic checks for parent directory
+                    // basic checks for parent directory
                     final String parent = currentJar.getParent();
                     if (parent == null) {
                         throw new IOException("Unable to determine parent dir for: " + currentJar);
@@ -1294,24 +1315,26 @@ public final class Utils {
                     final File parentDir = new File(parent);
                     if (!parentDir.canWrite()) {
                         //
-                        //windows XP (at least on the system I tested) reports totaly stupid things here; make it an warning...
-                        // 
-                        logger.log(Level.WARNING, "[ WARNING CHECK ] The OS reported that is unable to write in parent dir: " + parentDir + " continue anyway; the call might be broken.");
+                        // windows XP (at least on the system I tested) reports totaly stupid things here; make it an
+                        // warning...
+                        //
+                        logger.log(Level.WARNING, "[ WARNING CHECK ] The OS reported that is unable to write in parent dir: " + parentDir
+                                + " continue anyway; the call might be broken.");
                     }
 
                     final File bkpJar = new File(parentDir.getPath() + File.separator + "fdt_" + Config.FDT_FULL_VERSION + ".jar");
                     boolean bDel = bkpJar.exists();
-                    if(bDel) {
-                        bDel = bkpJar.delete(); 
-                        if(!bDel) {
+                    if (bDel) {
+                        bDel = bkpJar.delete();
+                        if (!bDel) {
                             System.out.println("[ WARNING ] Unable to delete backup jar with the same version: " + bkpJar + " ... will continue");
                         } else {
                             System.out.println("[ INFO ] Backup jar (same version as the update) " + bkpJar + " delete it.");
                         }
                     }
-                    
+
                     boolean renameSucced = currentJar.renameTo(bkpJar);
-                    if(!renameSucced) {
+                    if (!renameSucced) {
                         logger.log(Level.WARNING, "Unable to create backup: " + bkpJar + " for current FDT before update.");
                     } else {
                         System.out.println("Backing up old FDT succeeded: " + bkpJar);
@@ -1331,6 +1354,7 @@ public final class Utils {
                 try {
                     tmpUpdateFile.delete();
                 } catch (Throwable ignore) {
+                    // not interested
                 }
             }
         }
@@ -1382,32 +1406,38 @@ public final class Utils {
         FileChannel srcChannel = null;
         FileChannel dstChannel = null;
 
+        RandomAccessFile raf = null;
+        FileOutputStream fos = null;
+
         try {
-            srcChannel = new RandomAccessFile(s, "rw").getChannel();
+            // source channel
+            raf = new RandomAccessFile(s, "rw");
+            srcChannel = raf.getChannel();
 
             // Create channel on the destination
-            dstChannel = new FileOutputStream(d).getChannel();
+            fos = new FileOutputStream(d);
+            dstChannel = fos.getChannel();
 
             try {
-                if(!noLock) {
+                if (!noLock) {
                     srcChannel.lock();
                 } else {
-                    if(logger.isLoggable(Level.FINE)) {
+                    if (logger.isLoggable(Level.FINE)) {
                         logger.log(Level.FINE, " [ Utils ] [ copyFile2File ] not taking locks for: " + s);
                     }
                 }
-            }catch(Throwable t) {
+            } catch (Throwable t) {
                 logger.log(Level.WARNING, "Unable to take source file (" + s + ") lock. Will continue without lock taken. Cause: ", t);
             }
             try {
-                if(!noLock) {
+                if (!noLock) {
                     dstChannel.lock();
                 } else {
-                    if(logger.isLoggable(Level.FINE)) {
+                    if (logger.isLoggable(Level.FINE)) {
                         logger.log(Level.FINE, " [ Utils ] [ copyFile2File ] not taking locks for: " + d);
                     }
                 }
-            }catch(Throwable t) {
+            } catch (Throwable t) {
                 logger.log(Level.WARNING, "Unable to take destination file (" + d + ") lock. Will continue without lock taken. Cause: ", t);
             }
 
@@ -1424,13 +1454,16 @@ public final class Utils {
         } finally {
             closeIgnoringExceptions(srcChannel);
             closeIgnoringExceptions(dstChannel);
+            closeIgnoringExceptions(raf);
+            closeIgnoringExceptions(fos);
         }
     }
 
     /**
      * fills an array of File objects based on a list of files and directories
      */
-    public static final void getRecursiveFiles(String fileName, String remappedFileName, List<String> allFiles, List<String> allRemappedFiles) throws Exception {
+    public static final void getRecursiveFiles(String fileName, String remappedFileName, List<String> allFiles, List<String> allRemappedFiles)
+            throws Exception {
 
         if (allFiles == null) {
             throw new NullPointerException("File list is null");
@@ -1445,7 +1478,10 @@ public final class Utils {
                 if (listContents != null && listContents.length > 0) {
                     for (String subFile : listContents) {
                         if (remappedFileName != null) {
-                            getRecursiveFiles(fileName + File.separator + subFile, remappedFileName + File.separator + subFile, allFiles, allRemappedFiles);
+                            getRecursiveFiles(fileName + File.separator + subFile,
+                                              remappedFileName + File.separator + subFile,
+                                              allFiles,
+                                              allRemappedFiles);
                         } else {
                             getRecursiveFiles(fileName + File.separator + subFile, null, allFiles, allRemappedFiles);
                         }
@@ -1459,17 +1495,66 @@ public final class Utils {
     }
 
     /**
-     * Helper method use to close a {@link Closeable} ignoring eventual exception
+     * Helper method to close a {@link Closeable} ignoring eventual exceptions
      * 
-     * @param c
-     *            the closeable
+     * @param closeable
+     *            to be closed
      */
-    public static final void closeIgnoringExceptions(Closeable c) {
+    public static final void closeIgnoringExceptions(Closeable closeable) {
         try {
-            if (c != null) {
-                c.close();
+            if (closeable != null) {
+                closeable.close();
             }
         } catch (Throwable _) {
+            // not interested
+        }
+    }
+
+    /**
+     * Helper method to close a {@link Selector} ignoring eventual exceptions
+     * 
+     * @param selector
+     *            to be closed
+     */
+    public static final void closeIgnoringExceptions(Selector selector) {
+        try {
+            if (selector != null) {
+                selector.close();
+            }
+        } catch (Throwable _) {
+            // not interested
+        }
+    }
+
+    /**
+     * Helper method to close a {@link Socket} ignoring eventual exceptions
+     * 
+     * @param socket
+     *            to be closed
+     */
+    public static final void closeIgnoringExceptions(Socket socket) {
+        if (socket != null) {
+            try {
+                socket.close();
+            } catch (Throwable ignore) {
+                // not interested
+            }
+        }
+    }
+
+    /**
+     * Helper method to close a {@link ServerSocket} ignoring eventual exceptions
+     * 
+     * @param serverSocket
+     *            to be closed
+     */
+    public static final void closeIgnoringExceptions(ServerSocket serverSocket) {
+        if (serverSocket != null) {
+            try {
+                serverSocket.close();
+            } catch (Throwable ignore) {
+                // not interested
+            }
         }
     }
 
@@ -1498,7 +1583,7 @@ public final class Utils {
                     }
                 }
             }
-        }catch(Throwable t) {
+        } catch (Throwable t) {
             sb.append(" [ toStringSelectionKey ] Exception " + t);
         }
         return sb.toString();
@@ -1517,37 +1602,32 @@ public final class Utils {
         return sb.toString();
     }
 
-
     /**
-     * 
      * @param versionString1
      * @param versionString2
      * @return 0 if equals or both null, 1 if first is first version is greater, -1 otherwise
-     * 
-     * @throws NullPointerException if one of the two params is null (XOR test).
-     * 
+     * @throws NullPointerException
+     *             if one of the two params is null (XOR test).
      * @see FDTVersion#compareTo(FDTVersion)
      */
     public static final int compareVersions(final String versionString1, final String versionString2) {
-        if(versionString1 == null && versionString2 == null) {
+        if (versionString1 == null && versionString2 == null) {
             return 0;
         }
-        
-        if(versionString1 == null || versionString2 == null) {
-            if(versionString1 == null) {
+
+        if (versionString1 == null || versionString2 == null) {
+            if (versionString1 == null) {
                 throw new NullPointerException("versionString1 is null");
             }
-            
-            if(versionString2 == null) {
+
+            if (versionString2 == null) {
                 throw new NullPointerException("versionString2 is null");
             }
         }
-        
+
         return FDTVersion.fromVersionString(versionString1).compareTo(FDTVersion.fromVersionString(versionString2));
     }
 
-    
-    
     public static final String toStringSelectionKeyOps(final int keyOps) {
         final StringBuilder sb = new StringBuilder("{");
 

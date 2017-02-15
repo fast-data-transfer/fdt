@@ -1,6 +1,3 @@
-/*
- * $Id: FDT.java 676 2012-07-12 21:05:47Z ramiro $
- */
 package lia.util.net.copy;
 
 import java.io.ByteArrayInputStream;
@@ -34,7 +31,9 @@ import lia.util.net.copy.transport.internal.SelectionManager;
 import apmon.ApMon;
 
 /**
- * The main class ... Everything will start from here, more or less
+ * The "main" class ... Everything will start from here, more or less
+ * 
+ * Due to Java checks the app entry point is {@link FDTMain}
  * 
  * @author ramiro
  */
@@ -44,7 +43,7 @@ public class FDT {
 
     private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
 
-    public static final String FDT_FULL_VERSION = "0.14.4-201211191839";
+    public static final String FDT_FULL_VERSION = "0.16.0-201212031254";
 
     String mlDestinations = "monalisa2.cern.ch:28884,monalisa2.caltech.edu:28884";
 
@@ -79,7 +78,7 @@ public class FDT {
             if (level.indexOf("FINE") >= 0) {
                 System.out.println("Using local properties file: " + confFile);
             }
-            if (confFile != null && confFile.exists() && confFile.canRead()) {
+            if (confFile.exists() && confFile.canRead()) {
                 fis = new FileInputStream(confFile);
                 localProps.load(fis);
             }
@@ -91,12 +90,7 @@ public class FDT {
                 }
             }
         } finally {
-            if (fis != null) {
-                try {
-                    fis.close();
-                } catch (Throwable ignore) {
-                }
-            }
+            Utils.closeIgnoringExceptions(fis);
         }
 
         if (level.indexOf("FINE") >= 0) {
@@ -177,7 +171,7 @@ public class FDT {
                             port = 28884;
                         }
                         vHosts.add(host);
-                        vPorts.add(port);
+                        vPorts.add(Integer.valueOf(port));
                     }
 
                     ApMon.setLogLevel("WARNING");
@@ -244,12 +238,8 @@ public class FDT {
                 throw new FDTProcolException("The buffer pool cannot be alredy initialized");
             }
 
-            FDTServer theServer = null; // ( because it's the only one )
-            theServer = new FDTServer();
-
-            if (theServer != null) {
-                theServer.doWork();
-            }
+            final FDTServer theServer = new FDTServer(); // ( because it's the only one )
+            theServer.doWork();
         }
 
     }
@@ -349,16 +339,15 @@ public class FDT {
             String[] clients;
 
             final int sshPort = config.getSSHPort();
-            
+
             switch (iTransferConfiguration) {
 
                 case Config.SSH_REMOTE_SERVER_LOCAL_CLIENT_PUSH:
                     System.err.println("[SSH Mode] SSH_REMOTE_SERVER_LOCAL_CLIENT_PUSH. Remote ssh port: " + sshPort);
                     try {// here we can have some class-not-found exceptions if GSI libraries are not loaded
                         sshConn = config.isGSISSHModeEnabled() ? //
-                        		new lia.util.net.common.GSISSHControlStream(config.getHostName(), config.getDestinationUser(), sshPort) 
-                        		: //
-                        		new SSHControlStream(config.getHostName(), config.getDestinationUser(), sshPort);
+                                new lia.util.net.common.GSISSHControlStream(config.getHostName(), config.getDestinationUser(), sshPort) : //
+                                new SSHControlStream(config.getHostName(), config.getDestinationUser(), sshPort);
                     } catch (NoClassDefFoundError t) {
                         throw new Exception("GSI libraries not loaded. You should set CLASSPATH accordingly!");
                     }
@@ -388,7 +377,10 @@ public class FDT {
                     config.setHostName(remoteServerHost);
 
                     try {// here we can have some class-not-found exceptions if GSI libraries are not loaded
-                        sshConn = config.isGSISSHModeEnabled() ? new lia.util.net.common.GSISSHControlStream(remoteServerHost, remoteServerUsername, sshPort) : new SSHControlStream(remoteServerHost, remoteServerUsername, sshPort);
+                        sshConn = config.isGSISSHModeEnabled() ? new lia.util.net.common.GSISSHControlStream(remoteServerHost,
+                                                                                                             remoteServerUsername,
+                                                                                                             sshPort)
+                                : new SSHControlStream(remoteServerHost, remoteServerUsername, sshPort);
                     } catch (NoClassDefFoundError t) {
                         throw new Exception("GSI libraries not loaded. You should set CLASSPATH accordingly!");
                     }
@@ -408,8 +400,10 @@ public class FDT {
                     final String clientHost = config.getSourceHosts()[0];
                     // start FDT Server
                     try {// here we can have some class-not-found exceptions if GSI libraries are not loaded
-                        sshConn = config.isGSISSHModeEnabled() ? new lia.util.net.common.GSISSHControlStream(config.getHostName(), config.getDestinationUser(), sshPort) : new SSHControlStream(config.getHostName(),
-                                                                                                                                                                                       config.getDestinationUser(), sshPort);
+                        sshConn = config.isGSISSHModeEnabled() ? new lia.util.net.common.GSISSHControlStream(config.getHostName(),
+                                                                                                             config.getDestinationUser(),
+                                                                                                             sshPort)
+                                : new SSHControlStream(config.getHostName(), config.getDestinationUser(), sshPort);
                     } catch (NoClassDefFoundError t) {
                         throw new Exception("GSI libraries not loaded. You should set CLASSPATH accordingly!");
                     }
@@ -431,7 +425,8 @@ public class FDT {
                     }
 
                     try {// here we can have some class-not-found exceptions if GSI libraries are not loaded
-                        sshConn = config.isGSISSHModeEnabled() ? new lia.util.net.common.GSISSHControlStream(clientHost, clientUser, sshPort) : new SSHControlStream(clientHost, clientUser, sshPort);
+                        sshConn = config.isGSISSHModeEnabled() ? new lia.util.net.common.GSISSHControlStream(clientHost, clientUser, sshPort)
+                                : new SSHControlStream(clientHost, clientUser, sshPort);
                     } catch (NoClassDefFoundError t) {
                         throw new Exception("GSI libraries not loaded. You should set CLASSPATH accordingly!");
                     }
@@ -460,6 +455,7 @@ public class FDT {
     }
 
     private static final void initManagement() throws Exception {
+        // not there yet
     }
 
     // the one and only entry point
@@ -502,7 +498,8 @@ public class FDT {
             @SuppressWarnings("unchecked")
             final List<String> lParams = (List<String>) argsMap.get("LastParams");
 
-            if (argsMap.get("-nettest") == null && argsMap.get("-fl") == null && (lParams == null || lParams.size() == 0) && argsMap.get("Files") == null) {
+            if (argsMap.get("-nettest") == null && argsMap.get("-fl") == null && (lParams == null || lParams.size() == 0)
+                    && argsMap.get("Files") == null) {
                 throw new IllegalArgumentException("No source specified");
             }
         }
@@ -600,7 +597,7 @@ public class FDT {
         }
 
         config = Config.getInstance();
-        System.out.println("FDT uses" + ((!config.isBlocking())?" *non-":" *") + "blocking* I/O mode.");
+        System.out.println("FDT uses" + ((!config.isBlocking()) ? " *non-" : " *") + "blocking* I/O mode.");
 
         processSCPSyntax(args);
 
@@ -629,7 +626,7 @@ public class FDT {
         try {
             if (config.massStorageType() != null && config.massStorageType().equals("dcache")) {
                 final FileChannelProviderFactory fcpf = config.getFileChannelProviderFactory();
-                if(fcpf instanceof FDTCloseable) {
+                if (fcpf instanceof FDTCloseable) {
                     ((FDTCloseable) fcpf).close(null, null);
                 }
             }

@@ -1,9 +1,5 @@
-/*
- * $Id: FDTServer.java 694 2012-11-19 16:48:08Z ramiro $
- */
 package lia.util.net.copy;
 
-import java.io.Closeable;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -19,6 +15,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -43,22 +40,26 @@ public class FDTServer extends AbstractFDTCloseable {
 
     private static final FDTSessionManager fdtSessionManager = FDTSessionManager.getInstance();
 
-    static class FDTServerMonitorTask implements Runnable {
+    final ServerSocketChannel ssc;
+
+    final ServerSocket ss;
+
+    final Selector sel;
+
+    final int port;
+
+    //used by the AcceptableTask-s
+    final ExecutorService executor;
+
+    //signals the server stop
+    final AtomicBoolean hasToRun;
+
+    static final class FDTServerMonitorTask implements Runnable {
 
         public void run() {
-            // TODO Auto-generated method stub
+            // TODO Later
         }
     }
-
-    ServerSocketChannel ssc;
-
-    ServerSocket ss;
-
-    Selector sel;
-
-    int port;
-
-    ExecutorService executor;
 
     private static final class AcceptableTask implements Runnable {
 
@@ -90,14 +91,14 @@ public class FDTServer extends AbstractFDTCloseable {
             }
             final String sdpConfFlag = System.getProperty("com.sun.sdp.conf");
             final boolean bSDP = (sdpConfFlag != null && !sdpConfFlag.isEmpty());
-            if(!bSDP) {
+            if (!bSDP) {
                 try {
                     s.setKeepAlive(true);
                 } catch (Throwable t) {
                     logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set KEEP_ALIVE for " + sc
                             + ". Will ignore the error. Contact your sys admin.", t);
                 }
-                
+
                 try {
                     // IPTOS_LOWCOST (0x02) IPTOS_RELIABILITY (0x04) IPTOS_THROUGHPUT (0x08) IPTOS_LOWDELAY (0x10)
                     s.setTrafficClass(0x04 | 0x08 | 0x010);
@@ -110,9 +111,8 @@ public class FDTServer extends AbstractFDTCloseable {
                 }
             }
 
-
-            ByteBuffer firstByte = ByteBuffer.allocate(1);
-            ByteBuffer clientIDBuff = ByteBuffer.allocate(16);
+            final ByteBuffer firstByte = ByteBuffer.allocate(1);
+            final ByteBuffer clientIDBuff = ByteBuffer.allocate(16);
 
             UUID clientSessionID;
             Selector tmpSelector = null;
@@ -194,7 +194,7 @@ public class FDTServer extends AbstractFDTCloseable {
                             count = sc.read(clientIDBuff);
                             if (count < 0) {
                                 logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Unable to read clientID. The stream will be closed");
-                                closeIgnoringException(sc);
+                                Utils.closeIgnoringExceptions(sc);
                                 return;
                             }
 
@@ -204,7 +204,7 @@ public class FDTServer extends AbstractFDTCloseable {
                                 if (config.isBlocking()) {
                                     logger.log(Level.WARNING,
                                                "[ FDTServer ] [ AcceptableTask ] Blocking mode ... unable to read clientID. The stream will be closed");
-                                    closeIgnoringException(sc);
+                                    Utils.closeIgnoringExceptions(sc);
                                     return;
                                 }
                             } else {
@@ -253,51 +253,28 @@ public class FDTServer extends AbstractFDTCloseable {
                         }
                         break;
                     }
+
+                    default: {
+                        logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Unable to understand initial cookie: " + firstB);
+                        Utils.closeIgnoringExceptions(s);
+                        return;
+                    }
                 }
 
             } catch (Throwable t) {
                 logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Exception: ", t);
-                closeIgnoringException(sc);
+                Utils.closeIgnoringExceptions(sc);
             } finally {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER, " AcceptableTask for " + s + " FINISHED!");
                 }
-                if (tmpSelector != null) {
-                    try {
-                        tmpSelector.close();
-                    } catch (Throwable ingnore) { // ignore
-                    }
-                }
-            }
-
-        }
-    }
-
-    private static final void closeIgnoringException(Socket s) {
-        if (s != null) {
-            try {
-                s.close();
-            } catch (Throwable ignore) {
-                if (logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST, "IGNORE. Exception closing socket: " + s + " Cause:", ignore);
-                }
-            }
-        }
-    }
-    
-    private static final void closeIgnoringException(Closeable c) {
-        if (c != null) {
-            try {
-                c.close();
-            } catch (Throwable ignore) {
-                if (logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST, "IGNORE. Exception closing: " + c + " Cause:", ignore);
-                }
+                Utils.closeIgnoringExceptions(tmpSelector);
             }
         }
     }
 
     public FDTServer() throws Exception {
+        hasToRun = new AtomicBoolean(true);
 
         // We are not very happy to welcome new clients ... so the priority will be lower
         executor = Utils.getStandardExecService("[ Acceptable ServersThreadPool ] ",
@@ -306,19 +283,6 @@ public class FDTServer extends AbstractFDTCloseable {
                                                 new ArrayBlockingQueue<Runnable>(65500),
                                                 Thread.NORM_PRIORITY - 2);
         port = config.getPort();
-        init();
-
-        // Monitoring & Nice Prnting
-        ScheduledExecutorService monitoringService = Utils.getMonitoringExecService();
-
-        monitoringService.scheduleWithFixedDelay(new FDTServerMonitorTask(), 10, 10, TimeUnit.SECONDS);
-
-        // in SSH mode this is a ACK message for the client to inform it that the server started ok
-        // (the server stdout is piped to client through the SSH channel)
-        System.out.println("READY");
-    }
-
-    private void init() throws Exception {
         ssc = ServerSocketChannel.open();
         ssc.configureBlocking(false);
 
@@ -332,6 +296,26 @@ public class FDTServer extends AbstractFDTCloseable {
             FDTGSIServer gsiServer = new FDTGSIServer(config.getGSIPort());
             gsiServer.start();
         }
+        // Monitoring & Nice Prnting
+        final ScheduledExecutorService monitoringService = Utils.getMonitoringExecService();
+
+        monitoringService.scheduleWithFixedDelay(new FDTServerMonitorTask(), 10, 10, TimeUnit.SECONDS);
+
+        // in SSH mode this is a ACK message for the client to inform it that the server started ok
+        // (the server stdout is piped to client through the SSH channel)
+        System.out.println("READY");
+    }
+
+    /**
+     * Safe to call multiple times; will return false if the server was already signaled to stop
+     * </br>
+     * <p>
+     * <b>Note:</b> Invoking this method acts as a signal for the server. Any ongoing transfers will continue until they finish
+     * </p>
+     * @return true if server was signaled to stop
+     */
+    public boolean stopServer() {
+        return hasToRun.compareAndSet(true, false);
     }
 
     public static final boolean filterSourceAddress(java.net.Socket socket) {
@@ -345,7 +329,7 @@ public class FDTServer extends AbstractFDTCloseable {
             logger.info("Enforcing source address filter: " + filter);
             final String sourceIPAddress = socket.getInetAddress().getHostAddress();
             if (!filter.matchInetNetwork(sourceIPAddress)) {
-                closeIgnoringException(socket);
+                Utils.closeIgnoringExceptions(socket);
                 logger.warning(" Client [" + sourceIPAddress + "] is not allowed to transfer. Socket closed!");
                 return false;
             }
@@ -359,34 +343,39 @@ public class FDTServer extends AbstractFDTCloseable {
         Thread.currentThread().setName(" FDTServer - Main loop worker ");
         logger.info("FDTServer start listening on port: " + ss.getLocalPort());
 
-        int count = 0;
-
+        final boolean isStandAlone = config.isStandAlone();
         try {
             for (;;) {
-
-                if (!config.isStandAlone()) {
+                if (!isStandAlone) {
                     if (fdtSessionManager.isInited() && fdtSessionManager.sessionsNumber() == 0) {
                         logger.log(Level.INFO, "FDTServer will finish. No more sessions to serve.");
                         return;
                     }
+                } else {
+                    if (!hasToRun.get()) {
+                        // stopServer was called
+                        if (fdtSessionManager.isInited() && fdtSessionManager.sessionsNumber() == 0) {
+                            logger.log(Level.INFO, "FDTServer will finish. No more sessions to serve.");
+                            return;
+                        }
+                    }
                 }
-                count = sel.select(2000);
+                final int count = sel.select(2000);
 
                 if (count == 0)
                     continue;
 
                 Iterator<SelectionKey> it = sel.selectedKeys().iterator();
                 while (it.hasNext()) {
-                    SelectionKey sk = it.next();
+                    final SelectionKey sk = it.next();
                     it.remove();
 
                     if (!sk.isValid())
                         continue;// closed socket ?
 
                     if (sk.isAcceptable()) {
-
-                        ServerSocketChannel ssc = (ServerSocketChannel) sk.channel();
-                        SocketChannel sc = ssc.accept();
+                        final ServerSocketChannel ssc = (ServerSocketChannel) sk.channel();
+                        final SocketChannel sc = ssc.accept();
 
                         try {
                             executor.execute(new AcceptableTask(sc));
@@ -407,6 +396,10 @@ public class FDTServer extends AbstractFDTCloseable {
             throw new Exception(t);
         } finally {
             logger.log(Level.INFO, "[FDTServer] main loop FINISHED!");
+            // close all the stuff
+            Utils.closeIgnoringExceptions(ssc);
+            Utils.closeIgnoringExceptions(sel);
+            Utils.closeIgnoringExceptions(ss);
             if (executor != null) {
                 executor.shutdown();
             }
