@@ -1,0 +1,106 @@
+
+Usage: java -jar fdt.jar [ OPTIONS ]
+       java -jar fdt.jar [ OPTIONS ] -c <host> STANDALONE_ARGS
+       java -jar fdt.jar [ OPTIONS ] SCP_SYNTAX
+
+
+STANDALONE_ARGS: [file1 ...]|[-fl <fileList>]
+SCP_SYNTAX: [-gsissh] [[user@][host1:]]file1 [[user@][host2:]]file2
+
+Client specific:
+   -c <host>		 connect to the specified <host>
+   			 If this parameter is missing FDT will become server
+   -d <destinationDir>	 The destination directory used to copy the files
+   -fl <fileList>	 a list of files (MUST containe one file per line)
+   -r			 Recursive. Searches for files in all specified 
+   			 directories and subdirectories
+   -pull		 Pull Mode.The client will receive the data from
+   			 the server
+   -ss <windowSize>	 Set TCP SO_SND_BUFFER window size to windowSize
+   			 [K(ilo)|M(ega)] may be used as suffixes
+   -P <numberOfStreams>	 number of paralel streams(sockets) to use
+   			 Default is 4
+   -limit <rate>	 Restrict the transfer speed at the specified rate
+   			 [K(ilo)|M(ega)] may be used. If no suffix is specified
+   			 Bytes/s is considered to be the default.
+   -N			 disable Nagle's algorithm
+   -monID <monID>	 report session specific params with this monID
+   -gsissh		 uses GSI over SSH authentication. It is presumed that
+   			 the remote SSHD server supports GSI authentication
+   -sshp <remoteSSHPort> the (GSI) SSH port to connect to on the remote host.
+   			 This option is used only for SCP_SYNTAX for normal SSH
+   			 and GSI over SSH.
+   			 By default, the standard SSH port (22) will be used.
+   -sshKey <sshKey>	 Will try to use the ssh key specified by <sshKey>
+   			 By default, FDT will look for ssh keys in
+   			 $HOME/.ssh/id_dsa.fdt (DSA) and
+   			 $HOME/.ssh/id_rsa.fdt (RSA)
+
+Server specific:
+   -S			 disable standalone mode; if specified, the server
+   			 will stop after the last client finishes
+   -bs <bufferSize>	 Size for the I/O buffers. [K(ilo)|M(ega)] may be used
+   			 as suffixes. The default is 1 MByte.
+   -f <allowedIPsList>	 A list of IP addresses allowed to connect to the server
+   			 Multiple IP addresses may be separated by ':'
+
+Client/Server:
+   -nettest		 Network test mode. The source and destination (-d)
+   			 options can be omitted. If present, will be ignored! 
+   			 FDT will act only as a network benchmark tool.
+   			 If the server is started with this flag *ALL* network
+   			 transfers will be considered benchmark transfers!
+   -gsi			 enables the GSI authentication scheme. It must be used
+   			 for both the FDT client and server.If the flag is
+   			 enabled, the FDT server will accept only GSI
+   			 authenticated FDT clients.
+   -p <portNumber>	 port number to listen on/connect to (server/client)
+   			 or to connect to for the client.Default is 54321.
+   -gsip <GSICtrlPort>	 the GSI control port to listen on/connect to
+   			 (server/client) for GSI authentication. In the GSI
+   			 mode FDT will use two ports: one for control(-gsip)
+   			 and one for the data channels(-p). Default value for
+   			 GSICtrlPort is 54320.
+   -preFilters f1,..,fn	 User defined pre-processing filters. The
+   			 preProcessing filters must be in the classpath and
+   			 may be cascadated. f1,...,fn are java classes, which
+   			 will be loaded in the preProcessing phase.They must be
+   			 specified in the FDT "sender" command line.
+   -postFilters f1,..,fn User defined post-processing filters. The
+   			 postProcessing filters must be in the classpath and
+   			 may be cascadated. f1,...,fn are java classes, which
+   			 will be loaded in the postProcessing phase. They must
+   			 be specified in the FDT "receiver" command line.
+   -wCount <wCount>	 number of writer threads per partition.
+   			 Default wCount=1.
+   -rCount <rCount>	 number of reader threads per partition.
+   			 Default rCount=1.
+   -md5			 enables MD5 checksum for every file transfered.
+   			 It must be specified in the "sender" and the
+   			 "receiver" will print am `md5sum`-like list at the end
+   			 of the transfer. Default is the checksum is disabled.
+   -bio			 Blocking I/O mode. In the blocking mode every
+   			 stream(socket) will use a thread to perform the I/O.
+   			 By default non-blocking mode is used
+   -iof <iof>		 Non blocking I/O retry factor. Repeat every
+   			 read/write operation (non-blocking I/O mode only),
+   			 which returns 0, up to <iof> times before waiting for
+   			 I/O readiness.Default is 1, which should be ok, but 
+   			 values of 2 or 3 may show slight gains in network I/O
+   			 performance. Usual values are between 1 and 4.
+   			 Higher values are not recommended because the gain
+   			 will be zero while the CPU System will increase
+   -printStats		 Print statistics for buffer pools, sessions, etc
+   -v			 Verbose mode. Multiple 'v'-s may be used to increase
+   			 the verbosity level. Maximum level is 3 (-vvv), which
+   			 corresponds to Level.FINEST for the standard Java
+   			 logging system used by FDT.
+
+Miscellaneous:
+   -noupdates		 Do not check for updates.
+   -silent		 Do not ask for confirmation if updates are available.
+   -u, -update,--update	 Update the fdt.jar, if a newer version
+   			 is available on the update server and exits
+   -V, -version,	 print version information and quit
+   --version
+   -h, -help, --help	 print this help message and quit
