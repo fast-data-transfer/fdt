@@ -1,5 +1,5 @@
 /*
- * $Id: FDTSessionConfigMsg.java 360 2007-08-16 14:51:52Z ramiro $
+ * $Id: FDTSessionConfigMsg.java 582 2010-03-01 07:23:28Z ramiro $
  */
 package lia.util.net.copy.transport;
 
@@ -24,6 +24,7 @@ public class FDTSessionConfigMsg implements Serializable {
     
     public UUID[]   fileIDs;
     public String[] fileLists;
+    public String[] remappedFileLists;
     public long[]   fileSizes;
     public long[]   lastModifTimes;
     
@@ -31,6 +32,7 @@ public class FDTSessionConfigMsg implements Serializable {
 
     }
 
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("\n destinationDir: ").append(destinationDir);
@@ -38,6 +40,7 @@ public class FDTSessionConfigMsg implements Serializable {
         sb.append(" dirOffset: ").append(dirOffset);
         sb.append("\n UUID[]: ").append(Arrays.toString(fileIDs));
         sb.append("\n fileList[]: ").append(Arrays.toString(fileLists));
+        sb.append("\n remappedFileLists[]: ").append(Arrays.toString(remappedFileLists));
         sb.append("\n fileSizes[]: ").append(Arrays.toString(fileSizes));
         sb.append("\n lastModifTimes[]: ").append(Arrays.toString(lastModifTimes));
         return sb.toString();

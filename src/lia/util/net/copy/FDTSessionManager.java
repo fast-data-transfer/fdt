@@ -1,12 +1,14 @@
 /*
- * $Id: FDTSessionManager.java 555 2009-12-14 17:16:27Z ramiro $
+ * $Id: FDTSessionManager.java 577 2010-02-23 23:25:05Z ramiro $
  */
 package lia.util.net.copy;
 
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -114,11 +116,11 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
                 fdtSession = new FDTReaderSession();
             }
             
-            //I may start the control thread now; FindBugs suggestion
-            fdtSession.startControlThread();
-            
             fdtSessionMap.put(fdtSession.sessionID(), fdtSession);
             inited.set(true);
+            
+            //I may start the control thread now; FindBugs suggestion
+            fdtSession.startControlThread();
             
         } catch(Throwable t) {
             logger.log(Level.WARNING, " Got exception initiation Session/RemoteConn ", t);
@@ -146,12 +148,10 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
     }
     
     public boolean finishSession(UUID fdtSessionID, String downMessage, Throwable downCause) {
-        FDTSession fdtSession = fdtSessionMap.remove(fdtSessionID);
-        
-        if(fdtSession == null) {
-            return false;
+        final FDTSession fdtSession = fdtSessionMap.remove(fdtSessionID);
+        if(logger.isLoggable(Level.FINER)) {
+        	logger.log(Level.FINER, " FDTSessionManager removed sessionID " + fdtSessionID + "; removed == " + (fdtSession != null) + " new size: " + fdtSessionMap.size());
         }
-        
         //I know ... it's not very well sync, but should be enough for the client side ... which will have only one FDT Session
         if (fdtSessionMap.size() == 0) {
             lock.lock();
@@ -165,6 +165,11 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
                 lock.unlock();
             }
         }
+        
+        if(fdtSession == null) {
+            return false;
+        }
+        
         return fdtSession.close(downMessage, downCause);
     }
     
@@ -202,7 +207,10 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
         lock.lock();
         try {
             while(fdtSessionMap.size() > 0) {
-                isSessionMapEmpty.await();
+                isSessionMapEmpty.await(5, TimeUnit.SECONDS);
+                if(logger.isLoggable(Level.FINEST)) {
+                	logger.log(Level.FINEST, " waiting for [ " + fdtSessionMap.size() + " ] sessions to finish. -> " + Arrays.toString(fdtSessionMap.keySet().toArray(new UUID[0])));
+                }
             }
         } finally {
             lock.unlock();

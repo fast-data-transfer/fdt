@@ -1,5 +1,5 @@
 /*
- * $Id: Config.java 567 2010-01-28 06:06:01Z ramiro $
+ * $Id: Config.java 583 2010-03-01 16:38:44Z ramiro $
  */
 package lia.util.net.common;
 
@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import lia.util.net.copy.PosixFSFileChannelProviderFactory;
 
@@ -26,7 +27,6 @@ public class Config {
 
     /** Logger used by this class */
     private static final Logger logger = Logger.getLogger("lia.util.net.common.Config");
-
     // The size of the buffer which is sent over the wire!
     // TODO make this a parameter
     public static final int NETWORK_BUFF_LEN_SIZE;
@@ -47,175 +47,108 @@ public class Config {
 
         NETWORK_BUFF_LEN_SIZE = defaultMSSSize;
     }
-
     // env props which will be sent to remote peer
     private final static String[] exportedSysProps = {
-            "user.name", "user.home", "user.dir", "file.separator", "file.encoding", "path.separator"
+        "user.name", "user.home", "user.dir", "file.separator", "file.encoding", "path.separator"
     };
-
     // public static final String SINGLE_CMDLINE_ARGS[] = { "-S", "-pull", "-N", "-gsi", "-bio", "-r", "-fbs", "-ll",
     // "-loop", "-enableLisaRestart", "-md5", "-printStats", "-gsissh", "-noupdates", "-silent"};
-    public static final String SINGLE_CMDLINE_ARGS[] = {
-            "-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats", "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nettest", "-genb"
+    public static final String[] SINGLE_CMDLINE_ARGS = {
+        "-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats", "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nettest", "-genb"
     };
-
-    public static final String VALUE_CMDLINE_ARGS[] = {
-            "-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters", "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d", "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay"
+    public static final String[] VALUE_CMDLINE_ARGS = {
+        "-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters", "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d", "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay"
     };
-
     public static final String POSSIBLE_VALUE_CMDLINE_ARGS[] = {
-            "-enable_apmon", "-lisafdtclient", "-lisafdtserver", "-f", "-F", "-h", "-H", "--help", "-help," + "-u", "-U", "--update", "-update"
+        "-enable_apmon", "-lisafdtclient", "-lisafdtserver", "-f", "-F", "-h", "-H", "--help", "-help," + "-u", "-U", "--update", "-update"
     };
 
+    /**
+     * used in conjuction with -fl to delimit the eventual destination file name
+     * e.g. {@code /orginal/file/name / /destination/file/name}
+     */
+    public static final String REGEX_REMAP_DELIMITER = "(\\s)+/(\\s)+";
+    
     // all of this are set by the ant script
     public static final String FDT_MAJOR_VERSION = "@program_major_version@";
-
     public static final String FDT_MINOR_VERSION = "@program_minor_version@";
-
     public static final String FDT_MAINTENANCE_VERSION = "@program_maintenance_version@";
-
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "." + FDT_MAINTENANCE_VERSION;
-
     public static final String FDT_RELEASE_DATE = "@program_vdate@";
-
     private volatile static Config _thisInstance;
-
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )
     public static final int HEADER_SIZE = 56;
-
     public static final int HEADER_SIZE_v2 = 56;
-
     public static final boolean TRACK_ALLOCATIONS = true;
-
     // 1 MByte
     public static final int DEFAULT_BUFFER_SIZE = 1 * 1024 * 1024; // 1MB
-
     private int byteBufferSize = DEFAULT_BUFFER_SIZE;
-
     // default will be false
     private boolean isNagleEnabled;
-
     // shall I get the data from server? - used only by the client
     private boolean isPullMode = false;
-
     // this should be used for syncronizations at application level ()
     public static final Object BIG_FDTAPP_LOCK = new Object();
-
     // default is 4
     public static final int DEFAULT_SOCKET_NO = 4;
-
     private int sockNum = DEFAULT_SOCKET_NO;
-
     public static final int DEFAULT_PORT_NO = 54321;
-
     public static final int DEFAULT_PORT_NO_GSI = 54320;
-
     public static final int DEFAULT_PORT_NO_SSH = 22;
-
     private int sockBufSize = -1;
-
     private long rateLimit = -1;
-
     private int readersCount = 1;
-
     private int writersCount = 1;
-
     private int maxPartitionsCount = 100;
-
     private String hostname;
-
     private String lisaHost;
-
     private int lisaPort;
-
     private int portNo;
-
     private final int portNoGSI;
-    
     private final int portNoSSH;
-
     private boolean isStandAlone;
-
     private String[] fileList;
-
+    private String[] remappedFileList;
     private String destDir;
-
     private String sshKeyPath;
-
     private String apMonHosts;
-
     private boolean bComputeMD5 = false;
-
     private boolean bRecursive = false;
-
     private boolean bCheckUpdate = false;
-
     private boolean isBlocking = false;
-
     private boolean bUseFixedBlocks = false;
-
     private boolean bLocalLoop = false;
-
     private boolean bLoop = false;
-
     private NetMatcher sourceAddressFilter = null;
-
     private int IORetryFactor = 2;
-
     private int selectorsNo = 1;
-
     private boolean bDisableLisa = false;
-
     private long lisaReportInterval = 20;
-
     private long apMonReportInterval = 20;
-
     // for client side in SSH mode
     private boolean bSSHMode = false;
-
     private boolean bGSISSHMode = false;
-
     private boolean bGSIMode = false;
-
     private String[] aSourceUsers = null;
-
     private String[] aSourceHosts = null;
-
     private String sDestinationUser = null;
-
     private String sLocalAddresses = null;
-
     private String sStartServerCommand = null;
-
     private final boolean isLisaRestartEnabled;
-
     private String writeMode;
-
     private String preFilters;
-
     private String postFilters;
-
     private String monID;
-
     private String massStorageConfig = null;
-
     private String massStorageType = null;
-
     private MassStorage storageParams = null;
-
     private Level statsLevel = null;
-
     private final Map<String, Object> configMap;
-
     private boolean isNoTmpFlagSet = false;
-
     private long consoleReportingTaskDelay = 5;
-
     private final boolean isNetTest;
-
     private final boolean isGenTest;
-
     private final FileChannelProviderFactory fileChannelProviderFactory;
 
     private static final int getMinMTU() {
@@ -227,8 +160,9 @@ public class Config {
                 final NetworkInterface netInteface = netInterfacesEnum.nextElement();
 
                 try {
-                    if (!netInteface.isUp())
+                    if (!netInteface.isUp()) {
                         continue;
+                    }
                 } catch (NoSuchMethodError nsme) {
                     // java < 1.6
                     if (logger.isLoggable(Level.FINE)) {
@@ -275,8 +209,9 @@ public class Config {
      */
     private Config(final Map<String, Object> configMap) throws InvalidFDTParameterException {
         this.configMap = configMap;
-        if (configMap == null)
+        if (configMap == null) {
             throw new InvalidFDTParameterException("Null config map");
+        }
 
         for (int i = 0; i < exportedSysProps.length; i++) {
             configMap.put(exportedSysProps[i], System.getProperty(exportedSysProps[i]));
@@ -355,7 +290,7 @@ public class Config {
         portNoSSH = Utils.getIntValue(configMap, "-sshp", DEFAULT_PORT_NO_SSH);
         IORetryFactor = Utils.getIntValue(configMap, "-iof", 1);
         int avP = Runtime.getRuntime().availableProcessors();
-        if(avP < 1) {
+        if (avP < 1) {
             avP = 1;
         }
         selectorsNo = Utils.getIntValue(configMap, "-sn", avP);
@@ -461,14 +396,16 @@ public class Config {
             Object oSrc = configMap.get("sourceUsers");
             if (oSrc != null) {
                 String[] aSourceUsers = (String[]) oSrc;
-                if (aSourceUsers.length > 0)
+                if (aSourceUsers.length > 0) {
                     this.aSourceUsers = aSourceUsers;
+                }
             }
             oSrc = configMap.get("sourceHosts");
             if (oSrc != null) {
                 String[] aSourceHosts = (String[]) oSrc;
-                if (aSourceHosts.length > 0)
+                if (aSourceHosts.length > 0) {
                     this.aSourceHosts = aSourceHosts;
+                }
             }
             sDestinationUser = Utils.getStringValue(configMap, "destinationUser", System.getProperty("user.name"));
             // sDestinationUser = ( sDestinationUser==null?System.getProperty("user.name"):sDestinationUser );
@@ -481,42 +418,54 @@ public class Config {
             if (sAllowedHosts.trim().length() == 0) {
                 // no hosts suplied, try to guess from the SSH_CLIENT env var
                 sAllowedHosts = System.getenv("SSH_CLIENT");
-                if (sAllowedHosts != null)
+                if (sAllowedHosts != null) {
                     sAllowedHosts = sAllowedHosts.split("(\\s)+")[0];
+                }
                 // cannot continue, raise exception
-                if (sAllowedHosts == null || sAllowedHosts.length() == 0)
+                if (sAllowedHosts == null || sAllowedHosts.length() == 0) {
                     throw new InvalidFDTParameterException("source filter used but no host/ip supplied");
+                }
             }
             sourceAddressFilter = new NetMatcher(sAllowedHosts.split(":"));
         }
 
         // try to get the fileList[]
         List<String> lastParams = (List<String>) configMap.get("LastParams");
-        if (lastParams == null || lastParams.size() == 0) {
+        if (lastParams == null || lastParams.isEmpty()) {
             String fList = Utils.getStringValue(configMap, "-fl", null);
             if (fList != null && fList.length() != 0) {
-                ArrayList<String> arrayFileList = new ArrayList<String>();
+                //source files
+                List<String> arrayFileList = new ArrayList<String>();
+                //must accept null values
+                List<String> remappedArrayFileList = new ArrayList<String>();
                 BufferedReader br = null;
+                FileReader fr = null;
                 try {
-                    br = new BufferedReader(new FileReader(fList));
+                    final Pattern splitPattern = Pattern.compile(REGEX_REMAP_DELIMITER);
+                    fr = new FileReader(fList);
+                    br = new BufferedReader(fr);
                     String line = br.readLine();
                     while (line != null) {
-                        arrayFileList.add(line);
+                        final String[] tkns = splitPattern.split(line);
+                        final int tknsCount = tkns.length;
+                        if(tknsCount == 1) {
+                            arrayFileList.add(line);
+                            remappedArrayFileList.add(null);
+                        } else if (tknsCount == 2) {
+                            arrayFileList.add(tkns[0]);
+                            remappedArrayFileList.add(tkns[1]);
+                        } else {
+                            throw new IllegalArgumentException("The line=" + line + ", from -fl parameter cannot be parsed");
+                        }
                         line = br.readLine();
                     }
-
-                    fileList = arrayFileList.toArray(new String[arrayFileList.size()]);
+                    remappedFileList = remappedArrayFileList.toArray(new String[0]);
+                    fileList = arrayFileList.toArray(new String[0]);
                 } catch (Throwable t) {
-                    System.err.println("Unable to read the file list data");
-                    t.printStackTrace();
-                    this.fileList = null;
+                    throw new IllegalArgumentException("Unable to decode file list", t);
                 } finally {
-                    try {
-                        if (br != null) {
-                            br.close();
-                        }
-                    } catch (Throwable ignore) {
-                    }
+                    Utils.closeIgnoringExceptions(fr);
+                    Utils.closeIgnoringExceptions(br);
                 }
             }
         } else {
@@ -527,23 +476,24 @@ public class Config {
             }
         }
         Object files = configMap.get("Files");
-        if (files != null && files instanceof String[] && ((String[]) files).length > 0)
+        if (files != null && files instanceof String[] && ((String[]) files).length > 0) {
             fileList = (String[]) files;
+        }
 
-        logger.log(Level.INFO, "FDT started in " + (hostname == null && configMap.get("SCPSyntaxUsed") == null ? "server" : "client") + " mode");
+        logger.log(Level.INFO, "FDT started in {0} mode", (hostname == null && configMap.get("SCPSyntaxUsed") == null ? "server" : "client"));
         if (hostname != null) {// client mode
             if (logger.isLoggable(Level.FINE)) {
                 StringBuilder sb = new StringBuilder();
-                sb.append("Source file list:\n");
+                sb.append("Source file list --> remaped file list:\n");
                 for (int i = 0; fileList != null && i < fileList.length; i++) {
-                    sb.append(fileList[i]).append("\n");
+                    sb.append(fileList[i]).append(" ---> ").append((remappedFileList[i] == null)? " default mapping: " + fileList[i]: " rmapped to: " + remappedFileList[i]).append("\n");
                 }
                 logger.log(Level.FINE, sb.toString());
-                logger.log(Level.FINE, "Remote destination directory: " + destDir + "\nRemote host: " + hostname + " port: " + portNo);
+                logger.log(Level.FINE, "Remote destination directory: {0}\nRemote host: {1} port: {2}", new Object[]{destDir, hostname, portNo});
             }
         } else {// server mode
             if (logger.isLoggable(Level.FINE)) {
-                logger.log(Level.INFO, "Local server will try to bind on port:" + portNo);
+                logger.log(Level.INFO, "Local server will try to bind on port:{0}", portNo);
             }
         }
     }
@@ -679,7 +629,7 @@ public class Config {
     public int getSSHPort() {
         return portNoSSH;
     }
-    
+
     public boolean isStandAlone() {
         return isStandAlone;
     }
@@ -690,6 +640,10 @@ public class Config {
 
     public String[] getFileList() {
         return fileList;
+    }
+
+    public String[] getRemappedFileList() {
+        return remappedFileList;
     }
 
     public String getPreFilters() {
@@ -770,7 +724,6 @@ public class Config {
     public boolean isGSISSHModeEnabled() {
         return bGSISSHMode;
     }
-
     /**
      * Check if remote server is needed. We use SSH channels to control remote startup. <br>
      * In SSH/SCP mode we have three types of syntax we need to support:
@@ -787,13 +740,10 @@ public class Config {
      */
     // different client/server configuration set using SSH
     public static final int SSH_NO_REMOTE = -1;
-
     // REMOTE server, local client in push mode
     public static final int SSH_REMOTE_SERVER_LOCAL_CLIENT_PUSH = 1;
-
     // REMOTE server, local client in pull mode
     public static final int SSH_REMOTE_SERVER_LOCAL_CLIENT_PULL = 2;
-
     // REMOTE server, REMOTE client in push mode)
     public static final int SSH_REMOTE_SERVER_REMOTE_CLIENT_PUSH = 3;
 
@@ -811,13 +761,15 @@ public class Config {
 
     public int getSSHConfig() {
 
-        if (!bSSHMode)
+        if (!bSSHMode) {
             return SSH_NO_REMOTE;
+        }
         final String sDestinationHost = Utils.getStringValue(configMap, "destinationHost", null);
-        if ((aSourceHosts == null || aSourceHosts.length == 0 || aSourceHosts[0] == null) && sDestinationHost != null)
-            // /local/path [user]@remotehost:/remote/path
-            // the client is locally
+        if ((aSourceHosts == null || aSourceHosts.length == 0 || aSourceHosts[0] == null) && sDestinationHost != null) // /local/path [user]@remotehost:/remote/path
+        // the client is locally
+        {
             return SSH_REMOTE_SERVER_LOCAL_CLIENT_PUSH;
+        }
 
         if (aSourceHosts != null && aSourceHosts.length > 0 && sDestinationHost == null) {
             // [2] [user]@remotehost:/remote/path /local/path
@@ -880,5 +832,4 @@ public class Config {
     public FileChannelProviderFactory getFileChannelProviderFactory() {
         return this.fileChannelProviderFactory;
     }
-
 }

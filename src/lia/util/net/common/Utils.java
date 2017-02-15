@@ -1,5 +1,5 @@
 /*
- * $Id: Utils.java 562 2010-01-10 23:28:59Z ramiro $
+ * $Id: Utils.java 584 2010-03-01 23:53:08Z ramiro $
  */
 package lia.util.net.common;
 
@@ -15,7 +15,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URL;
 import java.net.URLConnection;
@@ -51,6 +50,7 @@ import lia.util.net.copy.FDT;
 import lia.util.net.copy.FileBlock;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import apmon.ApMon;
+import java.io.Closeable;
 import java.util.UUID;
 
 /**
@@ -856,26 +856,16 @@ public final class Utils {
                         logger.log(Level.FINE, "Cannot update " + file, t);
                     }
                 } finally {
-                    if (fis != null) {
-                        try {
-                            fis.close();
-                        } catch (Throwable ignore) {
-                        }
-                    }
-
-                    if (fos != null) {
-                        try {
-                            fos.close();
-                        } catch (Throwable ignore) {
-                        }
-                    }
+                    closeIgnoringExceptions(fis);
+                    closeIgnoringExceptions(fos);
                 }
             }
         }
 
     }
 
-    private static final Properties getFDTUpdateProperties() {
+    @SuppressWarnings("FinalStaticMethod")
+    private static Properties getFDTUpdateProperties() {
         final String parentFDTConfDirName = System.getProperty("user.home") + File.separator + ".fdt";
         final String fdtUpdateConfFileName = "update.properties";
         Properties updateProperties = new Properties();
@@ -892,19 +882,14 @@ public final class Utils {
                     logger.log(Level.FINE, "Unable to read properties file: " + confFile, t);
                 }
             } finally {
-                if (fis != null) {
-                    try {
-                        fis.close();
-                    } catch (Throwable ignore) {
-                    }
-                    ;
-                }
+                closeIgnoringExceptions(fis);
             }
         }
         return updateProperties;
     }
 
-    private static final boolean updateTotalContor(final long total, final String property) {
+    @SuppressWarnings("FinalStaticMethod")
+    private static boolean updateTotalContor(final long total, final String property) {
 
         final String parentFDTConfDirName = System.getProperty("user.home") + File.separator + ".fdt";
         final String fdtUpdateConfFileName = "update.properties";
@@ -919,16 +904,10 @@ public final class Utils {
                 fis = new FileInputStream(confFile);
                 updateProperties.load(fis);
 
-                if (fis != null) {
-                    try {
-                        fis.close();
-                    } catch (Throwable ignore) {
-                    }
-                    ;
-                }
+                closeIgnoringExceptions(fis);
 
                 if (logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] loaded properties: " + updateProperties);
+                    logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] loaded properties: {0}", updateProperties);
                 }
 
                 final String contorStringValue = (String) updateProperties.get(property);
@@ -959,7 +938,7 @@ public final class Utils {
                 updateProperties.put(property + "_rst", "" + rstContor);
 
                 if (logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] store new properties: " + updateProperties);
+                    logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] store new properties: {0}", updateProperties);
                 }
 
                 checkAndSetInstanceID(updateProperties);
@@ -974,20 +953,8 @@ public final class Utils {
                 }
                 return false;
             } finally {
-                if (fis != null) {
-                    try {
-                        fis.close();
-                    } catch (Throwable ignore) {
-                    }
-                    ;
-                }
-                if (fos != null) {
-                    try {
-                        fos.close();
-                    } catch (Throwable ignore) {
-                    }
-                    ;
-                }
+                closeIgnoringExceptions(fis);
+                closeIgnoringExceptions(fos);
             }
         }
 
@@ -998,7 +965,8 @@ public final class Utils {
      * @since FDT 0.9.0 - basic instanceID per FDT instance
      * @param props
      */
-    private static final void checkAndSetInstanceID(final Properties props) {
+    @SuppressWarnings("FinalStaticMethod")
+    private static void checkAndSetInstanceID(final Properties props) {
 
         if (props == null) {
             if (logger.isLoggable(Level.FINE)) {
@@ -1026,13 +994,7 @@ public final class Utils {
                         fos.flush();
                     } catch (Throwable ignore) {
                     } finally {
-                        if (fos != null) {
-                            try {
-                                fos.close();
-                            } catch (Throwable ignore1) {
-                            }
-                            ;
-                        }
+                        closeIgnoringExceptions(fos);
                     }
                 }
             }
@@ -1044,10 +1006,12 @@ public final class Utils {
 
     }
 
+    @SuppressWarnings("FinalStaticMethod")
     public static final boolean updateTotalReadContor(final long totalRead) throws Exception {
         return updateTotalContor(totalRead, "totalRead");
     }
 
+    @SuppressWarnings("FinalStaticMethod")
     public static final boolean updateTotalWriteContor(final long totalWrite) throws Exception {
         return updateTotalContor(totalWrite, "totalWrite");
     }
@@ -1056,6 +1020,7 @@ public final class Utils {
      * @param fileBlockQueue
      * @return - number of "recovered" FileBlock-s
      */
+    @SuppressWarnings("FinalStaticMethod")
     public static final int drainFileBlockQueue(Queue<FileBlock> fileBlockQueue) {
         final boolean isInterrupted = Thread.interrupted();
         int status = 0;
@@ -1085,6 +1050,7 @@ public final class Utils {
         }
     }
 
+    @SuppressWarnings("FinalStaticMethod")
     public static final boolean checkForUpdate(final String currentVersion, final String updateURL) throws Exception {
         try {
 
@@ -1121,13 +1087,8 @@ public final class Utils {
                 } catch (Throwable t) {
                     logger.log(Level.WARNING, "Cannot load update properties file: " + confFile, t);
                 } finally {
-                    if (fis != null) {
-                        try {
-                            fis.close();
-                        } catch (Throwable ignore) {
-                        }
-                        ;
-                    }
+                    closeIgnoringExceptions(fos);
+                    closeIgnoringExceptions(fis);
                 }
 
                 final long now = System.currentTimeMillis();
@@ -1161,13 +1122,7 @@ public final class Utils {
                     } catch (Throwable t1) {
                         logger.log(Level.WARNING, "Cannot store update properties file", t1);
                     } finally {
-                        if (fos != null) {
-                            try {
-                                fos.close();
-                            } catch (Throwable ignore) {
-                            }
-                            ;
-                        }
+                        closeIgnoringExceptions(fos);
                     }
 
                     return bHaveUpdates;
@@ -1191,6 +1146,7 @@ public final class Utils {
      * @throws Exception
      *             if update was unsuccesfully or there was a problem connecting to the update server
      */
+    @SuppressWarnings("FinalStaticMethod")
     public static final boolean updateFDT(final String currentVersion, final String updateURL, boolean shouldUpdate) throws Exception {
 
         final String partialURL = updateURL + (updateURL.endsWith("/") ? "" : "/") + "@jar_name@.jar";
@@ -1318,16 +1274,11 @@ public final class Utils {
                 fos.flush();
             }
 
-            fos.flush();
-            fos.close();
-
             // try to check the version
             jf = new JarFile(tmpUpdateFile);
             final Manifest mf = jf.getManifest();
             final Attributes attr = mf.getMainAttributes();
             final String remoteVersion = attr.getValue("Implementation-Version");
-
-            jf.close();
 
             if (remoteVersion == null || remoteVersion.trim().length() == 0) {
                 throw new Exception("Cannot read the version from the downloaded jar...Cannot compare versions!");
@@ -1346,31 +1297,11 @@ public final class Utils {
 
             return true;
         } finally {
-
-            if (connInputStream != null) {
-                try {
-                    connInputStream.close();
-                } catch (Throwable ignore) {
-                }
-            }
-
-            if (fos != null) {
-                try {
-                    fos.close();
-                } catch (Throwable ignore) {
-                }
-            }
-
+            closeIgnoringExceptions(connInputStream);
+            closeIgnoringExceptions(fos);
             if (tmpUpdateFile != null) {
                 try {
                     tmpUpdateFile.delete();
-                } catch (Throwable ignore) {
-                }
-            }
-
-            if (jf != null) {
-                try {
-                    jf.close();
                 } catch (Throwable ignore) {
                 }
             }
@@ -1378,6 +1309,7 @@ public final class Utils {
 
     }
 
+    @SuppressWarnings("FinalStaticMethod")
     public static final String getUsage() {
         final String newline = System.getProperty("line.separator");
 
@@ -1395,11 +1327,7 @@ public final class Utils {
         }catch(Throwable t) {
             return "Unable to load help msg.";
         }finally {
-            if(is != null) {
-                try {
-                    is.close();
-                }catch(Throwable ignore) {}
-            }
+            closeIgnoringExceptions(is);
         }
     }
     public static final String md5ToString(byte[] md5sum) {
@@ -1422,6 +1350,7 @@ public final class Utils {
      * @author mluc
      * @since Sep 22, 2006
      */
+    @SuppressWarnings("FinalStaticMethod")
     public static final boolean checkForUpdate(final String currentVersion, final boolean shouldUpdate, final long updatePeriod, final String updateURL) {
         String updateFile = System.getProperty("user.home") + File.separatorChar + ".fdt" + File.separatorChar + "fdt_update";
         File f = new File(updateFile);
@@ -1453,19 +1382,8 @@ public final class Utils {
                 System.out.println("Could not read update checking file. Information about new updates will not be available.");
                 // lTime = System.currentTimeMillis();
             } finally {
-                if (br != null) {
-                    try {
-                        br.close();
-                    } catch (Throwable ignore) {
-                    }
-                }
-
-                if (fr != null) {
-                    try {
-                        fr.close();
-                    } catch (Throwable ignore) {
-                    }
-                }
+                closeIgnoringExceptions(br);
+                closeIgnoringExceptions(fr);
             }
         }
         long currentTime = System.currentTimeMillis();
@@ -1539,37 +1457,25 @@ public final class Utils {
                 System.out.println("Error. Please check manually the site for new updates: " + updateURL);
                 ex.printStackTrace();
             } finally {
-                if (bw != null) {
-                    try {
-                        bw.close();
-                    } catch (Throwable ignore) {
-                    }
-                }
-                if (brDown != null) {
-                    try {
-                        brDown.close();
-                    } catch (Throwable ignore) {
-                    }
-                }
-                if (isDown != null) {
-                    try {
-                        isDown.close();
-                    } catch (Throwable ignore) {
-                    }
-                }
-                if (isr != null) {
-                    try {
-                        isr.close();
-                    } catch (Throwable ignore) {
-                    }
-                }
+                closeIgnoringExceptions(bw);
+                closeIgnoringExceptions(brDown);
+                closeIgnoringExceptions(isDown);
+                closeIgnoringExceptions(isr);
             }
         }
 
         return false;
     }
 
-    public static final void copyFile2File(File s, File d) throws Exception {
+    /**
+     * Optimized file transfer method. In most moder OS-es "zero-copy" should be used by the underlying OS.
+     *
+     * @param s source file
+     * @param d destination file
+     * @throws IOException
+     */
+    @SuppressWarnings("FinalStaticMethod")
+    public static final void copyFile2File(File s, File d) throws IOException {
         FileChannel srcChannel = null;
         FileChannel dstChannel = null;
 
@@ -1588,30 +1494,21 @@ public final class Utils {
             long ss = srcChannel.size();
             long ds = dstChannel.size();
 
+            //dummy check - don't know what happens if disk is full
             if (ss != ds || ss != tr) {
-                throw new Exception("Different size for sourceFile [ " + s + " ] DestinationFileSize [ " + d + " ] Transferred [ " + tr + " ] ");
+                throw new IOException("Different size for sourceFile [ " + s + " ] DestinationFileSize [ " + d + " ] Transferred [ " + tr + " ] ");
             }
         } finally {
-            if (srcChannel != null) {
-                try {
-                    srcChannel.close();
-                } catch (Throwable _) {
-                }
-            }
-
-            if (dstChannel != null) {
-                try {
-                    dstChannel.close();
-                } catch (Throwable _) {
-                }
-            }
+            closeIgnoringExceptions(srcChannel);
+            closeIgnoringExceptions(dstChannel);
         }
     }
 
     /**
      * fills an array of File objects based on a list of files and directories
      */
-    public static final void getRecursiveFiles(String fileName, List<String> allFiles) throws Exception {
+    @SuppressWarnings("FinalStaticMethod")
+    public static final void getRecursiveFiles(String fileName, String remappedFileName, List<String> allFiles, List<String> allRemappedFiles) throws Exception {
 
         if (allFiles == null) {
             throw new NullPointerException("File list is null");
@@ -1620,20 +1517,39 @@ public final class Utils {
         if (file.exists() && file.canRead()) {
             if (file.isFile()) {
                 allFiles.add(fileName);
+                allRemappedFiles.add(remappedFileName);
             } else if (file.isDirectory()) {
                 String[] listContents = file.list();
                 if (listContents != null && listContents.length > 0) {
                     for (String subFile : listContents) {
-                        getRecursiveFiles(fileName + File.separator + subFile, allFiles);
+                        if(remappedFileName != null) {
+                            getRecursiveFiles(fileName + File.separator + subFile, remappedFileName + File.separator + subFile, allFiles, allRemappedFiles);
+                        } else {
+                            getRecursiveFiles(fileName + File.separator + subFile, null, allFiles, allRemappedFiles);
+                        }
                     }
                 }
             } else {// any other special device: e.g. /dev/zero, /dev/null :)
-
                 allFiles.add(fileName);
+                allRemappedFiles.add(remappedFileName);
             }
         }
     }
 
+    /**
+     * Helper method use to close a {@link Closeable} ignoring eventual exception
+     * @param c the closeable
+     */
+    @SuppressWarnings("FinalStaticMethod")
+    public static final void closeIgnoringExceptions(Closeable c) {
+        try {
+            if(c != null) {
+                c.close();
+            }
+        }catch(Throwable _){}
+    }
+    
+    @SuppressWarnings("FinalStaticMethod")
     public static final String toStringSelectionKey(final FDTSelectionKey fsk) {
         if (fsk == null) {
             return " Null FDTSelectionKey ! ";
@@ -1660,6 +1576,7 @@ public final class Utils {
         return sb.toString();
     }
 
+    @SuppressWarnings("FinalStaticMethod")
     public static final String toStringSelectionKey(final SelectionKey sk) {
         final StringBuilder sb = new StringBuilder("SelectionKey [ ");
         if (sk.isValid()) {
@@ -1673,6 +1590,7 @@ public final class Utils {
         return sb.toString();
     }
 
+    @SuppressWarnings("FinalStaticMethod")
     public static final String toStringSelectionKeyOps(final int keyOps) {
         final StringBuilder sb = new StringBuilder("{");
 

@@ -1,10 +1,11 @@
 /*
- * $Id: FDTWriterSession.java 563 2010-01-12 00:18:15Z ramiro $
+ * $Id: FDTWriterSession.java 584 2010-03-01 23:53:08Z ramiro $
  */
 package lia.util.net.copy;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 import java.util.TreeMap;
@@ -230,6 +231,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
         sccm.destinationDir = config.getDestinationDir();
         sccm.fileLists = config.getFileList();
+        sccm.remappedFileLists = config.getRemappedFileList();
         sccm.recursive = config.isRecursive();
         this.destinationDir = sccm.destinationDir;
 
@@ -291,10 +293,11 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
         final FileChannelProvider fcp = Config.getInstance().getFileChannelProviderFactory().newWriterFileChannelProvider(this);
 
         for (int i = 0; i < fCount; i++) {
+            final String fName = (sccm.remappedFileLists == null || sccm.remappedFileLists[i] == null)?sccm.fileLists[i]:sccm.remappedFileLists[i];
             FileWriterSession fws = new FileWriterSession(sccm.fileIDs[i], this.destinationDir
                                                           + File.separator
-                                                          + ((shouldReplace) ? sccm.fileLists[i].replace(remoteCharSeparator, File.separatorChar)
-                                                                  : sccm.fileLists[i]), sccm.fileSizes[i], sccm.lastModifTimes[i], isLoop, writeMode, noTmp, fcp);
+                                                          + ((shouldReplace) ? fName.replace(remoteCharSeparator, File.separatorChar)
+                                                                  : fName), sccm.fileSizes[i], sccm.lastModifTimes[i], isLoop, writeMode, noTmp, fcp);
             fileSessions.put(fws.sessionID, fws);
             setSessionSize(sessionSize() + fws.sessionSize());
         }
