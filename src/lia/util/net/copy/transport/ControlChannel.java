@@ -1,5 +1,5 @@
 /*
- * $Id: ControlChannel.java 705 2013-05-27 20:40:15Z ramiro $
+ * $Id: ControlChannel.java 707 2013-07-01 14:33:43Z ramiro $
  */
 package lia.util.net.copy.transport;
 
@@ -94,6 +94,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
             logger.log(Level.INFO, "[ ControlChannelPingerTask ] initialized");
         }
 
+        @Override
         public void run() {
 
             if (logger.isLoggable(Level.FINER)) {
@@ -302,7 +303,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
         final long localKA = Config.getInstance().getKeepAliveDelay(TimeUnit.NANOSECONDS);
         final String remoteKAS = (String) remoteConf.get("-ka");
-        final long remoteKAN = TimeUnit.SECONDS.toNanos(Long.parseLong(remoteKAS));
+        final long remoteKAN = (remoteKAS == null) ? localKA : TimeUnit.SECONDS.toNanos(Long.parseLong(remoteKAS));
         final long remoteKA = (remoteKAN < 0) ? localKA : remoteKAN;
 
         if ((this.fullRemoteVersion != null) && (Utils.compareVersions(this.fullRemoteVersion, "0.9.8") >= 0)) {
@@ -392,6 +393,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         }
     }
 
+    @Override
     public void run() {
         final BlockingQueue<Object> notifQueue = new ArrayBlockingQueue<Object>(10);
 
