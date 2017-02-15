@@ -15,6 +15,7 @@ import lia.util.net.common.Utils;
 import lia.util.net.copy.disk.DiskWriterManager;
 import lia.util.net.copy.disk.ResumeManager;
 import lia.util.net.copy.filters.Postprocessor;
+import lia.util.net.copy.filters.Preprocessor;
 import lia.util.net.copy.filters.ProcessorInfo;
 import lia.util.net.copy.transport.ControlChannel;
 import lia.util.net.copy.transport.CtrlMsg;
@@ -33,6 +34,8 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
     private String destinationDir;
     private String[] fileList;
+    
+    private ProcessorInfo processorInfo;
     
     public FDTWriterSession() throws Exception {
         super(FDTSession.CLIENT);
@@ -122,6 +125,20 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             }catch(Throwable ignore){
                 ignore.printStackTrace();
             }
+            
+            final long sTime = System.currentTimeMillis();
+            boolean bPostProccessing = false;
+            
+            try {
+                bPostProccessing = doPostProcessing();
+            }catch(Throwable t1) {
+                logger.log(Level.WARNING, " Got exception in postProcessing", t1);
+            }
+            
+            if(bPostProccessing) {
+                logger.log(Level.INFO, "Postprocessing took: " + (System.currentTimeMillis() - sTime) + " ms");
+            }
+
             try {
                 transportProvider.close(downMessage(), downCause());
             }catch(Throwable ignore){}
@@ -164,6 +181,46 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
         throw fpe;
     }
     
+    private boolean doPreprocess() throws Exception {
+        if(logger.isLoggable(Level.FINEST)) {
+            logger.log(Level.FINEST, " Entering Post Processing");
+        }
+
+        boolean bPreProcess = false;
+        final String preProcessFiltersProp = config.getPreFilters();
+
+        ProcessorInfo processorInfo = new ProcessorInfo();
+        
+        if(preProcessFiltersProp == null || preProcessFiltersProp.length() == 0) {
+            if(logger.isLoggable(Level.FINE)) {
+                logger.log(Level.FINE, "No FDT Preprocess Filters defined");
+            }
+        } else {
+            String[] preProcessFilters = preProcessFiltersProp.split(",");
+            if(preProcessFilters == null || preProcessFilters.length == 0) {
+                logger.log(Level.WARNING, "Cannot understand -preFilters");
+            } else {
+                bPreProcess = true;
+                
+                processorInfo.fileList = new String[fileList.length];
+                processorInfo.destinationDir = (this.destinationDir == null)?config.getDestinationDir():this.destinationDir;
+                
+                System.arraycopy(fileList, 0, processorInfo.fileList, 0, fileList.length);
+                
+                for(int i=0; i<preProcessFilters.length; i++) {
+                    Preprocessor preprocessor = (Preprocessor)(Class.forName(preProcessFilters[i]).newInstance());
+                    preprocessor.preProcessFileList(processorInfo, this.controlChannel.subject);
+                }
+            }
+        }
+        
+        if(bPreProcess) {
+            this.processorInfo = processorInfo;
+        }
+        
+        return bPreProcess;
+    }
+    
     @Override
     public void handleFinalFDTSessionConf(CtrlMsg ctrlMsg) throws Exception {
         FDTSessionConfigMsg sccm = (FDTSessionConfigMsg)ctrlMsg.message;
@@ -203,7 +260,21 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 finishFileSession(fws.sessionID, null);
             }
         }
+
         
+        final long sTime = System.currentTimeMillis();
+        boolean bPreProccessing = false;
+
+        try {
+            bPreProccessing = doPreprocess();
+        }catch(Throwable tPrepProcess) {
+            logger.log(Level.WARNING, "Got exception preprocessing", tPrepProcess);
+        }
+        
+        if(bPreProccessing) {
+            logger.log(Level.INFO, "Preprocessing took: " + (System.currentTimeMillis() - sTime) + " ms");
+        }
+
         buildPartitionMap();
         sendFinishedSessions();
         
@@ -277,44 +348,47 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
         }
     }
     
+    private boolean doPostProcessing() throws Exception {
+        if(logger.isLoggable(Level.FINEST)) {
+            logger.log(Level.FINEST, " Entering Post Processing");
+        }
+        
+        boolean bPostProcess = false;
+        
+        ProcessorInfo processorInfo = (this.processorInfo == null)?new ProcessorInfo():this.processorInfo;
+        
+        final String postProcessFiltersProp = config.getPostFilters();
+         
+        
+        if(postProcessFiltersProp == null || postProcessFiltersProp.length() == 0) {
+            if(logger.isLoggable(Level.FINE)) {
+                logger.log(Level.FINE, "No FDT Postprocess Filters defined");
+            }
+        } else {
+            String[] postProcessFilters = postProcessFiltersProp.split(",");
+            if(postProcessFilters == null || postProcessFilters.length == 0) {
+                logger.log(Level.WARNING, "Cannot understand -postFilters");
+            } else {
+                bPostProcess = true;
+                processorInfo.fileList = new String[fileSessions.size()];
+                processorInfo.destinationDir = this.destinationDir;
+
+                System.arraycopy(fileList, 0, processorInfo.fileList, 0, fileList.length);
+
+                for(int i=0; i<postProcessFilters.length; i++) {
+                    Postprocessor postprocessor = (Postprocessor)(Class.forName(postProcessFilters[i]).newInstance());
+                    postprocessor.postProcessFileList(processorInfo, this.controlChannel.subject, downCause(), downMessage());
+                }
+            }
+        }
+        
+        return bPostProcess;
+    }
     
     public void finishFileSession(UUID sessionID, Throwable downCause) {
         super.finishFileSession(sessionID, downCause);
         
         if(finishedSessions.size() == fileSessions.size()) {
-                
-                ProcessorInfo processorInfo = new ProcessorInfo();
-                final String postProcessFiltersProp = config.getPostFilters();
-
-                
-                if(postProcessFiltersProp == null || postProcessFiltersProp.length() == 0) {
-                    if(logger.isLoggable(Level.FINE)) {
-                        logger.log(Level.FINE, "No FDT Postprocess Filters defined");
-                    }
-                } else {
-                    try {
-                        String[] postProcessFilters = postProcessFiltersProp.split(",");
-                        if(postProcessFilters == null || postProcessFilters.length == 0) {
-                            logger.log(Level.WARNING, "Cannot understand -postFilters");
-                        } else {
-                            processorInfo.fileList = new String[fileSessions.size()];
-                            processorInfo.destinationDir = this.destinationDir;
-
-                            System.arraycopy(fileList, 0, processorInfo.fileList, 0, fileList.length);
-
-                            long sTime = System.currentTimeMillis();
-
-                            for(int i=0; i<postProcessFilters.length; i++) {
-                                Postprocessor postprocessor = (Postprocessor)(Class.forName(postProcessFilters[i]).newInstance());
-                                postprocessor.postProcessFileList(processorInfo, this.controlChannel.subject);
-                            }
-
-                            logger.log(Level.INFO, "Postprocessing took: " + (System.currentTimeMillis() - sTime) + " ms");
-                        }
-                    }catch(Throwable t) {
-                        logger.log(Level.WARNING, " Got exception in postprocessing ", t);
-                    }
-                }
                 
                 Utils.getMonitoringExecService().schedule(new Runnable() {
                     public void run() {

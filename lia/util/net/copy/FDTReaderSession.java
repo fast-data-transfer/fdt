@@ -22,6 +22,7 @@ import lia.util.net.common.DirectByteBufferPool;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.disk.DiskReaderManager;
 import lia.util.net.copy.disk.DiskReaderTask;
+import lia.util.net.copy.filters.Postprocessor;
 import lia.util.net.copy.filters.Preprocessor;
 import lia.util.net.copy.filters.ProcessorInfo;
 import lia.util.net.copy.transport.ControlChannel;
@@ -46,6 +47,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     private boolean recursive;
     private boolean isFileList;
     private int totalFileBlocks = 0;
+    
+    private ProcessorInfo processorInfo;
     
     
     public FDTReaderSession() throws Exception {
@@ -117,6 +120,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         List<String> newFileList = null;
         
         if(bPreProcess) {
+            this.processorInfo = processorInfo;
             this.remoteDir = processorInfo.destinationDir;
             newFileList = new ArrayList<String>(processorInfo.fileList.length);
             for(String fName: processorInfo.fileList) {
@@ -318,6 +322,37 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         }
     }
     
+    private boolean doPostProcessing() throws Exception {
+
+        if(logger.isLoggable(Level.FINEST)) {
+            logger.log(Level.FINEST, " Entering Post Processing");
+        }
+
+        boolean bPostProcess = false;
+        final String postProcessFiltersProp = config.getPostFilters();
+
+        if(postProcessFiltersProp == null || postProcessFiltersProp.length() == 0) {
+            if(logger.isLoggable(Level.FINE)) {
+                logger.log(Level.FINE, "No FDT PostProcessor Filters defined");
+            }
+        } else {
+            String[] postProcessFilters = postProcessFiltersProp.split(",");
+            if(postProcessFilters == null || postProcessFilters.length == 0) {
+                logger.log(Level.WARNING, "Cannot understand -postFilters");
+            } else {
+                bPostProcess = true;
+                
+                for(int i=0; i<postProcessFilters.length; i++) {
+                    Postprocessor preprocessor = (Postprocessor)(Class.forName(postProcessFilters[i]).newInstance());
+                    preprocessor.postProcessFileList(this.processorInfo, this.controlChannel.subject, downCause(), downMessage());
+                }
+                
+            }
+        }
+        
+        return bPostProcess;
+    }
+    
     protected void internalClose() throws Exception {
         super.internalClose();
         try {
@@ -386,6 +421,20 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             try {
                 FDTSessionManager.getInstance().finishSession(sessionID, downMessage(), downCause());
             }catch(Throwable ignore){}
+            
+            
+            final long now = System.currentTimeMillis();
+            
+            boolean postProcess = false;
+            try {
+                postProcess = doPostProcessing();
+            }catch(Throwable t) {
+                logger.log(Level.WARNING, " Got exception in postProcessing reader session", t);
+            } finally {
+                if(logger.isLoggable(Level.FINER)) {
+                    logger.log(Level.FINER, " Postprocessing ( " + postProcess + " ) took [ " + ( System.currentTimeMillis() - now ) + " ] ms");
+                }
+            }
             
             diskManager.removeSession(this, downMessage(), downCause());
         }

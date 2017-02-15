@@ -24,10 +24,10 @@ public class Config {
     
     public static final String FDT_MAJOR_VERSION = "0";
     public static final String FDT_MINOR_VERSION = "6";
-    public static final String FDT_MAINTENANCE_VERSION = "0";
+    public static final String FDT_MAINTENANCE_VERSION = "1";
     
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "." + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2007-03-29";
+    public static final String FDT_RELEASE_DATE = "2007-04-02";
     
     private volatile static boolean initialized;
     private static Config _thisInstance;

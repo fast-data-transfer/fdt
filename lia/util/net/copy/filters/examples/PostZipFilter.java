@@ -14,7 +14,7 @@ import lia.util.net.copy.filters.ProcessorInfo;
 
 public class PostZipFilter implements Postprocessor {
 
-    public void postProcessFileList(ProcessorInfo processorInfo, Subject peerSubject) throws Exception {
+    public void postProcessFileList(ProcessorInfo processorInfo, Subject peerSubject, Throwable downCause, String downMessage) throws Exception {
 
         System.out.println(" [ PostZipFilter ] Subject: " + peerSubject);
 
