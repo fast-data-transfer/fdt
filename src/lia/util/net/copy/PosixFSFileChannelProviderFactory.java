@@ -29,24 +29,41 @@ public class PosixFSFileChannelProviderFactory implements FileChannelProviderFac
         this.writerFileChannelProvider = new PosixFSWriterFileChannelProvider();
     }
     
+    /**
+     * @param readerSession  
+     */
     public FileChannelProvider newReaderFileChannelProvider(FDTReaderSession readerSession) {
         return readerFileChannelProvider;
     }
 
+    /**
+     * @param writerSession  
+     */
     public FileChannelProvider newWriterFileChannelProvider(FDTWriterSession writerSession) {
         return writerFileChannelProvider;
     }
 
     private static final class PosixFSReaderFileChannelProvider implements FileChannelProvider {
 
+        /**
+         * @throws IOException  
+         */
         public File getFile(String fileName) throws IOException {
             return new File(fileName);
         }
 
+        /**
+         * @throws IOException 
+         * 
+         */
         public int getPartitionID(File file) throws IOException {
-            return PartitionMap.getPartitionFromCache(file.getAbsolutePath());
+            return PartitionMap.getPartitionFromCache(file);
         }
 
+        /**
+         * @param openMode  
+         */
+        @SuppressWarnings("resource")
         public FileChannel getFileChannel(File file, String openMode) throws IOException {
             return new FileInputStream(file).getChannel();
         }
@@ -55,18 +72,25 @@ public class PosixFSFileChannelProviderFactory implements FileChannelProviderFac
    
     private static final class PosixFSWriterFileChannelProvider implements FileChannelProvider {
 
+        /**
+         * @throws IOException  
+         */
         public File getFile(String fileName) throws IOException {
             return new File(fileName);
         }
 
+        /**
+         * @throws IOException  
+         */
         public int getPartitionID(File file) throws IOException {
             if(file.exists()) {
-                return PartitionMap.getPartitionFromCache(file.getAbsolutePath());
+                return PartitionMap.getPartitionFromCache(file);
             }
 
-            return PartitionMap.getPartitionFromCache(file.getParent());
+            return PartitionMap.getPartitionFromCache(file.getParentFile());
         }
 
+        @SuppressWarnings("resource")
         public FileChannel getFileChannel(File file, final String openMode) throws IOException {
             if(openMode != null) {
                 return new RandomAccessFile(file, openMode).getChannel();

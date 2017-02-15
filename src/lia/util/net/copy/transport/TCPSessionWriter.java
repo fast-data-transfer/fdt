@@ -1,5 +1,5 @@
 /*
- * $Id: TCPSessionWriter.java 567 2010-01-28 06:06:01Z ramiro $
+ * $Id: TCPSessionWriter.java 690 2012-10-30 18:48:50Z ramiro $
  */
 package lia.util.net.copy.transport;
 
@@ -146,6 +146,9 @@ public class TCPSessionWriter extends TCPTransportProvider {
     //TODO - can we recover if downCause != null
     //     - implement a timeout retry ? ... for the moment it just finishes the entire session
     //     - this behaviour should be changed when dynamic creation of workers will be added
+    /**
+     * @param fdtSelectionKey  
+     */
     public void workerDown(FDTSelectionKey fdtSelectionKey, Throwable downCause) {
         //smth gone wrong ... or maybe the session finished already
         //I do not know if it should take other action ... for the moment the session will go down
@@ -160,7 +163,9 @@ public class TCPSessionWriter extends TCPTransportProvider {
         if(fdtSession != null) {
             try {
                 ((FDTReaderSession)fdtSession).transportWorkerDown();
-            }catch(Throwable ignore){}
+            }catch(Throwable ignore){
+                //really don't care
+            }
         }
     }
 

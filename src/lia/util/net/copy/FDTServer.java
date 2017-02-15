@@ -1,5 +1,5 @@
 /*
- * $Id: FDTServer.java 680 2012-07-30 18:10:48Z ramiro $
+ * $Id: FDTServer.java 689 2012-08-17 00:29:50Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -269,6 +269,18 @@ public class FDTServer extends AbstractFDTCloseable {
         }
     }
 
+    private static final void closeIgnoringException(Socket s) {
+        if (s != null) {
+            try {
+                s.close();
+            } catch (Throwable ignore) {
+                if (logger.isLoggable(Level.FINEST)) {
+                    logger.log(Level.FINEST, "IGNORE. Exception closing socket: " + s + " Cause:", ignore);
+                }
+            }
+        }
+    }
+    
     private static final void closeIgnoringException(Closeable c) {
         if (c != null) {
             try {

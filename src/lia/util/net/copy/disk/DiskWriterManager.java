@@ -1,5 +1,5 @@
 /*
- * $Id: DiskWriterManager.java 548 2009-11-27 16:09:03Z ramiro $
+ * $Id: DiskWriterManager.java 690 2012-10-30 18:48:50Z ramiro $
  */
 package lia.util.net.copy.disk;
 import java.util.ArrayList;
@@ -32,9 +32,9 @@ public class DiskWriterManager extends GenericDiskManager {
     private static final transient Logger logger = Logger.getLogger(DiskWriterManager.class.getName());
 
     private static final Config config = Config.getInstance();
-    private static int MAX_PARTITION_COUNT = 100;
+    private static int MAX_PARTITION_COUNT = Integer.getInteger("lia.util.net.copy.disk.MAX_PARTITION_COUNT", 1000).intValue();
     
-    private static int buffersPerPartitionMultiplyFactor = 20; 
+    private static int WRITER_QUEUE_MULTIPLY_FACTOR = Integer.getInteger("lia.util.net.copy.disk.WRITER_QUEUE_MULTIPLY_FACTOR", 20).intValue(); 
     private ExecutorService execService;
     
     /**
@@ -51,12 +51,6 @@ public class DiskWriterManager extends GenericDiskManager {
 
     private int writersPerPartionCount = 1;
     
-    //TODO - Redone this
-    public void finish(final String message, final Throwable cause) {
-        if(!Config.getInstance().isStandAlone()) {
-        }
-    }
-
     private static DiskWriterManager _thisInstance;
     private static volatile boolean initialized = false;
     
@@ -117,9 +111,8 @@ public class DiskWriterManager extends GenericDiskManager {
     }
     
     
-    synchronized void stopWritersForPartition(int partitionID) {
-        
-        List<DiskWriterTask> writersTasks = diskWritersMap.remove(partitionID);
+    synchronized void stopWritersForPartition(Integer partitionID) {
+        final List<DiskWriterTask> writersTasks = diskWritersMap.remove(partitionID);
         if(writersTasks != null) {
             for(DiskWriterTask dwt: writersTasks) {
                 if(dwt != null) {
@@ -135,14 +128,15 @@ public class DiskWriterManager extends GenericDiskManager {
     }
     
     private synchronized boolean startWritersForPartition(int partitionID) {
-        BlockingQueue<FileBlock> pQueue = diskQueuesMap.get(partitionID);
+        final Integer iPart = Integer.valueOf(partitionID);
+        BlockingQueue<FileBlock> pQueue = diskQueuesMap.get(iPart);
         if(pQueue != null) {
             return false;
         }
         
-        pQueue = new ArrayBlockingQueue<FileBlock>(buffersPerPartitionMultiplyFactor * writersPerPartionCount);
+        pQueue = new ArrayBlockingQueue<FileBlock>(WRITER_QUEUE_MULTIPLY_FACTOR * writersPerPartionCount);
         
-        if(diskQueuesMap.putIfAbsent(partitionID, pQueue) == null) {
+        if(diskQueuesMap.putIfAbsent(iPart, pQueue) == null) {
             //We should start the writers for this partition
             
             ArrayList<DiskWriterTask> diskWritersTasks = new ArrayList<DiskWriterTask>(writersPerPartionCount);
@@ -160,7 +154,7 @@ public class DiskWriterManager extends GenericDiskManager {
                 return false;
             }
             
-            diskWritersMap.put(partitionID, diskWritersTasks);
+            diskWritersMap.put(iPart, diskWritersTasks);
             return true;
         }
         
@@ -168,7 +162,7 @@ public class DiskWriterManager extends GenericDiskManager {
     }
     
     public int getQueueSize(int partitionID) {
-        final BlockingQueue<FileBlock> pQueue = diskQueuesMap.get(partitionID);
+        final BlockingQueue<FileBlock> pQueue = diskQueuesMap.get(Integer.valueOf(partitionID));
         
         if(pQueue == null) {
             return -1;
@@ -178,7 +172,8 @@ public class DiskWriterManager extends GenericDiskManager {
     }
     
     public boolean offerFileBlock(FileBlock fileBlock, int partitionID, long timeout, TimeUnit unit) throws InterruptedException {
-        BlockingQueue<FileBlock> pQueue = diskQueuesMap.get(partitionID);
+        final Integer iPart = Integer.valueOf(partitionID);
+        BlockingQueue<FileBlock> pQueue = diskQueuesMap.get(iPart);
         if(pQueue != null) {
             return pQueue.offer(fileBlock, timeout, unit);
         }
@@ -186,7 +181,7 @@ public class DiskWriterManager extends GenericDiskManager {
         startWritersForPartition(partitionID);
 
         //Do not loose the fileBlock if cannot start
-        pQueue = diskQueuesMap.get(partitionID);
+        pQueue = diskQueuesMap.get(iPart);
         if(pQueue != null) {
             return pQueue.offer(fileBlock, timeout, unit);
         }
@@ -198,7 +193,9 @@ public class DiskWriterManager extends GenericDiskManager {
     }
     
     public void putFileBlock(FileBlock fileBlock, int partitionID) throws InterruptedException {
-        BlockingQueue<FileBlock> pQueue = diskQueuesMap.get(partitionID);
+        final Integer iPart = Integer.valueOf(partitionID);
+
+        BlockingQueue<FileBlock> pQueue = diskQueuesMap.get(iPart);
         if(pQueue != null) {
             pQueue.put(fileBlock);
             return;
@@ -206,7 +203,7 @@ public class DiskWriterManager extends GenericDiskManager {
         
         startWritersForPartition(partitionID);
         
-        pQueue = diskQueuesMap.get(partitionID);
+        pQueue = diskQueuesMap.get(iPart);
         if(pQueue != null) {
             pQueue.put(fileBlock);
         } else {
