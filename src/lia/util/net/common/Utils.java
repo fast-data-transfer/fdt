@@ -1,5 +1,5 @@
 /*
- * $Id: Utils.java 584 2010-03-01 23:53:08Z ramiro $
+ * $Id: Utils.java 585 2010-03-03 10:39:57Z ramiro $
  */
 package lia.util.net.common;
 
@@ -1149,7 +1149,7 @@ public final class Utils {
     @SuppressWarnings("FinalStaticMethod")
     public static final boolean updateFDT(final String currentVersion, final String updateURL, boolean shouldUpdate) throws Exception {
 
-        final String partialURL = updateURL + (updateURL.endsWith("/") ? "" : "/") + "@jar_name@.jar";
+        final String partialURL = updateURL + (updateURL.endsWith("/") ? "" : "/") + "fdt.jar";
         System.out.print("Checking remote fdt.jar at URL: " + partialURL);
         String JVMVersion = "NotAvailable";
         String JVMRuntimeVersion = "NotAvailable";
@@ -1422,7 +1422,7 @@ public final class Utils {
                     if (car == 'Y' || car == 'y' || car == '\n' || car == '\r') {
                         // try to replace the current jar with the one on the web
                         // first download the new jar
-                        URL urlDownJar = new URL(updateURL + "@jar_name@.jar");
+                        URL urlDownJar = new URL(updateURL + "fdt.jar");
                         URLConnection connectionJar = urlDownJar.openConnection();
                         isDown = connectionJar.getInputStream();
                         File tempFile = File.createTempFile("update", "new_version.jar");

@@ -1,5 +1,5 @@
 /*
- * $Id: FDTReaderSession.java 584 2010-03-01 23:53:08Z ramiro $
+ * $Id: FDTReaderSession.java 588 2010-03-07 22:25:27Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -229,7 +229,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 }
             } else {
                 newFileList = Arrays.asList(fileList);
-                newRemappedFileList = Arrays.asList(remappedFileList);
+                newRemappedFileList = (remappedFileList == null)?null:Arrays.asList(remappedFileList);
             }
         }
 

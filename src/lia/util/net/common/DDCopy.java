@@ -28,7 +28,7 @@ public class DDCopy {
     
     //I need heeeelpp ... or I neeed love, love, love ( try google )
     private static final String USAGE_MESSAGE =
-            "\nUsage: java -cp @jar_name@.jar " + DDCopy.class.getName() + " [ OPTIONS ] ARGS\n"+
+            "\nUsage: java -cp fdt.jar " + DDCopy.class.getName() + " [ OPTIONS ] ARGS\n"+
             "\nARGS: if=<sourceFile> of=<destinationFile>\n" +
             "\n\nWhere OPTIONS can be:\n" +
             "\n   bs=<BufferSize>[K|M]\t size of the buffer used for read/write." +

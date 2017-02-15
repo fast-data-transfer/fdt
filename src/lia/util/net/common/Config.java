@@ -70,11 +70,11 @@ public class Config {
     public static final String REGEX_REMAP_DELIMITER = "(\\s)+/(\\s)+";
     
     // all of this are set by the ant script
-    public static final String FDT_MAJOR_VERSION = "@program_major_version@";
-    public static final String FDT_MINOR_VERSION = "@program_minor_version@";
-    public static final String FDT_MAINTENANCE_VERSION = "@program_maintenance_version@";
+    public static final String FDT_MAJOR_VERSION = "0";
+    public static final String FDT_MINOR_VERSION = "9";
+    public static final String FDT_MAINTENANCE_VERSION = "11";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "." + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "@program_vdate@";
+    public static final String FDT_RELEASE_DATE = "2010-03-08";
     private volatile static Config _thisInstance;
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )

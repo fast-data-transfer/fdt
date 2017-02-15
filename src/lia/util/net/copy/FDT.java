@@ -42,11 +42,11 @@ public class FDT {
 
     private static final String name = "FDT";
 
-    private static String UPDATE_URL = "@program_update_url@";
+    private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
 
-    public static final String FDT_FULL_VERSION = "@program_full_version@";
+    public static final String FDT_FULL_VERSION = "0.9.11-201003072335";
 
-    String mlDestinations = "@apmon_destinations@";
+    String mlDestinations = "monalisa2.cern.ch:28884,monalisa2.caltech.edu:28884";
 
     /** two weeks between checking for updates */
     public static final long UPDATE_PERIOD = 2 * 24 * 3600 * 1000;
