@@ -1,5 +1,5 @@
 /*
- * $Id: FileWriterSession.java 595 2010-04-12 06:13:58Z ramiro $
+ * $Id: FileWriterSession.java 598 2010-04-12 22:45:42Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -46,7 +46,10 @@ public class FileWriterSession extends FileSession {
             String tmpF = "";
             if (!file.exists()) {
 
-                File dirs = new File(file.getParent());
+//                File dirs = new File(file.getParent());
+            	
+            	File dirs = fcp.getFile(file.getParent());
+            	
                 if (!dirs.exists()) {
                     if (!dirs.mkdirs()) {
                         throw new IOException(" Unable to create parent dirs [ " + dirs + " ]");
