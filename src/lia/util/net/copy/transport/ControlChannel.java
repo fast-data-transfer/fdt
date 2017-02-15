@@ -1,5 +1,5 @@
 /*
- * $Id: ControlChannel.java 570 2010-01-28 09:40:59Z ramiro $
+ * $Id: ControlChannel.java 695 2012-11-19 18:13:06Z ramiro $
  */
 package lia.util.net.copy.transport;
 
@@ -31,6 +31,7 @@ import lia.gsi.net.GSIGssSocketFactory;
 import lia.util.net.common.AbstractFDTCloseable;
 import lia.util.net.common.Config;
 import lia.util.net.common.DirectByteBufferPool;
+import lia.util.net.common.FDTVersion;
 import lia.util.net.common.Utils;
 
 /**
@@ -288,8 +289,11 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         myName = " ControlThread for ( " + fdtSessionID + " ) " + controlSocket.getInetAddress() + ":" + controlSocket.getPort();
         logger.log(Level.INFO, "NEW CONTROL stream for " + fdtSessionID + " initialized ");
 
-        if (this.fullRemoteVersion != null && this.fullRemoteVersion.compareTo("0.9.0") >= 0) {
+        if (this.fullRemoteVersion != null && Utils.compareVersions(this.fullRemoteVersion, "0.9.8") >= 0) {
             synchronized (this.closeLock) {
+                final FDTVersion localVersion = FDTVersion.fromVersionString(Config.FDT_FULL_VERSION + "-" + Config.FDT_RELEASE_DATE);
+                final FDTVersion remoteVersion = FDTVersion.fromVersionString(this.fullRemoteVersion);
+                logger.log(Level.INFO, "App KeepAlive enabled for control channel. Local " + localVersion + ", Remote " + remoteVersion);
                 ccptFuture = Utils.getMonitoringExecService().scheduleWithFixedDelay(new ControlChannelPingerTask(this), 2 * 60, 2 * 60, TimeUnit.SECONDS);
             }
         } else {
@@ -439,14 +443,18 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
                     if (o == null) {
                         continue;
                     }
-                    if (logger.isLoggable(Level.FINE)) {
+                    final boolean isFine = logger.isLoggable(Level.FINE); 
+                    if (isFine) {
                         logger.log(Level.FINE, " [ ControlChannel ] received msg: " + o);
                     }
 
                     if (o instanceof CtrlMsg) {
                         final CtrlMsg ctrlMsg = (CtrlMsg) o;
+                        // ping - like for the socket
                         if (ctrlMsg.tag == CtrlMsg.KEEP_ALIVE_MSG) {
-                            // ping - like for the socket
+                            if(isFine) {
+                                logger.log(Level.FINE, "Ctrl channel received app KEEP_ALIVE_MSG");
+                            }
                             continue;
                         }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: FileReaderSession.java 680 2012-07-30 18:10:48Z ramiro $
+ * $Id: FileReaderSession.java 694 2012-11-19 16:48:08Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -43,6 +43,12 @@ public class FileReaderSession extends FileSession {
             return;
         }
 
+        final boolean bNoChk = Boolean.getBoolean("DO_NOT_CHECK_FILE");
+        if(bNoChk) {
+            this.sessionSize = -1;
+            return;
+        }
+        
         if (!file.isFile()) {
             throw new IOException("The specified name [ " + fileName + " ] is not a file!");
         }

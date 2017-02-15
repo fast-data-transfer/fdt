@@ -1,5 +1,5 @@
 /*
- * $Id: TCPTransportProvider.java 605 2010-06-11 10:20:46Z ramiro $
+ * $Id: TCPTransportProvider.java 694 2012-11-19 16:48:08Z ramiro $
  */
 package lia.util.net.copy.transport;
 
@@ -184,18 +184,22 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
                 if (windowSize > 0) {
                     s.setSendBufferSize(windowSize);
                 }
+                final String sdpConfFlag = System.getProperty("com.sun.sdp.conf");
+                final boolean bSDP = (sdpConfFlag != null && !sdpConfFlag.isEmpty());
                 
-                try {
-                    s.setKeepAlive(true);
-                } catch (Throwable t) {
-                    logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set KEEP_ALIVE for " + sc + ". Will ignore the error. Contact your sys admin.", t);
-                }
+                if(!bSDP) {
+                    try {
+                        s.setKeepAlive(true);
+                    } catch (Throwable t) {
+                        logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set KEEP_ALIVE for " + sc + ". Will ignore the error. Contact your sys admin.", t);
+                    }
 
-                try {
-                    //IPTOS_LOWCOST (0x02) IPTOS_RELIABILITY (0x04) IPTOS_THROUGHPUT (0x08) IPTOS_LOWDELAY (0x10)
-                    s.setTrafficClass(0x04 | 0x08 | 0x010);
-                } catch (Throwable t) {
-                    logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set traffic class for " + sc + "[ IPTOS_RELIABILITY (0x04) | IPTOS_THROUGHPUT (0x08) | IPTOS_LOWDELAY (0x10) ] Will ignore the error. Contact your sys admin.", t);
+                    try {
+                        //IPTOS_LOWCOST (0x02) IPTOS_RELIABILITY (0x04) IPTOS_THROUGHPUT (0x08) IPTOS_LOWDELAY (0x10)
+                        s.setTrafficClass(0x04 | 0x08 | 0x010);
+                    } catch (Throwable t) {
+                        logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set traffic class for " + sc + "[ IPTOS_RELIABILITY (0x04) | IPTOS_THROUGHPUT (0x08) | IPTOS_LOWDELAY (0x10) ] Will ignore the error. Contact your sys admin.", t);
+                    }
                 }
                 
                 if (!sc.isBlocking()) {

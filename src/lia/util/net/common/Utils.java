@@ -1,5 +1,5 @@
 /*
- * $Id: Utils.java 636 2011-02-08 15:47:52Z ramiro $
+ * $Id: Utils.java 695 2012-11-19 18:13:06Z ramiro $
  */
 package lia.util.net.common;
 
@@ -1517,6 +1517,37 @@ public final class Utils {
         return sb.toString();
     }
 
+
+    /**
+     * 
+     * @param versionString1
+     * @param versionString2
+     * @return 0 if equals or both null, 1 if first is first version is greater, -1 otherwise
+     * 
+     * @throws NullPointerException if one of the two params is null (XOR test).
+     * 
+     * @see FDTVersion#compareTo(FDTVersion)
+     */
+    public static final int compareVersions(final String versionString1, final String versionString2) {
+        if(versionString1 == null && versionString2 == null) {
+            return 0;
+        }
+        
+        if(versionString1 == null || versionString2 == null) {
+            if(versionString1 == null) {
+                throw new NullPointerException("versionString1 is null");
+            }
+            
+            if(versionString2 == null) {
+                throw new NullPointerException("versionString2 is null");
+            }
+        }
+        
+        return FDTVersion.fromVersionString(versionString1).compareTo(FDTVersion.fromVersionString(versionString2));
+    }
+
+    
+    
     public static final String toStringSelectionKeyOps(final int keyOps) {
         final StringBuilder sb = new StringBuilder("{");
 

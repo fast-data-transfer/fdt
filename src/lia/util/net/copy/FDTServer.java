@@ -1,5 +1,5 @@
 /*
- * $Id: FDTServer.java 689 2012-08-17 00:29:50Z ramiro $
+ * $Id: FDTServer.java 694 2012-11-19 16:48:08Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -88,24 +88,28 @@ public class FDTServer extends AbstractFDTCloseable {
             if (logger.isLoggable(Level.FINER)) {
                 logger.log(Level.FINER, " AcceptableTask for " + sc + " STARTED!");
             }
-
-            try {
-                s.setKeepAlive(true);
-            } catch (Throwable t) {
-                logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set KEEP_ALIVE for " + sc
-                        + ". Will ignore the error. Contact your sys admin.", t);
+            final String sdpConfFlag = System.getProperty("com.sun.sdp.conf");
+            final boolean bSDP = (sdpConfFlag != null && !sdpConfFlag.isEmpty());
+            if(!bSDP) {
+                try {
+                    s.setKeepAlive(true);
+                } catch (Throwable t) {
+                    logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set KEEP_ALIVE for " + sc
+                            + ". Will ignore the error. Contact your sys admin.", t);
+                }
+                
+                try {
+                    // IPTOS_LOWCOST (0x02) IPTOS_RELIABILITY (0x04) IPTOS_THROUGHPUT (0x08) IPTOS_LOWDELAY (0x10)
+                    s.setTrafficClass(0x04 | 0x08 | 0x010);
+                } catch (Throwable t) {
+                    logger.log(Level.WARNING,
+                               "[ FDTServer ] [ AcceptableTask ] Cannot set traffic class for "
+                                       + sc
+                                       + "[ IPTOS_RELIABILITY (0x04) | IPTOS_THROUGHPUT (0x08) | IPTOS_LOWDELAY (0x10) ] Will ignore the error. Contact your sys admin.",
+                               t);
+                }
             }
 
-            try {
-                // IPTOS_LOWCOST (0x02) IPTOS_RELIABILITY (0x04) IPTOS_THROUGHPUT (0x08) IPTOS_LOWDELAY (0x10)
-                s.setTrafficClass(0x04 | 0x08 | 0x010);
-            } catch (Throwable t) {
-                logger.log(Level.WARNING,
-                           "[ FDTServer ] [ AcceptableTask ] Cannot set traffic class for "
-                                   + sc
-                                   + "[ IPTOS_RELIABILITY (0x04) | IPTOS_THROUGHPUT (0x08) | IPTOS_LOWDELAY (0x10) ] Will ignore the error. Contact your sys admin.",
-                           t);
-            }
 
             ByteBuffer firstByte = ByteBuffer.allocate(1);
             ByteBuffer clientIDBuff = ByteBuffer.allocate(16);
