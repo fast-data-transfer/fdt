@@ -1,5 +1,5 @@
 /*
- * $Id: FDT.java 564 2010-01-27 23:04:52Z ramiro $
+ * $Id: FDT.java 612 2010-06-25 13:44:03Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -44,7 +44,7 @@ public class FDT {
 
     private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
 
-    public static final String FDT_FULL_VERSION = "0.9.15-201006111414";
+    public static final String FDT_FULL_VERSION = "0.9.16-201006291524";
 
     String mlDestinations = "monalisa2.cern.ch:28884,monalisa2.caltech.edu:28884";
 
@@ -512,6 +512,7 @@ public class FDT {
         // System.exit(0);
         // }
 
+        final boolean noLock = argsMap.get("-nolock") != null || argsMap.get("-nolocks") != null;
         if (argsMap.get("-h") != null || argsMap.get("-H") != null || argsMap.get("-help") != null || argsMap.get("--help") != null) {
             printHelp();
             System.exit(0);
@@ -529,7 +530,7 @@ public class FDT {
                 }
             }
 
-            if (Utils.updateFDT(FDT_FULL_VERSION, updateURL, true)) {
+            if (Utils.updateFDT(FDT_FULL_VERSION, updateURL, true, noLock)) {
                 // Just print the current version ...
                 System.out.println("\nThe update finished successfully\n");
                 System.exit(0);
@@ -550,14 +551,14 @@ public class FDT {
                 }
             }
             try {
-                if (Utils.checkForUpdate(FDT_FULL_VERSION, updateURL)) {
+                if (Utils.checkForUpdate(FDT_FULL_VERSION, updateURL, noLock)) {
                     if (argsMap.get("-silent") == null) {
                         System.out.print("\n\nAn update is available ... Do you want to upgrade to the new version? [Y/n]");
                         char car = (char) System.in.read();
                         System.out.println("\n");
                         if (car == 'Y' || car == 'y' || car == '\n' || car == '\r') {
                             System.out.print("\nTrying to update FDT to the new version ... ");
-                            if (Utils.updateFDT(FDT_FULL_VERSION, updateURL, true)) {
+                            if (Utils.updateFDT(FDT_FULL_VERSION, updateURL, true, noLock)) {
                                 // Just print the current version ...
                                 System.out.println("\nThe update finished successfully\n");
                                 System.exit(0);

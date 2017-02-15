@@ -1,5 +1,5 @@
 /*
- * $Id: FDTWriterSession.java 603 2010-06-11 05:47:16Z ramiro $
+ * $Id: FDTWriterSession.java 611 2010-06-22 15:30:41Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -290,7 +290,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             noTmp = true;
         }
         boolean noLock = false;
-        if(config.isNoLockFlagSet() || controlChannel.remoteConf.get("-nolock") != null) {
+        if(config.isNoLockFlagSet() || controlChannel.remoteConf.get("-nolock") != null || controlChannel.remoteConf.get("-nolocks") != null) {
             noLock = true;
         }
         

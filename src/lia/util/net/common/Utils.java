@@ -1,21 +1,20 @@
 /*
- * $Id: Utils.java 585 2010-03-03 10:39:57Z ramiro $
+ * $Id: Utils.java 615 2010-06-29 15:08:57Z ramiro $
  */
 package lia.util.net.common;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.io.StringWriter;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.ByteBuffer;
@@ -31,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionHandler;
@@ -50,8 +50,6 @@ import lia.util.net.copy.FDT;
 import lia.util.net.copy.FileBlock;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import apmon.ApMon;
-import java.io.Closeable;
-import java.util.UUID;
 
 /**
  * Various utilities functions used in the entire application
@@ -864,7 +862,6 @@ public final class Utils {
 
     }
 
-    @SuppressWarnings("FinalStaticMethod")
     private static Properties getFDTUpdateProperties() {
         final String parentFDTConfDirName = System.getProperty("user.home") + File.separator + ".fdt";
         final String fdtUpdateConfFileName = "update.properties";
@@ -888,7 +885,6 @@ public final class Utils {
         return updateProperties;
     }
 
-    @SuppressWarnings("FinalStaticMethod")
     private static boolean updateTotalContor(final long total, final String property) {
 
         final String parentFDTConfDirName = System.getProperty("user.home") + File.separator + ".fdt";
@@ -965,7 +961,6 @@ public final class Utils {
      * @since FDT 0.9.0 - basic instanceID per FDT instance
      * @param props
      */
-    @SuppressWarnings("FinalStaticMethod")
     private static void checkAndSetInstanceID(final Properties props) {
 
         if (props == null) {
@@ -1006,12 +1001,10 @@ public final class Utils {
 
     }
 
-    @SuppressWarnings("FinalStaticMethod")
     public static final boolean updateTotalReadContor(final long totalRead) throws Exception {
         return updateTotalContor(totalRead, "totalRead");
     }
 
-    @SuppressWarnings("FinalStaticMethod")
     public static final boolean updateTotalWriteContor(final long totalWrite) throws Exception {
         return updateTotalContor(totalWrite, "totalWrite");
     }
@@ -1020,7 +1013,6 @@ public final class Utils {
      * @param fileBlockQueue
      * @return - number of "recovered" FileBlock-s
      */
-    @SuppressWarnings("FinalStaticMethod")
     public static final int drainFileBlockQueue(Queue<FileBlock> fileBlockQueue) {
         final boolean isInterrupted = Thread.interrupted();
         int status = 0;
@@ -1050,8 +1042,7 @@ public final class Utils {
         }
     }
 
-    @SuppressWarnings("FinalStaticMethod")
-    public static final boolean checkForUpdate(final String currentVersion, final String updateURL) throws Exception {
+    public static final boolean checkForUpdate(final String currentVersion, final String updateURL, boolean noLock) throws Exception {
         try {
 
             final String parentFDTConfDirName = System.getProperty("user.home") + File.separator + ".fdt";
@@ -1099,7 +1090,7 @@ public final class Utils {
                     lastCheck = now;
                     try {
                         System.out.println("\n\nChecking for remote updates ... This may be disabled using -noupdates flag.");
-                        bHaveUpdates = updateFDT(currentVersion, updateURL, false);
+                        bHaveUpdates = updateFDT(currentVersion, updateURL, false, noLock);
                         if (bHaveUpdates) {
                             System.out.println("FDT may be updated using: java -jar fdt.jar -update");
                         } else {
@@ -1146,8 +1137,7 @@ public final class Utils {
      * @throws Exception
      *             if update was unsuccesfully or there was a problem connecting to the update server
      */
-    @SuppressWarnings("FinalStaticMethod")
-    public static final boolean updateFDT(final String currentVersion, final String updateURL, boolean shouldUpdate) throws Exception {
+    public static final boolean updateFDT(final String currentVersion, final String updateURL, boolean shouldUpdate, boolean noLock) throws Exception {
 
         final String partialURL = updateURL + (updateURL.endsWith("/") ? "" : "/") + "fdt.jar";
         System.out.print("Checking remote fdt.jar at URL: " + partialURL);
@@ -1224,10 +1214,11 @@ public final class Utils {
             }
         }
 
-        final String finalPath = FDT.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        //final String finalPath = FDT.class.getProtectionDomain().getCodeSource().getLocation().getPath().replaceAll("%20", " ");
+        final String finalPath = new URI(FDT.class.getProtectionDomain().getCodeSource().getLocation().toString()).getPath();
 
         if (finalPath == null || finalPath.length() == 0) {
-            throw new IOException("Cannot determine the path to current fdtJar");
+            throw new IOException("Cannot determine the path to current fdt jar");
         }
 
         final File currentJar = new File(finalPath);
@@ -1271,8 +1262,8 @@ public final class Utils {
             int count = 0;
             while ((count = connInputStream.read(buff)) > 0) {
                 fos.write(buff, 0, count);
-                fos.flush();
             }
+            fos.flush();
 
             // try to check the version
             jf = new JarFile(tmpUpdateFile);
@@ -1292,7 +1283,43 @@ public final class Utils {
             System.out.println("Remote FDT version: " + remoteVersion + " Local FDT version: " + currentVersion + ". Update available.");
 
             if (shouldUpdate) {
-                copyFile2File(tmpUpdateFile, currentJar);
+                try {
+
+                    //basic checks for parent directory
+                    final String parent = currentJar.getParent();
+                    if (parent == null) {
+                        throw new IOException("Unable to determine parent dir for: " + currentJar);
+                    }
+                    final File parentDir = new File(parent);
+                    if (!parentDir.canWrite()) {
+                        //
+                        //windows XP (at least on the system I tested) reports totaly stupid things here; make it an warning...
+                        // 
+                        logger.log(Level.WARNING, "[ WARNING CHECK ] The OS reported that is unable to write in parent dir: " + parentDir + " continue anyway; the call might be broken.");
+                    }
+
+                    final File bkpJar = new File(parentDir.getPath() + File.separator + "fdt_" + Config.FDT_FULL_VERSION + ".jar");
+                    boolean bDel = bkpJar.exists();
+                    if(bDel) {
+                        bDel = bkpJar.delete(); 
+                        if(!bDel) {
+                            System.out.println("[ WARNING ] Unable to delete backup jar with the same version: " + bkpJar + " ... will continue");
+                        } else {
+                            System.out.println("[ INFO ] Backup jar (same version as the update) " + bkpJar + " delete it.");
+                        }
+                    }
+                    
+                    boolean renameSucced = currentJar.renameTo(bkpJar);
+                    if(!renameSucced) {
+                        logger.log(Level.WARNING, "Unable to create backup: " + bkpJar + " for current FDT before update.");
+                    } else {
+                        System.out.println("Backing up old FDT succeeded: " + bkpJar);
+                    }
+
+                } catch (Throwable t) {
+                    logger.log(Level.WARNING, "Unable to create a backup for current FDT before update. Exception: ", t);
+                }
+                copyFile2File(tmpUpdateFile, currentJar, noLock);
             }
 
             return true;
@@ -1309,7 +1336,6 @@ public final class Utils {
 
     }
 
-    @SuppressWarnings("FinalStaticMethod")
     public static final String getUsage() {
         final String newline = System.getProperty("line.separator");
 
@@ -1317,19 +1343,21 @@ public final class Utils {
         try {
             BufferedReader br = new BufferedReader(new InputStreamReader(Utils.class.getResourceAsStream("usage")));
             StringBuilder sb = new StringBuilder();
-            for(;;) {
+            for (;;) {
                 final String line = br.readLine();
-                if(line == null) break;
+                if (line == null)
+                    break;
                 sb.append(line).append(newline);
             }
-            
+
             return sb.toString();
-        }catch(Throwable t) {
+        } catch (Throwable t) {
             return "Unable to load help msg.";
-        }finally {
+        } finally {
             closeIgnoringExceptions(is);
         }
     }
+
     public static final String md5ToString(byte[] md5sum) {
         StringBuilder sb = new StringBuilder();
 
@@ -1341,141 +1369,15 @@ public final class Utils {
     }
 
     /**
-     * check first if it's time to check for an update by using the file ~/.fdt/fdt_update and verifying that the
-     * current time is more than the time in the file plus UPDATE_PERIOD.<br>
-     * then, check the version of the program from the web site provided with the one provided at build time MUST BE
-     * REDONE ! Ramiro
-     * 
-     * @deprecated
-     * @author mluc
-     * @since Sep 22, 2006
-     */
-    @SuppressWarnings("FinalStaticMethod")
-    public static final boolean checkForUpdate(final String currentVersion, final boolean shouldUpdate, final long updatePeriod, final String updateURL) {
-        String updateFile = System.getProperty("user.home") + File.separatorChar + ".fdt" + File.separatorChar + "fdt_update";
-        File f = new File(updateFile);
-        long lTime = -1;// System.currentTimeMillis();
-
-        if (!f.exists()) {
-            new File(f.getParent()).mkdirs();
-            try {
-                f.createNewFile();
-                // BufferedWriter bw = new BufferedWriter(new FileWriter(f));
-                // if ( bw != null )
-                // bw.write(""+System.currentTimeMillis());
-                // bw.close();
-            } catch (IOException ex) {
-                System.out.println("Could not create update checking file. Information about new updates will not be available.");
-            }
-        } else {
-            FileReader fr = null;
-            BufferedReader br = null;
-            try {
-                fr = new FileReader(f);
-                br = new BufferedReader(fr);
-                String line = br.readLine();
-                fr.close();
-                if (line != null) {
-                    lTime = Long.parseLong(line);
-                }
-            } catch (Throwable t) {
-                System.out.println("Could not read update checking file. Information about new updates will not be available.");
-                // lTime = System.currentTimeMillis();
-            } finally {
-                closeIgnoringExceptions(br);
-                closeIgnoringExceptions(fr);
-            }
-        }
-        long currentTime = System.currentTimeMillis();
-        if (lTime == -1 || currentTime - lTime > updatePeriod || shouldUpdate) {
-            System.out.println("Checking for updates... ");
-
-            BufferedWriter bw = null;
-            BufferedReader brDown = null;
-            InputStream isDown = null;
-            InputStreamReader isr = null;
-
-            try {
-                bw = new BufferedWriter(new FileWriter(f));
-                if (bw != null) {
-                    bw.write("" + currentTime);
-                }
-                bw.close();
-                URL urlDown;
-                urlDown = new URL(updateURL + "version");
-                URLConnection connection = urlDown.openConnection();
-                isDown = connection.getInputStream();
-                isr = new InputStreamReader(isDown);
-                brDown = new BufferedReader(isr);
-                String new_version = brDown.readLine();
-                brDown.close();
-
-                if (new_version == null) {
-                    System.out.println("Unable to check for remote version ... got null response from the web server");
-                    return false;
-                }
-
-                if (!new_version.equals(currentVersion)) {
-                    System.out.println("There is a new version (" + new_version + ") available at " + updateURL);
-                    System.out.println("Would you like to update? [Y/n] ");
-                    char car = (char) System.in.read();
-                    if (car == 'Y' || car == 'y' || car == '\n' || car == '\r') {
-                        // try to replace the current jar with the one on the web
-                        // first download the new jar
-                        URL urlDownJar = new URL(updateURL + "fdt.jar");
-                        URLConnection connectionJar = urlDownJar.openConnection();
-                        isDown = connectionJar.getInputStream();
-                        File tempFile = File.createTempFile("update", "new_version.jar");
-                        FileOutputStream fos = new FileOutputStream(tempFile);
-                        byte[] buf = new byte[10240];
-                        int read = -1;
-                        while ((read = isDown.read(buf)) != -1) {
-                            fos.write(buf, 0, read);
-                        }
-                        ;
-                        fos.close();
-                        // find this jar's file path
-                        // System.out.println("path: "+FDT.class.getProtectionDomain().getCodeSource().getLocation());
-                        String finalPath = FDT.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-                        File thisFile = new File(finalPath);
-                        // move the temp file to the jar file
-
-                        // System.out.println("path: "+finalPath);
-                        copyFile2File(tempFile, thisFile);
-                        System.out.println("Application updated successfully. Exiting.");
-                        return true;
-                        //
-                        // String startDir = System.getProperty("user.dir");
-                        // for ( Map.Entry<Object, Object> prop: System.getProperties().entrySet()) {
-                        // System.out.println(prop.getKey()+"="+prop.getValue());
-                        // }
-                    }
-                } else {
-                    System.out.println("You have the lastest version.");
-                }
-            } catch (Exception ex) {
-                System.out.println("Error. Please check manually the site for new updates: " + updateURL);
-                ex.printStackTrace();
-            } finally {
-                closeIgnoringExceptions(bw);
-                closeIgnoringExceptions(brDown);
-                closeIgnoringExceptions(isDown);
-                closeIgnoringExceptions(isr);
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * Optimized file transfer method. In most moder OS-es "zero-copy" should be used by the underlying OS.
-     *
-     * @param s source file
-     * @param d destination file
+     * 
+     * @param s
+     *            source file
+     * @param d
+     *            destination file
      * @throws IOException
      */
-    @SuppressWarnings("FinalStaticMethod")
-    public static final void copyFile2File(File s, File d) throws IOException {
+    public static final void copyFile2File(File s, File d, boolean noLock) throws IOException {
         FileChannel srcChannel = null;
         FileChannel dstChannel = null;
 
@@ -1485,8 +1387,28 @@ public final class Utils {
             // Create channel on the destination
             dstChannel = new FileOutputStream(d).getChannel();
 
-            srcChannel.lock();
-            dstChannel.lock();
+            try {
+                if(!noLock) {
+                    srcChannel.lock();
+                } else {
+                    if(logger.isLoggable(Level.FINE)) {
+                        logger.log(Level.FINE, " [ Utils ] [ copyFile2File ] not taking locks for: " + s);
+                    }
+                }
+            }catch(Throwable t) {
+                logger.log(Level.WARNING, "Unable to take source file (" + s + ") lock. Will continue without lock taken. Cause: ", t);
+            }
+            try {
+                if(!noLock) {
+                    dstChannel.lock();
+                } else {
+                    if(logger.isLoggable(Level.FINE)) {
+                        logger.log(Level.FINE, " [ Utils ] [ copyFile2File ] not taking locks for: " + d);
+                    }
+                }
+            }catch(Throwable t) {
+                logger.log(Level.WARNING, "Unable to take destination file (" + d + ") lock. Will continue without lock taken. Cause: ", t);
+            }
 
             // Copy file contents from source to destination - ZERO copy on most OSes!
             final long tr = dstChannel.transferFrom(srcChannel, 0, srcChannel.size());
@@ -1494,7 +1416,7 @@ public final class Utils {
             long ss = srcChannel.size();
             long ds = dstChannel.size();
 
-            //dummy check - don't know what happens if disk is full
+            // dummy check - don't know what happens if disk is full
             if (ss != ds || ss != tr) {
                 throw new IOException("Different size for sourceFile [ " + s + " ] DestinationFileSize [ " + d + " ] Transferred [ " + tr + " ] ");
             }
@@ -1507,7 +1429,6 @@ public final class Utils {
     /**
      * fills an array of File objects based on a list of files and directories
      */
-    @SuppressWarnings("FinalStaticMethod")
     public static final void getRecursiveFiles(String fileName, String remappedFileName, List<String> allFiles, List<String> allRemappedFiles) throws Exception {
 
         if (allFiles == null) {
@@ -1522,7 +1443,7 @@ public final class Utils {
                 String[] listContents = file.list();
                 if (listContents != null && listContents.length > 0) {
                     for (String subFile : listContents) {
-                        if(remappedFileName != null) {
+                        if (remappedFileName != null) {
                             getRecursiveFiles(fileName + File.separator + subFile, remappedFileName + File.separator + subFile, allFiles, allRemappedFiles);
                         } else {
                             getRecursiveFiles(fileName + File.separator + subFile, null, allFiles, allRemappedFiles);
@@ -1538,18 +1459,19 @@ public final class Utils {
 
     /**
      * Helper method use to close a {@link Closeable} ignoring eventual exception
-     * @param c the closeable
+     * 
+     * @param c
+     *            the closeable
      */
-    @SuppressWarnings("FinalStaticMethod")
     public static final void closeIgnoringExceptions(Closeable c) {
         try {
-            if(c != null) {
+            if (c != null) {
                 c.close();
             }
-        }catch(Throwable _){}
+        } catch (Throwable _) {
+        }
     }
-    
-    @SuppressWarnings("FinalStaticMethod")
+
     public static final String toStringSelectionKey(final FDTSelectionKey fsk) {
         if (fsk == null) {
             return " Null FDTSelectionKey ! ";
@@ -1576,7 +1498,6 @@ public final class Utils {
         return sb.toString();
     }
 
-    @SuppressWarnings("FinalStaticMethod")
     public static final String toStringSelectionKey(final SelectionKey sk) {
         final StringBuilder sb = new StringBuilder("SelectionKey [ ");
         if (sk.isValid()) {
@@ -1590,7 +1511,6 @@ public final class Utils {
         return sb.toString();
     }
 
-    @SuppressWarnings("FinalStaticMethod")
     public static final String toStringSelectionKeyOps(final int keyOps) {
         final StringBuilder sb = new StringBuilder("{");
 

@@ -1,5 +1,5 @@
 /*
- * $Id: FileWriterSession.java 605 2010-06-11 10:20:46Z ramiro $
+ * $Id: FileWriterSession.java 610 2010-06-21 16:19:39Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -125,7 +125,11 @@ public class FileWriterSession extends FileSession {
                     try {
                         fLock = fileChannel.lock();
                         if(logger.isLoggable(Level.FINE)) {
-                            logger.log(Level.FINE, "[ FileWriterSession ] File lock for: " + tmpCopyFile + " taken!");
+                            if(fLock == null) {
+                                logger.log(Level.FINE, "[ FileWriterSession ] Cannot lock file: " + tmpCopyFile + "; will try to write without lock taken. No reason given.");
+                            } else {
+                                logger.log(Level.FINE, "[ FileWriterSession ] File lock for: " + tmpCopyFile + " taken!");
+                            }
                         }
                     } catch (Throwable t) {
                         fLock = null;
@@ -206,6 +210,10 @@ public class FileWriterSession extends FileSession {
                     }
                 } catch (Throwable t) {
                     logger.log(Level.WARNING, "[ FileWriterSession ] Unable to release the lock for file: " + file + " file channel opened: " + fileChannel.isOpen() + "; Cause: ", t);
+                }
+            } else {
+                if(logger.isLoggable(Level.FINE)) {
+                    logger.log(Level.FINE, "[ FileWriterSession ] No lock for file: " + file);
                 }
             }
             
