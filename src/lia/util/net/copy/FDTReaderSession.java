@@ -1,5 +1,5 @@
 /*
- * $Id: FDTReaderSession.java 683 2012-07-30 18:12:36Z ramiro $
+ * $Id: FDTReaderSession.java 712 2013-10-10 22:56:25Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -10,10 +10,10 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -62,7 +62,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
     private boolean recursive;
 
-    private boolean isFileList;
+    private final boolean isFileList;
 
     private int totalFileBlocks = 0;
 
@@ -86,7 +86,11 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
      */
     public FDTReaderSession() throws Exception {
         super(FDTSession.CLIENT);
-        fileBlockQueue = new ArrayBlockingQueue<FileBlock>(Utils.availableProcessors() * 2);
+        final int rMul = Integer.getInteger("fdt.rQueueM", 2).intValue();
+        final int avProcProp = Integer.getInteger("fdt.avProc", 1).intValue();
+        final int avProcMax = Math.max(avProcProp, Utils.availableProcessors());
+        fileBlockQueue = new ArrayBlockingQueue<FileBlock>(avProcMax * rMul);
+
         // I am already connected here with the remote peer
         readersMap = new TreeMap<Integer, ArrayList<DiskReaderTask>>();
         diskManager.addSession(this);
@@ -157,11 +161,13 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     private void internalInit(final String[] fileList, final String[] remappedFileList) throws Exception {
         final boolean isFiner = logger.isLoggable(Level.FINER);
         final boolean isFine = isFiner || logger.isLoggable(Level.FINE);
-        
-        if(isFiner) {
-            logger.log(Level.FINER, "\n\n FDTReaderSession - internalInit ENTER \n\n FileList:\n" + Arrays.toString(fileList) + "\n\nRemappedFileList:\n" + Arrays.toString(remappedFileList));
+
+        if (isFiner) {
+            logger.log(Level.FINER,
+                    "\n\n FDTReaderSession - internalInit ENTER \n\n FileList:\n" + Arrays.toString(fileList)
+                            + "\n\nRemappedFileList:\n" + Arrays.toString(remappedFileList));
         }
-        
+
         int filtersCount = 0;
         final ProcessorInfo processorInfo = new ProcessorInfo();
         final long sTime = System.nanoTime();
@@ -169,19 +175,20 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         try {
             final String preProcessFiltersProp = config.getPreFilters();
 
-            if (preProcessFiltersProp == null || preProcessFiltersProp.length() == 0) {
+            if ((preProcessFiltersProp == null) || (preProcessFiltersProp.length() == 0)) {
                 if (isFine) {
                     logger.log(Level.FINE, "No FDT Preprocess Filters defined");
                 }
             } else {
                 String[] preProcessFilters = preProcessFiltersProp.split(",");
-                if (preProcessFilters == null || preProcessFilters.length == 0) {
+                if ((preProcessFilters == null) || (preProcessFilters.length == 0)) {
                     logger.log(Level.WARNING, "Cannot understand -preFilters option!");
                 } else {
                     filtersCount = preProcessFilters.length;
 
                     processorInfo.fileList = new String[fileList.length];
-                    processorInfo.destinationDir = (this.remoteDir == null) ? config.getDestinationDir() : this.remoteDir;
+                    processorInfo.destinationDir = (this.remoteDir == null) ? config.getDestinationDir()
+                            : this.remoteDir;
                     processorInfo.remoteAddress = this.controlChannel.remoteAddress;
                     processorInfo.remotePort = this.controlChannel.remotePort;
                     processorInfo.recursive = this.recursive;
@@ -197,11 +204,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         } finally {
             StringBuilder sb = new StringBuilder();
             if (filtersCount > 0) {
-                sb.append("[ FDTReaderSession ] Preprocessing: ")
-                  .append(filtersCount)
-                  .append(" filters in ")
-                  .append(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sTime))
-                  .append(" ms");
+                sb.append("[ FDTReaderSession ] Preprocessing: ").append(filtersCount).append(" filters in ")
+                        .append(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sTime)).append(" ms");
             } else {
                 sb.append("[ FDTReaderSession ] No pre processing filters defined/processed.");
             }
@@ -239,7 +243,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                                 parent = fName;
                             }
                             if (new File(parent).isDirectory()) {
-                                initialMapping.put(new File(ffName).getAbsolutePath(), new File(parent).getAbsolutePath());
+                                initialMapping.put(new File(ffName).getAbsolutePath(),
+                                        new File(parent).getAbsolutePath());
                             }
                         }
                     }
@@ -262,7 +267,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             }
         }
 
-        final FileChannelProvider fcp = Config.getInstance().getFileChannelProviderFactory().newReaderFileChannelProvider(this);
+        final FileChannelProvider fcp = Config.getInstance().getFileChannelProviderFactory()
+                .newReaderFileChannelProvider(this);
 
         for (final String fName : newFileList) {
             FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);
@@ -274,22 +280,26 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         int size = partitionsMap.size();
 
         if (size == 0) {
-            throw new FDTProcolException("\n\nERROR: Cannot identify partition map for the specified fileList: " + Arrays.toString(fileList)
-                    + " No such file or directory ??");
+            throw new FDTProcolException("\n\nERROR: Cannot identify partition map for the specified fileList: "
+                    + Arrays.toString(fileList) + " No such file or directory ??");
         }
 
-        if(isFiner) {
-            logger.log(Level.FINER, "\n\n FDTReaderSession - internalInit FINISHED - sendingRemoteSessions \n\n initialMapping:\n" + initialMapping + "\n\n newRemappedFileList:\n" + newRemappedFileList);
+        if (isFiner) {
+            logger.log(Level.FINER,
+                    "\n\n FDTReaderSession - internalInit FINISHED - sendingRemoteSessions \n\n initialMapping:\n"
+                            + initialMapping + "\n\n newRemappedFileList:\n" + newRemappedFileList);
         }
 
         sendRemoteSessions(initialMapping, newRemappedFileList);
     }
 
+    @Override
     public long getSize() {
         return sessionSize();
     }
 
-    private void sendRemoteSessions(final Map<String, String> initialMapping, Map<String, String> newRemappedFileList) throws Exception {
+    private void sendRemoteSessions(final Map<String, String> initialMapping, Map<String, String> newRemappedFileList)
+            throws Exception {
         FDTSessionConfigMsg sccm = new FDTSessionConfigMsg();
 
         sccm.destinationDir = this.remoteDir;
@@ -312,7 +322,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
             if (isFileList) {// -fl specified ... I don't care about the names
                 sccm.fileLists[count] = fs.fileName;
-                sccm.remappedFileLists[count] = (newRemappedFileList == null) ? null : newRemappedFileList.get(fs.fileName);
+                sccm.remappedFileLists[count] = (newRemappedFileList == null) ? null : newRemappedFileList
+                        .get(fs.fileName);
             } else if (initialMapping.size() == 0) { // only files ... no
                 // -r(ecursive)
                 // specified
@@ -321,7 +332,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 String parent = initialMapping.get(fs.fileName);
                 String name = fs.fileName;
 
-                if (parent != null && parent.length() < name.length()) {
+                if ((parent != null) && (parent.length() < name.length())) {
                     name = name.substring(parent.length() - new File(parent).getName().length());
                 }
 
@@ -372,6 +383,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         // TODO - not yet used
     }
 
+    @Override
     public void finishFileSession(UUID sessionID, Throwable dCause) {
         super.finishFileSession(sessionID, dCause);
         if (finishedSessions.size() == fileSessions.size()) {
@@ -390,9 +402,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             logger.log(Level.FINEST, " partitionsMap is: " + partitionsMap);
         }
 
-        for (Iterator<Map.Entry<Integer, LinkedList<FileSession>>> it = partitionsMap.entrySet().iterator(); it.hasNext();) {
-            Map.Entry<Integer, LinkedList<FileSession>> entry = it.next();
-
+        for (Entry<Integer, LinkedList<FileSession>> entry : partitionsMap.entrySet()) {
             final int partitionID = entry.getKey().intValue();
 
             LinkedList<FileSession> files = entry.getValue();
@@ -400,7 +410,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             int realReadersCount = (readersCount < files.size()) ? readersCount : files.size();
             ArrayList<DiskReaderTask> readersTasks = new ArrayList<DiskReaderTask>(realReadersCount);
 
-            ArrayList<LinkedList<FileSession>> fileSessionsReaders = new ArrayList<LinkedList<FileSession>>(realReadersCount);
+            ArrayList<LinkedList<FileSession>> fileSessionsReaders = new ArrayList<LinkedList<FileSession>>(
+                    realReadersCount);
 
             if (logger.isLoggable(Level.FINE)) {
                 logger.log(Level.FINE, " realReadersCount = " + realReadersCount + " for partitionID: " + partitionID);
@@ -410,6 +421,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 FileSession[] filesArray = files.toArray(new FileSession[files.size()]);
                 Arrays.sort(filesArray, new Comparator<FileSession>() {
 
+                    @Override
                     public int compare(FileSession fileSession1, FileSession fileSession2) {
                         if (fileSession1.file.equals(fileSession2.file)) {
                             return fileSession1.sessionID.compareTo(fileSession2.sessionID);
@@ -429,7 +441,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
                 int ci = 0;
                 for (FileSession fs : filesArray) {
-                    LinkedList<FileSession> fsessions = (ci >= fileSessionsReaders.size()) ? null : fileSessionsReaders.get(ci);
+                    LinkedList<FileSession> fsessions = (ci >= fileSessionsReaders.size()) ? null : fileSessionsReaders
+                            .get(ci);
 
                     if (fsessions == null) {
                         fsessions = new LinkedList<FileSession>();
@@ -448,8 +461,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 fileSessionsReaders.add(files);
             }
 
-            execService = Utils.getStandardExecService("DiskReaderTask for " + toString(), partitionsMap.size(), partitionsMap.size()
-                    * realReadersCount + 5, Thread.NORM_PRIORITY);
+            execService = Utils.getStandardExecService("DiskReaderTask for " + toString(), partitionsMap.size(),
+                    (partitionsMap.size() * realReadersCount) + 5, Thread.NORM_PRIORITY);
 
             for (int i = 0; i < realReadersCount; i++) {
                 final DiskReaderTask drTask = new DiskReaderTask(partitionID, idx++, fileSessionsReaders.get(i), this);
@@ -484,20 +497,21 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             logger.log(Level.INFO, "[ FDTReaderSession ] Post Processing started");
             final String postProcessFiltersProp = config.getPostFilters();
 
-            if (postProcessFiltersProp == null || postProcessFiltersProp.length() == 0) {
+            if ((postProcessFiltersProp == null) || (postProcessFiltersProp.length() == 0)) {
                 if (logger.isLoggable(Level.FINE)) {
                     logger.log(Level.FINE, " [ FDTReaderSession ] No FDT PostProcessor Filters defined");
                 }
             } else {
                 final String[] postProcessFilters = postProcessFiltersProp.split(",");
-                if (postProcessFilters == null || postProcessFilters.length == 0) {
+                if ((postProcessFilters == null) || (postProcessFilters.length == 0)) {
                     logger.log(Level.WARNING, "Cannot understand -postFilters");
                 } else {
                     filtersCount = postProcessFilters.length;
 
                     for (final String filterName : postProcessFilters) {
                         Postprocessor preprocessor = (Postprocessor) (Class.forName(filterName).newInstance());
-                        preprocessor.postProcessFileList(this.processorInfo, this.controlChannel.subject, downCause(), downMessage());
+                        preprocessor.postProcessFileList(this.processorInfo, this.controlChannel.subject, downCause(),
+                                downMessage());
                     }
 
                 }
@@ -505,11 +519,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         } finally {
             StringBuffer sb = new StringBuffer();
             if (filtersCount > 0) {
-                sb.append("[ FDTReaderSession ] Postprocessing: ")
-                  .append(filtersCount)
-                  .append(" filters in ")
-                  .append(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sTime))
-                  .append(" ms");
+                sb.append("[ FDTReaderSession ] Postprocessing: ").append(filtersCount).append(" filters in ")
+                        .append(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sTime)).append(" ms");
             } else {
                 sb.append("[ FDTReaderSession ] No post processing filters defined/processed.");
             }
@@ -525,7 +536,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             StringBuilder downNotif = null;
 
             try {
-                if (downMessage() != null && downCause() != null) {
+                if ((downMessage() != null) && (downCause() != null)) {
 
                     downNotif = new StringBuilder();
 
@@ -539,14 +550,19 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 }
             } catch (Throwable t1) {
                 if (logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, "[ FDTReaderSession ] [ notifySessionFinished ]  Got exception building the remote notify message", t1);
+                    logger.log(
+                            Level.FINE,
+                            "[ FDTReaderSession ] [ notifySessionFinished ]  Got exception building the remote notify message",
+                            t1);
                 }
             }
 
             try {
-                controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.END_SESSION, (downNotif == null) ? md5Sums : downNotif.toString()));
+                controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.END_SESSION, (downNotif == null) ? md5Sums
+                        : downNotif.toString()));
             } catch (Throwable t1) {
-                logger.log(Level.WARNING, " [ FDTReaderSession ] [ notifySessionFinished ] got exception sending END_SESSION message", t1);
+                logger.log(Level.WARNING,
+                        " [ FDTReaderSession ] [ notifySessionFinished ] got exception sending END_SESSION message", t1);
             }
         }
     }
@@ -574,8 +590,9 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                         break;
                     }
 
-                    if (System.nanoTime() - sTime > END_RCV_WAIT_DELAY) {
-                        logger.log(Level.WARNING, " Remote FDT Writer session went down since we finished reading. The session will finish");
+                    if ((System.nanoTime() - sTime) > END_RCV_WAIT_DELAY) {
+                        logger.log(Level.WARNING,
+                                " Remote FDT Writer session went down since we finished reading. The session will finish");
                         break;
                     }
                 }
@@ -599,19 +616,22 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 sb.append(" ) final stats:");
                 sb.append("\n Started: ").append(new Date(startTimeMillis));
                 sb.append("\n Ended:   ").append(new Date());
-                sb.append("\n Transfer period:   ").append(Utils.getETA(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNanos)));
+                sb.append("\n Transfer period:   ").append(
+                        Utils.getETA(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNanos)));
                 sb.append("\n TotalBytes: ").append(getTotalBytes());
                 if (transportProvider != null) {
                     sb.append("\n TotalNetworkBytes: ").append(transportProvider.getUtilBytes());
                     try {
                         if (!Utils.updateTotalReadContor(transportProvider.getUtilBytes())) {
                             if (logger.isLoggable(Level.FINEST)) {
-                                logger.log(Level.FINEST, " [ FDTReaderSession ] Unable to update the contor in the update file.");
+                                logger.log(Level.FINEST,
+                                        " [ FDTReaderSession ] Unable to update the contor in the update file.");
                             }
                         }
                     } catch (Throwable tu) {
                         if (logger.isLoggable(Level.FINEST)) {
-                            logger.log(Level.FINEST, " [ FDTReaderSession ] Unable to update the contor in the update file. Cause: ", tu);
+                            logger.log(Level.FINEST,
+                                    " [ FDTReaderSession ] Unable to update the contor in the update file. Cause: ", tu);
                         }
                     } finally {
                         transportProvider.close(downMessage(), downCause());
@@ -619,13 +639,15 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 } else {
                     sb.append("\n TotalNetworkBytes: 0");
                 }
-                sb.append("\n Exit Status: ").append((downCause() == null && downMessage() == null) ? "OK" : "Not OK");
+                sb.append("\n Exit Status: ").append(
+                        ((downCause() == null) && (downMessage() == null)) ? "OK" : "Not OK");
                 sb.append("\n");
                 System.out.println(sb.toString());
             } catch (Throwable t) {
-                logger.log(Level.WARNING,
-                           "[ FDTReaderSession ] [ finalCleanup ] [ HANDLED ] Exception getting final statistics. Smth went dreadfully wrong!",
-                           t);
+                logger.log(
+                        Level.WARNING,
+                        "[ FDTReaderSession ] [ finalCleanup ] [ HANDLED ] Exception getting final statistics. Smth went dreadfully wrong!",
+                        t);
             }
 
             try {
@@ -679,7 +701,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 diskManager.removeSession(this, downMessage(), downCause());
             } catch (Throwable ignore) {
                 if (isFiner) {
-                    logger.log(Level.FINER, "finalCleanup - exception removing session from diskManager. Cause: ", ignore);
+                    logger.log(Level.FINER, "finalCleanup - exception removing session from diskManager. Cause: ",
+                            ignore);
                 }
             }
 
@@ -689,23 +712,27 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                     logger.log(Level.FINER, "finalCleanup - recovered " + retBufs + " buffers");
                 }
             } catch (Throwable t) {
-                logger.log(Level.WARNING, "\n\n [ FDTReaderSession ] [ HANDLED ] exception returning buffers to pool \n\n ", t);
+                logger.log(Level.WARNING,
+                        "\n\n [ FDTReaderSession ] [ HANDLED ] exception returning buffers to pool \n\n ", t);
             }
 
             try {
                 FDTSessionManager.getInstance().finishSession(sessionID, downMessage(), downCause());
             } catch (Throwable ignore) {
                 if (isFiner) {
-                    logger.log(Level.FINER, "finalCleanup - exception closing session in FDTSessionManager. Cause: ", ignore);
+                    logger.log(Level.FINER, "finalCleanup - exception closing session in FDTSessionManager. Cause: ",
+                            ignore);
                 }
             }
         }
     }
 
+    @Override
     protected void internalClose() throws Exception {
 
         if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, " [ FDTReaderSession ] enters internalClose downMsg: " + downMessage() + " ,  downCause: " + downCause());
+            logger.log(Level.FINER, " [ FDTReaderSession ] enters internalClose downMsg: " + downMessage()
+                    + " ,  downCause: " + downCause());
         }
 
         try {
@@ -717,11 +744,10 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         final String downMessage = downMessage();
         final Throwable downCause = downCause();
 
-        if (downMessage != null || downCause != null) {
+        if ((downMessage != null) || (downCause != null)) {
             final String downLogMsg = (downMessage == null) ? "N/A" : downMessage;
-            logger.log(Level.INFO,
-                       "\nThe FDTReaderSession ( " + sessionID + " ) finished with error(s). downMsg: " + downLogMsg + " downCause:",
-                       downCause());
+            logger.log(Level.INFO, "\nThe FDTReaderSession ( " + sessionID + " ) finished with error(s). downMsg: "
+                    + downLogMsg + " downCause:", downCause());
             try {
                 finalCleanup();
             } catch (Throwable t) {
@@ -732,6 +758,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         } else {
             Runnable r = new Runnable() {
 
+                @Override
                 public void run() {
                     finalCleanup();
                 }
@@ -755,8 +782,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     @Override
     public void handleFinalFDTSessionConf(CtrlMsg ctrlMsg) throws Exception {
         if (!(ctrlMsg.message instanceof UUID[])) {
-            FDTProcolException fpe = new FDTProcolException("Illegal message FINAL_FDT_CONF in ReaderSesssion without UUID[] as atttach. "
-                    + ctrlMsg.message);
+            FDTProcolException fpe = new FDTProcolException(
+                    "Illegal message FINAL_FDT_CONF in ReaderSesssion without UUID[] as atttach. " + ctrlMsg.message);
             fpe.fillInStackTrace();
             throw fpe;
         }
@@ -768,7 +795,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 addAndGetUtilBytes(fs.sessionSize);
                 addAndGetTotalBytes(fs.sessionSize);
             } else {
-                logger.log(Level.WARNING, " No such UUID: " + fSession + " received from remote FDTWriterSession in local fileSessions list");
+                logger.log(Level.WARNING, " No such UUID: " + fSession
+                        + " received from remote FDTWriterSession in local fileSessions list");
             }
             finishFileSession(fSession, null);
         }
@@ -779,20 +807,22 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     public void handleEndFDTSession(CtrlMsg ctrlMsg) throws Exception {
 
         if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, "\n\n\n\n\n\n ---------------- [ FDTReaderSession ] handleEndFDTSession. Msg: " + ctrlMsg.message);
+            logger.log(Level.FINER, "\n\n\n\n\n\n ---------------- [ FDTReaderSession ] handleEndFDTSession. Msg: "
+                    + ctrlMsg.message);
         }
 
         String remoteDownMsg = null;
         try {
             // SO I can close now ... wherever the status was before
-            if (ctrlMsg.message != null && ctrlMsg.message instanceof String) {
+            if ((ctrlMsg.message != null) && (ctrlMsg.message instanceof String)) {
                 remoteDownMsg = (String) ctrlMsg.message;
                 close(remoteDownMsg, null);
-                logger.log(Level.WARNING, "\n\n [ FDTReaderSession ] Remote FDTWriterSession for session [ " + sessionID
-                        + " ] finished with errors:\n" + remoteDownMsg + "\n");
+                logger.log(Level.WARNING, "\n\n [ FDTReaderSession ] Remote FDTWriterSession for session [ "
+                        + sessionID + " ] finished with errors:\n" + remoteDownMsg + "\n");
             } else {
                 // everything went fine :)
-                logger.log(Level.INFO, "[ FDTReaderSession ] Remote FDTWriterSession for session [ " + sessionID + " ] finished OK!");
+                logger.log(Level.INFO, "[ FDTReaderSession ] Remote FDTWriterSession for session [ " + sessionID
+                        + " ] finished OK!");
                 close(null, null);
             }
         } finally {
@@ -810,7 +840,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         boolean sendCookie = true;
         if (role == CLIENT) {
             sendCookie = false;
-            transportProvider = new TCPSessionWriter(this, InetAddress.getByName(config.getHostName()), config.getPort(), config.getSockNum());
+            transportProvider = new TCPSessionWriter(this, InetAddress.getByName(config.getHostName()),
+                    config.getPort(), config.getSockNum());
         } else {
             transportProvider = new TCPSessionWriter(this);
         }
@@ -825,11 +856,13 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         transportProvider.startTransport(sendCookie);
     }
 
+    @Override
     public void transportWorkerDown() throws Exception {
         // fileBlockQueue.offer(FileBlock.EOF_FB);
         close("wroker down", null);
     }
 
+    @Override
     public FileBlock take() throws InterruptedException {
 
         FileBlock fb = null;
@@ -848,6 +881,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         return fb;
     }
 
+    @Override
     public FileBlock poll() {
         final FileBlock fb = fileBlockQueue.poll();
         if (fb != null) {
@@ -856,6 +890,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         return fb;
     }
 
+    @Override
     public FileBlock poll(long delay, TimeUnit unit) throws InterruptedException {
         FileBlock fb = null;
         fb = fileBlockQueue.poll(delay, unit);
@@ -865,7 +900,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         }
 
         if (logger.isLoggable(Level.FINEST)) {
-            logger.log(Level.FINEST, " Polling for FileBlock qSize: " + fileBlockQueue.size() + " processedFBS: " + totalFileBlocks);
+            logger.log(Level.FINEST, " Polling for FileBlock qSize: " + fileBlockQueue.size() + " processedFBS: "
+                    + totalFileBlocks);
         }
 
         return fb;
