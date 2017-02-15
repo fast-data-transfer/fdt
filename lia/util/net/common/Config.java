@@ -23,11 +23,11 @@ public class Config {
     
     
     public static final String FDT_MAJOR_VERSION = "0";
-    public static final String FDT_MINOR_VERSION = "5";
+    public static final String FDT_MINOR_VERSION = "6";
     public static final String FDT_MAINTENANCE_VERSION = "0";
     
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "." + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2007-02-08";
+    public static final String FDT_RELEASE_DATE = "2007-03-29";
     
     private volatile static boolean initialized;
     private static Config _thisInstance;
@@ -35,8 +35,10 @@ public class Config {
     
     
     public static final int HEADER_SIZE = 56;
+    public static final int HEADER_SIZE_v2 = 56;
     
-    public int DEFAULT_BUFFER_SIZE = 512 * 1024; 
+    
+    public int DEFAULT_BUFFER_SIZE = 8 * 1024 * 1024; 
     private int byteBufferSize = DEFAULT_BUFFER_SIZE;
     
     
@@ -49,7 +51,7 @@ public class Config {
     public static final Object BIG_FDTAPP_LOCK = new Object();
     
     
-    public static final int DEFAULT_SOCKET_NO = 1;
+    public static final int DEFAULT_SOCKET_NO = 4;
     private int sockNum = DEFAULT_SOCKET_NO;
     
     public static final int DEFAULT_PORT_NO = 54321;
@@ -113,8 +115,12 @@ public class Config {
     private String sStartServerCommand = null;
     private boolean isLisaRestartEnabled;
     
+    private String writeMode;
     private String preFilters;
     private String postFilters;
+    
+    private String massStorageConfig = null;
+    private MassStorage storageParams = null;
     
     private Level statsLevel = null;
     
@@ -175,6 +181,8 @@ public class Config {
             + "\n   \t\t\t may be cascadated. f1,...,fn are java classes, which"
             + "\n   \t\t\t will be loaded in the postProcessing phase.They must be"
             + "\n   \t\t\t specified in the FDT \"receiver\" command line."
+            + "\n   -ms <properties_file> Java properties file for transfers"
+            + "\n   \t\t\t to/from storage. By default mass storage is not used."
             + "\n   -md5\t\t\t enables MD5 checksum for every file transfered."
             + "\n   \t\t\t It must be specified in the \"sender\" and the"
             + "\n   \t\t\t \"receiver\" will print am `md5sum`-like list at the end"
@@ -250,6 +258,8 @@ public class Config {
         preFilters = getStringValue(configMap, "-preFilters", null);
         postFilters = getStringValue(configMap, "-postFilters", null);
         
+        this.massStorageConfig = getStringValue(configMap, "-ms", null);
+        
         hostname = getStringValue(configMap, "-c", null);
         
         if (hostname != null && hostname.length() == 0) {
@@ -279,9 +289,20 @@ public class Config {
         if(hostname != null && ( destDir == null || destDir.length() == 0 )) {
             throw new IllegalArgumentException("No destination specified");
         }
+        
+        
+        if( this.massStorageConfig != null ) {
+            this.storageParams = new MassStorage();
+            if( !this.storageParams.init(massStorageConfig) ) {
+                throw new IllegalArgumentException("Invalid mass storage configuration file"); 
+            }
+        }
+               
         if (configMap.get("-printStats") != null) {
             statsLevel = Level.INFO;
         }
+        
+        writeMode = getStringValue(configMap, "-writeMode", null);
         
         String sLisa = getStringValue(configMap, "-lisafdtclient", null);
         if (sLisa == null) {
@@ -652,6 +673,10 @@ public class Config {
         return isStandAlone;
     }
     
+    public String getWriteMode() {
+        return writeMode;
+    }
+    
     public String[] getFileList() {
         return fileList;
     }
@@ -788,4 +813,13 @@ public class Config {
     public String[] getSourceHosts() {
         return this.aSourceHosts;
     }
+    
+    public String massStorageConfig() {
+        return this.massStorageConfig;
+    }
+
+    public MassStorage storageParams() {
+        return this.storageParams;
+    }
+
 }

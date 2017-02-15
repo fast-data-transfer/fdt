@@ -10,11 +10,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import lia.util.net.common.Config;
+import lia.util.net.common.StoragePathDecoder;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.disk.DiskWriterManager;
 import lia.util.net.copy.disk.ResumeManager;
 import lia.util.net.copy.filters.Postprocessor;
-import lia.util.net.copy.filters.Preprocessor;
 import lia.util.net.copy.filters.ProcessorInfo;
 import lia.util.net.copy.transport.ControlChannel;
 import lia.util.net.copy.transport.CtrlMsg;
@@ -168,20 +168,42 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
     public void handleFinalFDTSessionConf(CtrlMsg ctrlMsg) throws Exception {
         FDTSessionConfigMsg sccm = (FDTSessionConfigMsg)ctrlMsg.message;
         
+
+        this.destinationDir = sccm.destinationDir;
+
+        
+        StoragePathDecoder spd 
+            = new StoragePathDecoder(sccm.destinationDir,"","");
+        if( spd.hasStorageInfo() ) {
+            if( config.storageParams() == null ) {
+                logger.log(Level.SEVERE,"Unable to transfer to storage: "
+                           +"Storage configuration is not found.");
+            }
+            else {
+                this.destinationDir = config.storageParams().localFileDir();
+                logger.log(Level.WARNING,"Destination directory has been "
+                           +"changed from "+sccm.destinationDir
+                           +" to "+this.destinationDir);
+            }
+        }
+
         this.fileList = new String[sccm.fileLists.length];
         System.arraycopy(sccm.fileLists, 0, this.fileList, 0, this.fileList.length);
         
         int fCount = sccm.fileIDs.length;
         for(int i=0; i<fCount; i++) {
-            FileWriterSession fws = new FileWriterSession(sccm.fileIDs[i], sccm.destinationDir + File.separator + sccm.fileLists[i], sccm.fileSizes[i], sccm.lastModifTimes[i], isLoop);
+            FileWriterSession fws = new FileWriterSession(sccm.fileIDs[i], 
+                    this.destinationDir + File.separator + sccm.fileLists[i], 
+                    sccm.fileSizes[i], 
+                    sccm.lastModifTimes[i], 
+                    isLoop,
+                    writeMode);
             fileSessions.put(fws.sessionID, fws);
             if(resumeManager.isFinished(fws)) {
                 finishFileSession(fws.sessionID, null);
             }
         }
         
-        this.destinationDir = sccm.destinationDir;
-
         buildPartitionMap();
         sendFinishedSessions();
         

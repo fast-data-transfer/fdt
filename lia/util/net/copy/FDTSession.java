@@ -88,6 +88,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     
     protected boolean isLoop = config.loop();
     
+    protected String writeMode = config.getWriteMode();
     
     protected long rateLimit = -1;
     
@@ -125,6 +126,10 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         localLoop = ( localLoop || ( this.controlChannel.remoteConf.get("-ll") != null ));
         isLoop = ( isLoop || ( this.controlChannel.remoteConf.get("-loop") != null ));
         
+        if(writeMode == null) {
+            writeMode = (String)this.controlChannel.remoteConf.get("-writeMode");
+        }
+        
         if(logger.isLoggable(Level.FINER)) {
             logger.log(Level.FINER, "\n --> Fixed size blocks: " + useFixedBlockSize + " localLoop: " + localLoop + " for fdtSession: " + sessionID + " <---\n");
         }
@@ -161,6 +166,10 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         useFixedBlockSize = ( useFixedBlockSize || ( this.controlChannel.remoteConf.get("-fbs") != null ));
         localLoop = ( localLoop || ( this.controlChannel.remoteConf.get("-ll") != null ));
         isLoop = ( isLoop || ( this.controlChannel.remoteConf.get("-loop") != null ));
+        
+        if(writeMode == null) {
+            writeMode = (String)this.controlChannel.remoteConf.get("-writeMode");
+        }
         
         if(logger.isLoggable(Level.FINER)) {
             logger.log(Level.FINER, "\n --> Fixed size blocks: " + useFixedBlockSize + " localLoop: " + localLoop + " for fdtSession: " + sessionID + " <---\n");

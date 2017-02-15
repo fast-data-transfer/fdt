@@ -116,7 +116,9 @@ public class DiskReaderTask extends GenericDiskTask {
                         if(computeMD5) {
                             md5Sum.reset();
                         }
-                        
+
+                        cPosition = fileChannel.position();
+
                         for(;;) {
                             
                             if(logger.isLoggable(Level.FINER)) {
@@ -134,7 +136,6 @@ public class DiskReaderTask extends GenericDiskTask {
                                 buff = bufferPool.poll(2, TimeUnit.SECONDS);
                             }
                             
-                            cPosition = fileChannel.position();
                             readBytes = fileChannel.read(buff);
                             
                             if(logger.isLoggable(Level.FINEST)) {
@@ -177,6 +178,7 @@ public class DiskReaderTask extends GenericDiskTask {
                             buff.flip();
                             
                             fileBlock = FileBlock.getInstance(null, fileSession.sessionID(), cPosition, buff);
+                            cPosition += readBytes;
                             
                             if(!fdtSession.isClosed()) {
                                 while(!fdtSession.fileBlockQueue.offer(fileBlock, 2, TimeUnit.SECONDS)) {

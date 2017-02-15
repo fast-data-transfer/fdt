@@ -13,9 +13,11 @@ public class FileWriterSession extends FileSession {
     private volatile boolean channelInitialized;
     
     private File tmpCopyFile;
+    private String openMode = "rw";
     
-    public FileWriterSession(UUID uid, String fileName, long size, long lastModified, boolean isLoop) throws IOException {
+    public FileWriterSession(UUID uid, String fileName, long size, long lastModified, boolean isLoop, String writeMode) throws IOException {
         super(uid, fileName, isLoop);
+        
         if(!isNull) {
             this.sessionSize = size;
             this.lastModified = lastModified;
@@ -51,6 +53,16 @@ public class FileWriterSession extends FileSession {
         }
 
         channelInitialized = false;
+        if(writeMode == null || writeMode.equalsIgnoreCase("nosync")) {
+            openMode = "rw";
+        } else if(writeMode.equalsIgnoreCase("dsync")) {
+            openMode = "rwd";
+        } else if(writeMode.equalsIgnoreCase("sync")) {
+            openMode = "rws";
+        } else {
+            openMode = "rw";
+        }
+          
     }
 
     public FileChannel getChannel() throws Exception {
@@ -75,7 +87,7 @@ public class FileWriterSession extends FileSession {
             if(isClosed()) throw new Exception("Stream closed!");
             try {
                 if(shouldFlush) {
-                    fileChannel = new RandomAccessFile(tmpCopyFile, "rwd").getChannel();
+                    fileChannel = new RandomAccessFile(tmpCopyFile, openMode).getChannel();
                 } else {
                     fileChannel = new FileOutputStream(tmpCopyFile).getChannel();
                 }

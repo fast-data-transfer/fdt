@@ -171,12 +171,26 @@ public class DiskWriterTask extends GenericDiskTask {
 
                     
                     buff = fileBlock.buff;
+                    
+                    final int remainingBeforeWrite = buff.remaining();
 
                     writtenBytes = fileChannel.write(buff, fileBlock.fileOffset);
 
+
+
+
+                    
                     
                     if(buff.hasRemaining()) {
-                        logger.log(Level.WARNING, "\n\n\n [ BUG ] WriterTask buffer still hasRemaining() something is terrible wrong with the FS/Kernel/Java NIO !! \n\n\n");
+                        logger.log(Level.WARNING, 
+                                "\n\n\n [ BUG ] WriterTask buffer still hasRemaining()" +
+                                " something is terrible wrong with the FS/Kernel/Java NIO !! \n" +
+                                "\n fileblock offset = " + fileBlock.fileOffset + 
+                                "\n buff.remaining() before write: " + remainingBeforeWrite +
+                                "\n buff.remaining() after write: " + buff.remaining() +
+                                "\n new position = " + fileChannel.position() + 
+                                "\n written bytes = " + writtenBytes + 
+                                "\n\n\n");
                     }
 
                     if(writtenBytes == -1) {

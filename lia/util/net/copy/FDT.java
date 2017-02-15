@@ -190,8 +190,8 @@ public class FDT {
 	}
 
 	private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
-	public static final String FDT_FULL_VERSION = "0.5.0-200702081044";
-	private static String date = "2007-02-08";
+	public static final String FDT_FULL_VERSION = "0.6.0-200703291456";
+	private static String date = "2007-03-29";
 	private static String name = "FDT";
 
 	private static void printVersion() {
