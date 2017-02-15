@@ -1,5 +1,5 @@
 /*
- * $Id: FileWriterSession.java 561 2010-01-10 22:46:49Z ramiro $
+ * $Id: FileWriterSession.java 591 2010-04-07 08:30:25Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -38,6 +38,9 @@ public class FileWriterSession extends FileSession {
         super(uid, fileName, isLoop, fcp);
 
         this.noTmp = noTmp;
+		
+		file = fcp.getFile(file.getAbsolutePath());
+		
         if (!isNull) {
             this.sessionSize = size;
             this.lastModified = lastModified;

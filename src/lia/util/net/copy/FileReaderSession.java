@@ -1,5 +1,5 @@
 /*
- * $Id: FileReaderSession.java 561 2010-01-10 22:46:49Z ramiro $
+ * $Id: FileReaderSession.java 591 2010-04-07 08:30:25Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -26,7 +26,10 @@ public class FileReaderSession extends FileSession {
     public FileReaderSession(UUID uid, String fileName, boolean isLoop, FileChannelProvider fileChannelProvider) throws IOException {
         super(uid, fileName, isLoop, fileChannelProvider);
 
-        if (!file.exists()) {
+        this.fileName = file.getAbsolutePath();
+        this.file = this.fileChannelProvider.getFile(fileName);
+		
+		if (!file.exists()) {
             throw new IOException("No such file: " + fileName);
         }
 
@@ -40,9 +43,7 @@ public class FileReaderSession extends FileSession {
         if (!file.isFile()) {
             throw new IOException("The specified name [ " + fileName + " ] is not a file!");
         }
-
-        this.fileName = file.getAbsolutePath();
-        this.file = this.fileChannelProvider.getFile(fileName);
+        
         this.partitionID = this.fileChannelProvider.getPartitionID(this.file);
     }
 
