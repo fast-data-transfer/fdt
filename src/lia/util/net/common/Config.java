@@ -1,5 +1,5 @@
 /*
- * $Id: Config.java 637 2011-02-08 16:10:56Z ramiro $
+ * $Id: Config.java 701 2013-02-13 19:25:45Z ramiro $
  */
 package lia.util.net.common;
 
@@ -71,10 +71,10 @@ public class Config {
     
     // all of this are set by the ant script
     public static final String FDT_MAJOR_VERSION = "0";
-    public static final String FDT_MINOR_VERSION = "16";
+    public static final String FDT_MINOR_VERSION = "18";
     public static final String FDT_MAINTENANCE_VERSION = "0";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "." + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2012-12-03";
+    public static final String FDT_RELEASE_DATE = "2013-02-13";
     private volatile static Config _thisInstance;
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )
@@ -98,6 +98,7 @@ public class Config {
     public static final int DEFAULT_PORT_NO_SSH = 22;
     private int sockBufSize = -1;
     private long rateLimit = -1;
+    private long rateLimitDelayMillis = 300L;
     private int readersCount = 1;
     private int writersCount = 1;
     private int maxPartitionsCount = 100;
@@ -234,6 +235,8 @@ public class Config {
             logger.log(Level.WARNING, " The rate limit (-limit) is too small. It will be set to " + rateLimit + " Bytes/s");
         }
         configMap.put("-limit", "" + rateLimit);
+        rateLimitDelayMillis = Utils.getLongValue(configMap, "-limitDelay", 300L);
+        configMap.put("-limitDelay", "" + rateLimitDelayMillis);
 
         preFilters = Utils.getStringValue(configMap, "-preFilters", null);
         postFilters = Utils.getStringValue(configMap, "-postFilters", null);
@@ -599,6 +602,10 @@ public class Config {
         return rateLimit;
     }
 
+    public long getRateLimitDelay() {
+        return rateLimitDelayMillis;
+    }
+    
     public int getSockBufSize() {
         return sockBufSize;
     }

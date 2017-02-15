@@ -1,5 +1,5 @@
 /*
- * $Id: TCPTransportProvider.java 694 2012-11-19 16:48:08Z ramiro $
+ * $Id: TCPTransportProvider.java 701 2013-02-13 19:25:45Z ramiro $
  */
 package lia.util.net.copy.transport;
 
@@ -122,7 +122,7 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
     }
 
     public long getNotifyDelay() {
-        return 1 * 1000;
+        return fdtSession.getRateLimitDelay();
     }
 
     public void notifyAvailableBytes(long available) {
