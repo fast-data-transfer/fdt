@@ -1,5 +1,5 @@
 /*
- * $Id: DiskReaderTask.java 628 2011-02-08 15:00:19Z ramiro $
+ * $Id: DiskReaderTask.java 661 2012-04-12 07:38:27Z ramiro $
  */
 package lia.util.net.copy.disk;
 
@@ -125,15 +125,15 @@ public class DiskReaderTask extends GenericDiskTask {
                     
                     downCause = null;
                     
-                    final FileChannel fileChannel = fileSession.getChannel();
+                    final FileChannel fileChannel = (fileSession.isZero())?null:fileSession.getChannel();
                     cuurentFileChannel = fileChannel;
                     
-                    if(fileChannel != null) {
+                    if(fileChannel != null || fileSession.isZero()) {
                         if(computeMD5) {
                             md5Sum.reset();
                         }
 
-                        cPosition = fileChannel.position();
+                        cPosition = (fileSession.isZero())?0:fileChannel.position();
 
                         for(;;) {
                             
