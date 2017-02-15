@@ -44,7 +44,7 @@ public class FDT {
 
     private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
 
-    public static final String FDT_FULL_VERSION = "0.9.22-201105021412";
+    public static final String FDT_FULL_VERSION = "0.9.23-201107290935";
 
     String mlDestinations = "monalisa2.cern.ch:28884,monalisa2.caltech.edu:28884";
 
@@ -364,7 +364,7 @@ public class FDT {
                     sshConn.connect();
                     localAddresses = config.getLocalAddresses();
                     // append the required options to the configurable java command
-                    remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -silent -S -f " + localAddresses;
+                    remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f " + localAddresses;
                     System.err.println(" [ CONFIG ] Starting FDT server over SSH using [ " + remoteCmd + " ]");
                     sshConn.startProgram(remoteCmd);
                     sshConn.waitForControlMessage("READY");
@@ -391,9 +391,10 @@ public class FDT {
                     } catch (NoClassDefFoundError t) {
                         throw new Exception("GSI libraries not loaded. You should set CLASSPATH accordingly!");
                     }
+                    sshConn.connect();
                     localAddresses = config.getLocalAddresses();
                     // append the required options to the configurable java command
-                    remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -silent -S -f " + localAddresses;
+                    remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f " + localAddresses;
                     System.err.println(" [ CONFIG ] Starting FDT server over SSH using [ " + remoteCmd + " ]");
                     sshConn.startProgram(remoteCmd);
                     sshConn.waitForControlMessage("READY");
@@ -412,7 +413,7 @@ public class FDT {
                         throw new Exception("GSI libraries not loaded. You should set CLASSPATH accordingly!");
                     }
                     // append the required options to the configurable java command
-                    remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -silent -S -f " + clientHost;
+                    remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f " + clientHost;
                     System.err.println(" [ CONFIG ] Starting remote FDT server over SSH using [ " + remoteCmd + " ]");
                     sshConn.startProgram(remoteCmd);
                     sshConn.waitForControlMessage("READY");
