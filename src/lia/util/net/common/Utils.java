@@ -32,6 +32,7 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.SynchronousQueue;
@@ -60,7 +61,8 @@ public final class Utils {
     /** Logger used by this class */
     private static final Logger logger = Logger.getLogger(Utils.class.getName());
 
-    private static final ScheduledThreadPoolExecutor scheduledExecutor = getSchedExecService("FDT Monitoring ThPool", 5, Thread.MIN_PRIORITY);
+    private static final ScheduledThreadPoolExecutor scheduledExecutor = getSchedExecService("FDT Monitoring ThPool",
+            5, Thread.MIN_PRIORITY);
 
     /** reference to the monitor reporting api, initialized in the constructor of {@link FDT} */
     private static ApMon apmon = null;
@@ -95,21 +97,13 @@ public final class Utils {
 
     public static final long PETA_BYTE = TERA_BYTE * 1024;
 
-    private static final long[] BYTE_MULTIPLIERS = new long[] {
-            KILO_BYTE, MEGA_BYTE, GIGA_BYTE, TERA_BYTE, PETA_BYTE
-    };
+    private static final long[] BYTE_MULTIPLIERS = new long[] { KILO_BYTE, MEGA_BYTE, GIGA_BYTE, TERA_BYTE, PETA_BYTE };
 
-    private static final String[] BYTE_SUFIXES = new String[] {
-            "KB", "MB", "GB", "TB", "PB"
-    };
+    private static final String[] BYTE_SUFIXES = new String[] { "KB", "MB", "GB", "TB", "PB" };
 
-    private static final long[] BIT_MULTIPLIERS = new long[] {
-            KILO_BIT, MEGA_BIT, GIGA_BIT, TERA_BIT, PETA_BIT
-    };
+    private static final long[] BIT_MULTIPLIERS = new long[] { KILO_BIT, MEGA_BIT, GIGA_BIT, TERA_BIT, PETA_BIT };
 
-    private static final String[] BIT_SUFIXES = new String[] {
-            "Kb", "Mb", "Gb", "Tb", "Pb"
-    };
+    private static final String[] BIT_SUFIXES = new String[] { "Kb", "Mb", "Gb", "Tb", "Pb" };
 
     public static final int URL_CONNECTION_TIMEOUT = 20 * 1000;
 
@@ -121,13 +115,10 @@ public final class Utils {
 
     private static final long SECONDS_IN_DAY = TimeUnit.DAYS.toSeconds(1);
 
-    private static final String[] SELECTION_KEY_OPS_NAMES = {
-            "OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE"
-    };
+    private static final String[] SELECTION_KEY_OPS_NAMES = { "OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE" };
 
-    private static final int[] SELECTION_KEY_OPS_VALUES = {
-            SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT, SelectionKey.OP_READ, SelectionKey.OP_WRITE
-    };
+    private static final int[] SELECTION_KEY_OPS_VALUES = { SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT,
+            SelectionKey.OP_READ, SelectionKey.OP_WRITE };
 
     //
     // END this should not be here any more after FDT will use only Java6
@@ -155,7 +146,8 @@ public final class Utils {
         return sw.toString();
     }
 
-    public static final ScheduledThreadPoolExecutor getSchedExecService(final String name, final int corePoolSize, final int threadPriority) {
+    public static final ScheduledThreadPoolExecutor getSchedExecService(final String name, final int corePoolSize,
+            final int threadPriority) {
         return new ScheduledThreadPoolExecutor(corePoolSize, new ThreadFactory() {
 
             AtomicLong l = new AtomicLong(0);
@@ -174,7 +166,7 @@ public final class Utils {
                         return;
                     }
                     // slow down a little bit
-                    final long SLEEP_TIME = Math.round(Math.random() * 1000D + 1);
+                    final long SLEEP_TIME = Math.round((Math.random() * 1000D) + 1);
                     try {
                         Thread.sleep(SLEEP_TIME);
                     } catch (Throwable ignore) {
@@ -182,7 +174,8 @@ public final class Utils {
                             ignore.printStackTrace();
                         }
                     }
-                    System.err.println("\n\n [ RejectedExecutionHandler ] for " + name + " WorkerTask slept for " + SLEEP_TIME);
+                    System.err.println("\n\n [ RejectedExecutionHandler ] for " + name + " WorkerTask slept for "
+                            + SLEEP_TIME);
                     executor.execute(r);
                 } catch (Throwable t) {
                     t.printStackTrace();
@@ -191,23 +184,20 @@ public final class Utils {
         });
     }
 
-    public static final ExecutorService getStandardExecService(
-            final String name,
-            final int corePoolSize,
-            final int maxPoolSize,
-            BlockingQueue<Runnable> taskQueue,
-            final int threadPriority) {
-        ThreadPoolExecutor texecutor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, 2 * 60, TimeUnit.SECONDS, taskQueue, new ThreadFactory() {
+    public static final ExecutorService getStandardExecService(final String name, final int corePoolSize,
+            final int maxPoolSize, BlockingQueue<Runnable> taskQueue, final int threadPriority) {
+        ThreadPoolExecutor texecutor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, 2 * 60, TimeUnit.SECONDS,
+                taskQueue, new ThreadFactory() {
 
-            final AtomicLong l = new AtomicLong(0);
+                    final AtomicLong l = new AtomicLong(0);
 
-            public Thread newThread(Runnable r) {
-                Thread t = new Thread(r, name + " - WorkerTask " + l.getAndIncrement());
-                t.setPriority(threadPriority);
-                t.setDaemon(true);
-                return t;
-            }
-        });
+                    public Thread newThread(Runnable r) {
+                        Thread t = new Thread(r, name + " - WorkerTask " + l.getAndIncrement());
+                        t.setPriority(threadPriority);
+                        t.setDaemon(true);
+                        return t;
+                    }
+                });
         texecutor.setRejectedExecutionHandler(new RejectedExecutionHandler() {
 
             public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
@@ -216,7 +206,7 @@ public final class Utils {
                         return;
                     }
                     // slow down a little bit
-                    final long SLEEP_TIME = Math.round(Math.random() * 400D + 1);
+                    final long SLEEP_TIME = Math.round((Math.random() * 400D) + 1);
                     try {
                         Thread.sleep(SLEEP_TIME);
                     } catch (Throwable ignore) {
@@ -224,7 +214,8 @@ public final class Utils {
                             ignore.printStackTrace();
                         }
                     }
-                    System.err.println("\n\n [ RejectedExecutionHandler ] [ Full Throttle ] for " + name + " WorkerTask slept for " + SLEEP_TIME);
+                    System.err.println("\n\n [ RejectedExecutionHandler ] [ Full Throttle ] for " + name
+                            + " WorkerTask slept for " + SLEEP_TIME);
                     executor.getQueue().put(r);
                 } catch (Throwable t) {
                     t.printStackTrace();
@@ -238,11 +229,8 @@ public final class Utils {
         return texecutor;
     }
 
-    public static final ExecutorService getStandardExecService(
-            final String name,
-            final int corePoolSize,
-            final int maxPoolSize,
-            final int threadPriority) {
+    public static final ExecutorService getStandardExecService(final String name, final int corePoolSize,
+            final int maxPoolSize, final int threadPriority) {
         return getStandardExecService(name, corePoolSize, maxPoolSize, new SynchronousQueue<Runnable>(), threadPriority);
     }
 
@@ -480,8 +468,9 @@ public final class Utils {
 
     public static final String buffToString(final ByteBuffer bb) {
 
-        if (bb == null)
+        if (bb == null) {
             return "null";
+        }
 
         StringBuilder sb = new StringBuilder(512);
         sb.append(bb).append(" id=").append(System.identityHashCode(bb)).append(" ");
@@ -495,7 +484,7 @@ public final class Utils {
         List<String> sArgs = Arrays.asList(singleArgs);
 
         final Map<String, Object> rHM = new HashMap<String, Object>();
-        if (args == null || args.length == 0) {
+        if ((args == null) || (args.length == 0)) {
             return rHM;
         }
 
@@ -510,11 +499,12 @@ public final class Utils {
         for (i = 0; i < args.length; i++) {
             // System.out.println("trying to match "+args[i]);
             if (args[i].startsWith("-")) {
-                if (i == args.length - 1 || args[i + 1].startsWith("-") || sArgs.contains(args[i])) {
+                if ((i == (args.length - 1)) || args[i + 1].startsWith("-") || sArgs.contains(args[i])) {
                     rHM.put(args[i], "");
                 } else {
-                    if (sshUsers.size() > 0 && (args[i].equals("-c") || args[i].equals("-d"))) {
-                        throw new IllegalArgumentException("Illegal syntax! You can use either either Client/Server (-c/-d) syntax, either SCP syntax");
+                    if ((sshUsers.size() > 0) && (args[i].equals("-c") || args[i].equals("-d"))) {
+                        throw new IllegalArgumentException(
+                                "Illegal syntax! You can use either either Client/Server (-c/-d) syntax, either SCP syntax");
                     }
 
                     rHM.put(args[i], args[i + 1]);
@@ -528,7 +518,7 @@ public final class Utils {
                 // ////////////
                 if (File.separatorChar == '\\') {// "Windowns" baby!
 
-                    if (idx + 1 == args[i].length()) {
+                    if ((idx + 1) == args[i].length()) {
                         // ////////////
                         // tricky scp-like command from windows
                         //
@@ -539,7 +529,7 @@ public final class Utils {
                         // check that we have a single letter before ':'
                         // ///////////////
 
-                        if (idx - 1 == 0) {
+                        if ((idx - 1) == 0) {
 
                             // test if it is a File
                             if (new File(args[i].charAt(0) + ":").exists()) {
@@ -557,7 +547,7 @@ public final class Utils {
                         }
                     }
 
-                    if ((idx + 1 < args[i].length()) && args[i].charAt(idx + 1) == File.separatorChar) {
+                    if (((idx + 1) < args[i].length()) && (args[i].charAt(idx + 1) == File.separatorChar)) {
                         if (sshUsers.size() > 0) {
                             // I am the destination directory
                             rHM.put("destinationDir", args[i]);
@@ -577,8 +567,9 @@ public final class Utils {
                 // SSH mode
 
                 // System.out.print(" SCP Match: " + args[i]);
-                if (sshUsers.size() == 0 && (rHM.get("-d") != null || rHM.get("-c") != null)) {
-                    throw new IllegalArgumentException("Illegal syntax! You can use either Client/Server (-c/-d) syntax, either SCP syntax");
+                if ((sshUsers.size() == 0) && ((rHM.get("-d") != null) || (rHM.get("-c") != null))) {
+                    throw new IllegalArgumentException(
+                            "Illegal syntax! You can use either Client/Server (-c/-d) syntax, either SCP syntax");
                 }
 
                 String userHost = null;
@@ -598,7 +589,7 @@ public final class Utils {
                         }
 
                         user = userHost.substring(0, idx1);
-                        if (idx1 + 1 < userHost.length()) {
+                        if ((idx1 + 1) < userHost.length()) {
                             host = userHost.substring(idx1 + 1);
                         } else {
                             throw new IllegalArgumentException("Invalid scp syntax for " + args[i]);
@@ -608,7 +599,7 @@ public final class Utils {
                     }
                 }
 
-                if (idx + 1 == args[i].length()) {
+                if ((idx + 1) == args[i].length()) {
                     path = ".";
                 } else {
                     path = args[i].substring(idx + 1);
@@ -686,7 +677,8 @@ public final class Utils {
         return obj.toString();
     }
 
-    public static final long getLongValue(final Map<String, Object> configMap, final String key, final long DEFAULT_VALUE) {
+    public static final long getLongValue(final Map<String, Object> configMap, final String key,
+            final long DEFAULT_VALUE) {
         long rVal = DEFAULT_VALUE;
         Object obj = configMap.get(key);
         if (obj == null) {
@@ -719,7 +711,8 @@ public final class Utils {
         return rVal;
     }
 
-    public static final double getDoubleValue(final Map<String, Object> configMap, final String key, final double DEFAULT_VALUE) {
+    public static final double getDoubleValue(final Map<String, Object> configMap, final String key,
+            final double DEFAULT_VALUE) {
 
         double rVal = DEFAULT_VALUE;
         Object obj = configMap.get(key);
@@ -916,7 +909,8 @@ public final class Utils {
                 closeIgnoringExceptions(fis);
 
                 if (logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] loaded properties: {0}", updateProperties);
+                    logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] loaded properties: {0}",
+                            updateProperties);
                 }
 
                 final String contorStringValue = (String) updateProperties.get(property);
@@ -947,7 +941,8 @@ public final class Utils {
                 updateProperties.put(property + "_rst", "" + rstContor);
 
                 if (logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] store new properties: {0}", updateProperties);
+                    logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] store new properties: {0}",
+                            updateProperties);
                 }
 
                 checkAndSetInstanceID(updateProperties);
@@ -958,9 +953,8 @@ public final class Utils {
 
             } catch (Throwable t) {
                 if (logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE,
-                               "Unable to update properties file for property: " + property + " contor: " + total + " file: " + confFile,
-                               t);
+                    logger.log(Level.FINE, "Unable to update properties file for property: " + property + " contor: "
+                            + total + " file: " + confFile, t);
                 }
                 return false;
             } finally {
@@ -988,7 +982,7 @@ public final class Utils {
         try {
             String instID = props.getProperty("instanceID");
 
-            if (instID == null || instID.trim().equals("")) {
+            if ((instID == null) || instID.trim().equals("")) {
                 instID = UUID.randomUUID().toString();
                 props.put("instanceID", instID);
 
@@ -1036,8 +1030,9 @@ public final class Utils {
         int status = 0;
         final DirectByteBufferPool bPool = DirectByteBufferPool.getInstance();
         try {
-            if (fileBlockQueue == null)
+            if (fileBlockQueue == null) {
                 return status;
+            }
 
             for (;;) {
                 try {
@@ -1062,7 +1057,8 @@ public final class Utils {
         }
     }
 
-    public static final boolean checkForUpdate(final String currentVersion, final String updateURL, boolean noLock) throws Exception {
+    public static final boolean checkForUpdate(final String currentVersion, final String updateURL, boolean noLock)
+            throws Exception {
         try {
 
             final String parentFDTConfDirName = System.getProperty("user.home") + File.separator + ".fdt";
@@ -1106,10 +1102,11 @@ public final class Utils {
                 boolean bHaveUpdates = false;
                 checkAndSetInstanceID(updateProperties);
 
-                if (lastCheck + FDT.UPDATE_PERIOD < now) {
+                if ((lastCheck + FDT.UPDATE_PERIOD) < now) {
                     lastCheck = now;
                     try {
-                        System.out.println("\n\nChecking for remote updates ... This may be disabled using -noupdates flag.");
+                        System.out
+                                .println("\n\nChecking for remote updates ... This may be disabled using -noupdates flag.");
                         bHaveUpdates = updateFDT(currentVersion, updateURL, false, noLock);
                         if (bHaveUpdates) {
                             System.out.println("FDT may be updated using: java -jar fdt.jar -update");
@@ -1140,8 +1137,8 @@ public final class Utils {
                 }
             } else {
                 if (logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, " [ checkForUpdate ] Cannot read or write the update conf file: " + parentFDTConfDirName + File.separator
-                            + fdtUpdateConfFileName);
+                    logger.log(Level.FINE, " [ checkForUpdate ] Cannot read or write the update conf file: "
+                            + parentFDTConfDirName + File.separator + fdtUpdateConfFileName);
                 }
                 return false;
             }
@@ -1158,7 +1155,8 @@ public final class Utils {
      * @throws Exception
      *             if update was unsuccesfully or there was a problem connecting to the update server
      */
-    public static final boolean updateFDT(final String currentVersion, final String updateURL, boolean shouldUpdate, boolean noLock) throws Exception {
+    public static final boolean updateFDT(final String currentVersion, final String updateURL, boolean shouldUpdate,
+            boolean noLock) throws Exception {
 
         final String partialURL = updateURL + (updateURL.endsWith("/") ? "" : "/") + "fdt.jar";
         System.out.print("Checking remote fdt.jar at URL: " + partialURL);
@@ -1237,9 +1235,10 @@ public final class Utils {
 
         // final String finalPath =
         // FDT.class.getProtectionDomain().getCodeSource().getLocation().getPath().replaceAll("%20", " ");
-        final String finalPath = new URI(FDT.class.getProtectionDomain().getCodeSource().getLocation().toString()).getPath();
+        final String finalPath = new URI(FDT.class.getProtectionDomain().getCodeSource().getLocation().toString())
+                .getPath();
 
-        if (finalPath == null || finalPath.length() == 0) {
+        if ((finalPath == null) || (finalPath.length() == 0)) {
             throw new IOException("Cannot determine the path to current fdt jar");
         }
 
@@ -1247,13 +1246,15 @@ public final class Utils {
 
         if (!currentJar.exists()) {
             // Smth wrong with the OS or the JVM?
-            throw new IOException("Current fdt.jar path seems to be [ " + finalPath + " ] but the JVM cannot access it!");
+            throw new IOException("Current fdt.jar path seems to be [ " + finalPath
+                    + " ] but the JVM cannot access it!");
         }
 
         if (currentJar.isFile() && currentJar.canWrite()) {
             System.out.println("\nCurrent fdt.jar path is: " + finalPath);
         } else {
-            throw new IOException("Current fdt.jar path seems to be [ " + finalPath + " ] but it does not have write access!");
+            throw new IOException("Current fdt.jar path seems to be [ " + finalPath
+                    + " ] but it does not have write access!");
         }
 
         // Check if it is possible to use a temporary file
@@ -1293,7 +1294,7 @@ public final class Utils {
             final Attributes attr = mf.getMainAttributes();
             final String remoteVersion = attr.getValue("Implementation-Version");
 
-            if (remoteVersion == null || remoteVersion.trim().length() == 0) {
+            if ((remoteVersion == null) || (remoteVersion.trim().length() == 0)) {
                 throw new Exception("Cannot read the version from the downloaded jar...Cannot compare versions!");
             }
 
@@ -1302,7 +1303,8 @@ public final class Utils {
                 return false;
             }
 
-            System.out.println("Remote FDT version: " + remoteVersion + " Local FDT version: " + currentVersion + ". Update available.");
+            System.out.println("Remote FDT version: " + remoteVersion + " Local FDT version: " + currentVersion
+                    + ". Update available.");
 
             if (shouldUpdate) {
                 try {
@@ -1318,24 +1320,29 @@ public final class Utils {
                         // windows XP (at least on the system I tested) reports totaly stupid things here; make it an
                         // warning...
                         //
-                        logger.log(Level.WARNING, "[ WARNING CHECK ] The OS reported that is unable to write in parent dir: " + parentDir
-                                + " continue anyway; the call might be broken.");
+                        logger.log(Level.WARNING,
+                                "[ WARNING CHECK ] The OS reported that is unable to write in parent dir: " + parentDir
+                                        + " continue anyway; the call might be broken.");
                     }
 
-                    final File bkpJar = new File(parentDir.getPath() + File.separator + "fdt_" + Config.FDT_FULL_VERSION + ".jar");
+                    final File bkpJar = new File(parentDir.getPath() + File.separator + "fdt_"
+                            + Config.FDT_FULL_VERSION + ".jar");
                     boolean bDel = bkpJar.exists();
                     if (bDel) {
                         bDel = bkpJar.delete();
                         if (!bDel) {
-                            System.out.println("[ WARNING ] Unable to delete backup jar with the same version: " + bkpJar + " ... will continue");
+                            System.out.println("[ WARNING ] Unable to delete backup jar with the same version: "
+                                    + bkpJar + " ... will continue");
                         } else {
-                            System.out.println("[ INFO ] Backup jar (same version as the update) " + bkpJar + " delete it.");
+                            System.out.println("[ INFO ] Backup jar (same version as the update) " + bkpJar
+                                    + " delete it.");
                         }
                     }
 
                     boolean renameSucced = currentJar.renameTo(bkpJar);
                     if (!renameSucced) {
-                        logger.log(Level.WARNING, "Unable to create backup: " + bkpJar + " for current FDT before update.");
+                        logger.log(Level.WARNING, "Unable to create backup: " + bkpJar
+                                + " for current FDT before update.");
                     } else {
                         System.out.println("Backing up old FDT succeeded: " + bkpJar);
                     }
@@ -1370,8 +1377,9 @@ public final class Utils {
             StringBuilder sb = new StringBuilder();
             for (;;) {
                 final String line = br.readLine();
-                if (line == null)
+                if (line == null) {
                     break;
+                }
                 sb.append(line).append(newline);
             }
 
@@ -1386,8 +1394,8 @@ public final class Utils {
     public static final String md5ToString(byte[] md5sum) {
         StringBuilder sb = new StringBuilder();
 
-        for (int i = 0; i < md5sum.length; i++) {
-            sb.append(Integer.toString((md5sum[i] & 0xff) + 0x100, 16).substring(1));
+        for (byte element : md5sum) {
+            sb.append(Integer.toString((element & 0xff) + 0x100, 16).substring(1));
         }
 
         return sb.toString();
@@ -1427,7 +1435,8 @@ public final class Utils {
                     }
                 }
             } catch (Throwable t) {
-                logger.log(Level.WARNING, "Unable to take source file (" + s + ") lock. Will continue without lock taken. Cause: ", t);
+                logger.log(Level.WARNING, "Unable to take source file (" + s
+                        + ") lock. Will continue without lock taken. Cause: ", t);
             }
             try {
                 if (!noLock) {
@@ -1438,7 +1447,8 @@ public final class Utils {
                     }
                 }
             } catch (Throwable t) {
-                logger.log(Level.WARNING, "Unable to take destination file (" + d + ") lock. Will continue without lock taken. Cause: ", t);
+                logger.log(Level.WARNING, "Unable to take destination file (" + d
+                        + ") lock. Will continue without lock taken. Cause: ", t);
             }
 
             // Copy file contents from source to destination - ZERO copy on most OSes!
@@ -1448,8 +1458,9 @@ public final class Utils {
             long ds = dstChannel.size();
 
             // dummy check - don't know what happens if disk is full
-            if (ss != ds || ss != tr) {
-                throw new IOException("Different size for sourceFile [ " + s + " ] DestinationFileSize [ " + d + " ] Transferred [ " + tr + " ] ");
+            if ((ss != ds) || (ss != tr)) {
+                throw new IOException("Different size for sourceFile [ " + s + " ] DestinationFileSize [ " + d
+                        + " ] Transferred [ " + tr + " ] ");
             }
         } finally {
             closeIgnoringExceptions(srcChannel);
@@ -1462,8 +1473,8 @@ public final class Utils {
     /**
      * fills an array of File objects based on a list of files and directories
      */
-    public static final void getRecursiveFiles(String fileName, String remappedFileName, List<String> allFiles, List<String> allRemappedFiles)
-            throws Exception {
+    public static final void getRecursiveFiles(String fileName, String remappedFileName, List<String> allFiles,
+            List<String> allRemappedFiles) throws Exception {
 
         if (allFiles == null) {
             throw new NullPointerException("File list is null");
@@ -1475,13 +1486,11 @@ public final class Utils {
                 allRemappedFiles.add(remappedFileName);
             } else if (file.isDirectory()) {
                 String[] listContents = file.list();
-                if (listContents != null && listContents.length > 0) {
+                if ((listContents != null) && (listContents.length > 0)) {
                     for (String subFile : listContents) {
                         if (remappedFileName != null) {
-                            getRecursiveFiles(fileName + File.separator + subFile,
-                                              remappedFileName + File.separator + subFile,
-                                              allFiles,
-                                              allRemappedFiles);
+                            getRecursiveFiles(fileName + File.separator + subFile, remappedFileName + File.separator
+                                    + subFile, allFiles, allRemappedFiles);
                         } else {
                             getRecursiveFiles(fileName + File.separator + subFile, null, allFiles, allRemappedFiles);
                         }
@@ -1540,6 +1549,16 @@ public final class Utils {
                 // not interested
             }
         }
+    }
+
+    public static final boolean cancelFutureIgnoringException(Future<?> f, boolean mayInterruptIfRunning) {
+        try {
+            return f.cancel(mayInterruptIfRunning);
+        } catch (Throwable ignore) {
+            //not interested
+        }
+        //should not reach this point anyway
+        return false;
     }
 
     /**
@@ -1611,11 +1630,11 @@ public final class Utils {
      * @see FDTVersion#compareTo(FDTVersion)
      */
     public static final int compareVersions(final String versionString1, final String versionString2) {
-        if (versionString1 == null && versionString2 == null) {
+        if ((versionString1 == null) && (versionString2 == null)) {
             return 0;
         }
 
-        if (versionString1 == null || versionString2 == null) {
+        if ((versionString1 == null) || (versionString2 == null)) {
             if (versionString1 == null) {
                 throw new NullPointerException("versionString1 is null");
             }

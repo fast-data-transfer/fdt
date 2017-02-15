@@ -43,7 +43,7 @@ public class FDT {
 
     private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
 
-    public static final String FDT_FULL_VERSION = "0.18.2-201305171422";
+    public static final String FDT_FULL_VERSION = "0.18.4-201305272041";
 
     String mlDestinations = "monalisa2.cern.ch:28884,monalisa2.caltech.edu:28884";
 
