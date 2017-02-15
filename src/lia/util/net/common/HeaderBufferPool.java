@@ -1,5 +1,5 @@
 /*
- * $Id: HeaderBufferPool.java 540 2009-11-12 15:58:57Z ramiro $
+ * $Id: HeaderBufferPool.java 684 2012-07-31 09:12:18Z ramiro $
  */
 package lia.util.net.common;
 import java.util.logging.Level;
@@ -17,7 +17,7 @@ public class HeaderBufferPool extends AbstractBPool {
 
     /** Logger used by this class */
     private static final transient Logger logger = Logger.getLogger(HeaderBufferPool.class.getName());
-    ;
+    
     //the list of ByteBuffer-s
     private static HeaderBufferPool _theInstance;
     //used for double checked locking

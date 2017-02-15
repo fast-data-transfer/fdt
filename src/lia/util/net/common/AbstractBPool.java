@@ -91,8 +91,11 @@ public abstract class AbstractBPool {
             }
         } catch (OutOfMemoryError oom) {
             if (limitReached.compareAndSet(false, true)) {
-                logger.log(Level.WARNING, "\n\n !! Direct ByteBuffer memory pool reached max limit. Allocated: " + (totalAllocated() + totalAllocated()) / (1024 * 1024) + " MB." + "\n FDT reuses the existing buffers, but the copy may be slow!!"
-                        + "\n You may consider to increase the default value used by the JVM ( e.g. -XX:MaxDirectMemorySize=256m )," + "\n or decrease either the buffer size( -bs param) or the number of workers (-P param) \n\n\n");
+                logger.log(Level.WARNING, "\n\n !! Direct ByteBuffer memory pool reached max limit. Allocated: "
+                        + (totalAllocated() + totalAllocated()) / (1024 * 1024) + " MB."
+                        + "\n FDT reuses the existing buffers, but the copy may be slow!!"
+                        + "\n You may consider to increase the default value used by the JVM ( e.g. -XX:MaxDirectMemorySize=256m ),"
+                        + "\n or decrease either the buffer size( -bs param) or the number of workers (-P param) \n\n\n");
             }
             retBuffer = null;
         } catch (Throwable t) {
@@ -120,8 +123,9 @@ public abstract class AbstractBPool {
     }
 
     public ByteBuffer take() throws InterruptedException {
-        final boolean logFiner = logger.isLoggable(Level.FINER);
-        final boolean logFinest = logFiner || logger.isLoggable(Level.FINEST);
+        final boolean logFinest = logger.isLoggable(Level.FINEST);
+        final boolean logFiner = logFinest || logger.isLoggable(Level.FINER);
+
         ByteBuffer retBuff = thePool.poll();
         try {
             if (retBuff != null) {
@@ -144,7 +148,7 @@ public abstract class AbstractBPool {
             }
 
             retBuff = thePool.take();
-            
+
             return retBuff;
         } finally {
             if (retBuff != null) {
@@ -163,7 +167,8 @@ public abstract class AbstractBPool {
             }
             if (trackAllocations && retBuff != null) {
                 if (!checkBuffer(retBuff, false, true)) {
-                    logger.log(Level.WARNING, " \n\n  <ByteBufferPool> trackAllocations ASSERTION FAILURE. retBuf = " + Utils.buffToString(retBuff) + "; TAKE FROM POOL! expect: false update: true", new Exception("ASSERTION_FAILURE"));
+                    logger.log(Level.WARNING, " \n\n  <ByteBufferPool> trackAllocations ASSERTION FAILURE. retBuf = " + Utils.buffToString(retBuff)
+                            + "; TAKE FROM POOL! expect: false update: true", new Exception("ASSERTION_FAILURE"));
                 }
             }
         }
@@ -182,8 +187,8 @@ public abstract class AbstractBPool {
     }
 
     public ByteBuffer poll() {
-        final boolean logFiner = logger.isLoggable(Level.FINER);
-        final boolean logFinest = logFiner || logger.isLoggable(Level.FINEST);
+        final boolean logFinest = logger.isLoggable(Level.FINEST);
+        final boolean logFiner = logFinest || logger.isLoggable(Level.FINER);
 
         ByteBuffer retBuff = thePool.poll();
         try {
@@ -201,7 +206,7 @@ public abstract class AbstractBPool {
             retBuff = thePool.poll();
             return retBuff;
         } finally {
-            if(retBuff != null) {
+            if (retBuff != null) {
                 retBuff.clear();
             }
             if (logFiner) {
@@ -218,7 +223,8 @@ public abstract class AbstractBPool {
 
             if (trackAllocations && retBuff != null) {
                 if (!checkBuffer(retBuff, false, true)) {
-                    logger.log(Level.WARNING, " \n\n  <ByteBufferPool> trackAllocations ASSERTION FAILURE. retBuf = " + Utils.buffToString(retBuff) + "; TAKE FROM POOL! expect: false update: true", new Exception("ASSERTION_FAILURE"));
+                    logger.log(Level.WARNING, " \n\n  <ByteBufferPool> trackAllocations ASSERTION FAILURE. retBuf = " + Utils.buffToString(retBuff)
+                            + "; TAKE FROM POOL! expect: false update: true", new Exception("ASSERTION_FAILURE"));
                 }
             }
 
@@ -227,8 +233,9 @@ public abstract class AbstractBPool {
     }
 
     public ByteBuffer poll(long timeout, TimeUnit unit) throws InterruptedException {
-        final boolean logFiner = logger.isLoggable(Level.FINER);
-        final boolean logFinest = logFiner || logger.isLoggable(Level.FINEST);
+        final boolean logFinest = logger.isLoggable(Level.FINEST);
+        final boolean logFiner = logFinest || logger.isLoggable(Level.FINER);
+        
         ByteBuffer retBuff = thePool.poll();
 
         try {
@@ -246,7 +253,7 @@ public abstract class AbstractBPool {
 
             return retBuff;
         } finally {
-            if(retBuff != null) {
+            if (retBuff != null) {
                 retBuff.clear();
             }
             if (logFiner) {
@@ -263,15 +270,17 @@ public abstract class AbstractBPool {
 
             if (trackAllocations && retBuff != null) {
                 if (!checkBuffer(retBuff, false, true)) {
-                    logger.log(Level.WARNING, " \n\n  <ByteBufferPool> trackAllocations ASSERTION FAILURE. retBuf = " + Utils.buffToString(retBuff) + "; TAKE FROM POOL! expect: false update: true", new Exception("ASSERTION_FAILURE"));
+                    logger.log(Level.WARNING, " \n\n  <ByteBufferPool> trackAllocations ASSERTION FAILURE. retBuf = " + Utils.buffToString(retBuff)
+                            + "; TAKE FROM POOL! expect: false update: true", new Exception("ASSERTION_FAILURE"));
                 }
             }
         }
     }
 
     public boolean put(ByteBuffer buff) {
-        final boolean logFiner = logger.isLoggable(Level.FINER);
-        final boolean logFinest = logFiner || logger.isLoggable(Level.FINEST);
+        final boolean logFinest = logger.isLoggable(Level.FINEST);
+        final boolean logFiner = logFinest || logger.isLoggable(Level.FINER);
+        
         if (logFiner) {
             StringBuilder sb = new StringBuilder();
             sb.append("<ByteBufferPool> PUT BACK TO POOL: buffer: ").append(Utils.buffToString(buff));
@@ -290,7 +299,8 @@ public abstract class AbstractBPool {
 
         if (trackAllocations) {
             if (!checkBuffer(buff, true, false)) {
-                logger.log(Level.WARNING, " \n\n  <ByteBufferPool> trackAllocations ASSERTION FAILURE. retBuf = " + Utils.buffToString(buff) + "; RETURN TO POOL! expect: true update: false", new Exception("ASSERTION_FAILURE"));
+                logger.log(Level.WARNING, " \n\n  <ByteBufferPool> trackAllocations ASSERTION FAILURE. retBuf = " + Utils.buffToString(buff)
+                        + "; RETURN TO POOL! expect: true update: false", new Exception("ASSERTION_FAILURE"));
                 return false;
             }
         }

@@ -1,5 +1,5 @@
 /*
- * $Id: FileReaderSession.java 661 2012-04-12 07:38:27Z ramiro $
+ * $Id: FileReaderSession.java 680 2012-07-30 18:10:48Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -21,8 +21,6 @@ public class FileReaderSession extends FileSession {
     public String toString() {
         return "FileReaderSession [file=" + file + ", partitionID=" + partitionID + ", sessionID=" + sessionID + ", sessionSize=" + sessionSize + "]";
     }
-
-    private static final Logger logger = Logger.getLogger(FileSession.class.getName());
 
     public FileReaderSession(String fileName, FDTSession fdtSession, boolean isLoop, FileChannelProvider fileChannelProvider) throws IOException {
         this(UUID.randomUUID(), fdtSession, fileName, isLoop, fileChannelProvider);

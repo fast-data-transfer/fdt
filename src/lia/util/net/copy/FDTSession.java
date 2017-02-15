@@ -1,5 +1,5 @@
 /*
- * $Id: FDTSession.java 659 2012-03-04 20:07:24Z ramiro $
+ * $Id: FDTSession.java 680 2012-07-30 18:10:48Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -95,9 +95,9 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
     protected ControlChannel controlChannel;
 
-    protected Map<UUID, FileSession> fileSessions = new TreeMap<UUID, FileSession>();
+    protected final Map<UUID, FileSession> fileSessions = new TreeMap<UUID, FileSession>();
 
-    protected Map<UUID, byte[]> md5Sums = new TreeMap<UUID, byte[]>();
+    protected final Map<UUID, byte[]> md5Sums = new TreeMap<UUID, byte[]>();
 
     protected final boolean isNetTest;
 
@@ -401,10 +401,10 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             if (finishedSessions.contains(fs.sessionID)) {
                 continue;
             }
-            LinkedList<FileSession> ll = partitionsMap.get(fs.partitionID);
+            LinkedList<FileSession> ll = partitionsMap.get(Integer.valueOf(fs.partitionID));
             if (ll == null) {
                 ll = new LinkedList<FileSession>();
-                partitionsMap.put(fs.partitionID, ll);
+                partitionsMap.put(Integer.valueOf(fs.partitionID), ll);
             }
             ll.add(fs);
         }
@@ -526,6 +526,9 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         }
     }
 
+    /**
+     * @param controlChannel  
+     */
     public void notifyCtrlSessionDown(ControlChannel controlChannel, Throwable cause) {
         close("ControlChannel is down", cause);
     }

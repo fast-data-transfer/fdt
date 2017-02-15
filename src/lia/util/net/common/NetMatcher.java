@@ -1,5 +1,5 @@
 /*
- * $Id: NetMatcher.java 346 2007-08-16 13:48:25Z ramiro $
+ * $Id: NetMatcher.java 685 2012-07-31 09:12:30Z ramiro $
  */
 
 /***********************************************************************
@@ -71,8 +71,8 @@ public class NetMatcher {
 
         boolean sameNet = false;
 
-        if (ip != null) for (Iterator iter = networks.iterator(); (!sameNet) && iter.hasNext();) {
-            InetNetwork network = (InetNetwork) iter.next();
+        if (ip != null) for (Iterator<InetNetwork> iter = networks.iterator(); (!sameNet) && iter.hasNext();) {
+            InetNetwork network = iter.next();
             sameNet = network.contains(ip);
         }
         return sameNet;
@@ -81,8 +81,8 @@ public class NetMatcher {
     public boolean matchInetNetwork(final InetAddress ip) {
         boolean sameNet = false;
 
-        for (Iterator iter = networks.iterator(); (!sameNet) && iter.hasNext();) {
-            InetNetwork network = (InetNetwork) iter.next();
+        for (Iterator<InetNetwork> iter = networks.iterator(); (!sameNet) && iter.hasNext();) {
+            InetNetwork network = iter.next();
             sameNet = network.contains(ip);
         }
         return sameNet;
