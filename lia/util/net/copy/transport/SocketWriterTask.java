@@ -81,6 +81,9 @@ public class SocketWriterTask extends SocketTask {
                 }
             }
             
+            
+            
+            
             count = -1;
             long canWrite = (attach.payloadSize - attach.payload.position());
             
@@ -93,9 +96,11 @@ public class SocketWriterTask extends SocketTask {
                 if(shouldWrite < canWrite) {
                     canWrite = shouldWrite;
                 }
+                
+                attach.payload.limit(attach.payload.position() + (int)canWrite);
             }
 
-            attach.payload.limit(attach.payload.position() + (int)canWrite);
+            
             
             while ((count = sc.write(attach.asArray())) > 0) {
                 attach.payload.limit(attach.payloadSize);
@@ -133,6 +138,21 @@ public class SocketWriterTask extends SocketTask {
                         
                         return -1;
                     }
+                }
+                
+                count = -1;
+                canWrite = (attach.payloadSize - attach.payload.position());
+                
+                if(canWrite > bufferSize) {
+                    canWrite = bufferSize;
+                }
+                
+                if(master.getRateLimit() > 0) {
+                    final long shouldWrite = master.awaitSend(canWrite);
+                    if(shouldWrite < canWrite) {
+                        canWrite = shouldWrite;
+                    }
+                    attach.payload.limit(attach.payload.position() + (int)canWrite);
                 }
                 
             }

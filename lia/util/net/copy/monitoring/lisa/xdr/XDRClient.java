@@ -104,7 +104,7 @@ public final class XDRClient extends XDRTcpSocket {
 		
 	}
 
-	public String sendCommand(String sCommand) throws Exception {
+	synchronized public String sendCommand(String sCommand) throws Exception {
 		XDRMessage msg = XDRMessage.getSuccessMessage(sCommand);
 		XDRMessage resMsg = null;
 		write(msg);

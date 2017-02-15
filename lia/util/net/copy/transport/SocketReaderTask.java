@@ -102,7 +102,8 @@ public class SocketReaderTask extends SocketTask {
         attach = (FDTReaderKeyAttachement)fdtSelectionKey.attachment();
         SocketChannel sc = fdtSelectionKey.channel();
 
-        if(logger.isLoggable(Level.FINEST)) {
+        final boolean logFinest = logger.isLoggable(Level.FINEST);
+        if(logFinest) {
             logger.log(Level.FINEST, " [ SocketReaderTask ] [ readData ] for " + Utils.toStringSelectionKey(fdtSelectionKey));
         }
         
@@ -132,7 +133,7 @@ public class SocketReaderTask extends SocketTask {
                     count = sc.read(attach.header);
                     if(attach.isHeaderRead()) {
                         addAndGetTotalBytes(count);
-                        if(logger.isLoggable(Level.FINEST)) {
+                        if(logFinest) {
                             logger.log(Level.FINEST, " [ SocketReaderTask ] socket: " + sc.socket() + " count: " + count);
                         }
                         master.addAndGetTotalBytes(count);
@@ -145,7 +146,7 @@ public class SocketReaderTask extends SocketTask {
                 
                 fdtSelectionKey.opCount = 0;
 
-                if(logger.isLoggable(Level.FINEST)) {
+                if(logFinest) {
                     logger.log(Level.FINEST, " [ SocketReaderTask ] socket: " + sc.socket() + " count: " + count);
                 }
                 

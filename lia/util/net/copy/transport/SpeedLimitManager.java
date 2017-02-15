@@ -26,17 +26,22 @@ public class SpeedLimitManager {
         public void run() {
             try {
                 final long now = System.currentTimeMillis();
-                long newAvailable;
+                double newAvailable;
+                
+                final long rateLimit = speedLimiter.getRateLimit();
+                if(logger.isLoggable(Level.FINEST)) {
+                    logger.log(Level.FINEST, "[ SpeedLimitManagerTask ] " + speedLimiter + " rateLimit: " + rateLimit);
+                }
                 if(lastUpdate == 0) {
-                    newAvailable = speedLimiter.getRateLimit();
+                    newAvailable = rateLimit;
                 } else {
-                    newAvailable = speedLimiter.getRateLimit()*((now - lastUpdate)/1000);
+                    newAvailable = rateLimit * ( (now - lastUpdate)/1000D );
                 }
                 lastUpdate = now;
                 if(logger.isLoggable(Level.FINER)) {
-                    logger.log(Level.FINER, " SpeedLimitManagerTask for " + speedLimiter + " av: " + newAvailable);
+                    logger.log(Level.FINER, "[ SpeedLimitManagerTask ] " + speedLimiter + " av: " + newAvailable);
                 }
-                speedLimiter.notifyAvailableBytes(newAvailable);
+                speedLimiter.notifyAvailableBytes(Math.round(newAvailable));
             } catch(Throwable t) {
                 logger.log(Level.WARNING, " SpeedLimiterTask got exception notifying " + this.speedLimiter, t) ;
             }

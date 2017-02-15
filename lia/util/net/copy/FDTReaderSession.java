@@ -56,6 +56,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     private ProcessorInfo processorInfo;
     private int readersCount = 1;
 
+    private static final int MAX_TAKE_POLL_ITER = config.getMaxTakePollIter();
+    
     private final AtomicBoolean finalCleaupExecuted = new AtomicBoolean(false);
     private final AtomicBoolean finishNotifiedExecuted = new AtomicBoolean(false);
     public static final long END_RCV_WAIT_DELAY = 120 * 1000;
@@ -205,8 +207,10 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             }
         }
 
+        final boolean isAdCacheFile = (config.massStorageType() != null && config.massStorageType().equals("dcache"));
+        
         for(String fName: newFileList) {
-            FileReaderSession frs = new FileReaderSession(fName, isLoop);
+            FileReaderSession frs = new FileReaderSession(fName, isLoop, isAdCacheFile);
             fileSessions.put(frs.sessionID, frs);
             setSessionSize(sessionSize() + frs.sessionSize());
         }
@@ -245,7 +249,6 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
             sccm.fileIDs[count] = fs.sessionID;
 
-            
             if(isFileList) {
                 sccm.fileLists[count] = fs.fileName;
             } else if(initialMapping.size() == 0) { 
@@ -507,6 +510,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 while((currentState() & END_RCV) != END_RCV) {
                     try {
                         Thread.sleep(1000);
+                        notifySessionFinished();
                     }catch(InterruptedException ie) {
                         Thread.interrupted();
                     }catch(Throwable t) {}
@@ -718,7 +722,16 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     }
 
     public FileBlock take() throws InterruptedException {
+        
         FileBlock fb = null;
+        
+        for(int i=0; i<MAX_TAKE_POLL_ITER; i++) {
+            fb = fileBlockQueue.poll();
+            if(fb != null) {
+                return fb;
+            }
+        }
+        
         fb = fileBlockQueue.take();
         if(fb != null) {
             totalFileBlocks++;
@@ -727,8 +740,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     }
 
     public FileBlock poll() {
-        FileBlock fb = null;
-        fb = fileBlockQueue.poll();
+        final FileBlock fb = fileBlockQueue.poll();
         if(fb != null) {
             totalFileBlocks++;
         }

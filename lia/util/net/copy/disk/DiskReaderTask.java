@@ -153,10 +153,14 @@ public class DiskReaderTask extends GenericDiskTask {
                                 if(fileSession.cProcessedBytes.get() == fileSession.sessionSize()) {
                                     fdtSession.finishFileSession(fileSession.sessionID(), null);
                                 } else {
-                                    StringBuilder sbEx = new StringBuilder();
-                                    sbEx.append("FileSession: ( ").append(fileSession.sessionID()).append(" ): ").append(fileSession.fileName());
-                                    sbEx.append(" total length: ").append(fileSession.sessionSize()).append(" != total read until EOF: ").append(fileSession.cProcessedBytes.get());
-                                    fdtSession.finishFileSession(fileSession.sessionID(), new IOException(sbEx.toString()));
+                                    if(!fdtSession.loop()) {
+                                        StringBuilder sbEx = new StringBuilder();
+                                        sbEx.append("FileSession: ( ").append(fileSession.sessionID()).append(" ): ").append(fileSession.fileName());
+                                        sbEx.append(" total length: ").append(fileSession.sessionSize()).append(" != total read until EOF: ").append(fileSession.cProcessedBytes.get());
+                                        fdtSession.finishFileSession(fileSession.sessionID(), new IOException(sbEx.toString()));
+                                    } else {
+                                        fileChannel.position(0);
+                                    }
                                 }
                                 bufferPool.put(buff);
                                 buff = null;

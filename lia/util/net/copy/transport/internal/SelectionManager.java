@@ -8,11 +8,13 @@ import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,11 +34,11 @@ public class SelectionManager {
         private final AtomicBoolean               hasToRun;
 
         
-        private final Object                      lock = new Object();
+        private final ReentrantLock    lock = new ReentrantLock();
 
-        private final LinkedList<FDTSelectionKey> renewQueue;
+        private final List<FDTSelectionKey> renewQueue;
 
-        private final LinkedList<FDTSelectionKey> newQueue;
+        private final List<FDTSelectionKey> newQueue;
 
         SelectionTask(Selector selector) {
 
@@ -58,72 +60,89 @@ public class SelectionManager {
         }
 
         private void checkRenew() {
+        	final List<FDTSelectionKey> l = renewQueue;
+        	
+        	if(l.isEmpty()) return;
+        	
+        	final boolean finest = logger.isLoggable(Level.FINEST);
             
-            while (!renewQueue.isEmpty()) {
-                final FDTSelectionKey fdtSelectionKey = renewQueue.remove();
-                if (logger.isLoggable(Level.FINEST)) {
+        	final Iterator<FDTSelectionKey> it = l.iterator();
+            while (it.hasNext()) {
+                final FDTSelectionKey fdtSelectionKey = it.next();
+                if (finest) {
                     StringBuilder sb = new StringBuilder();
-                    sb.append("[ SelectionManager ] [ checkRenew ] for ")
-                      .append(Utils.toStringSelectionKey(fdtSelectionKey));
+                    sb.append("[ SelectionManager ] [ checkRenew ] for ").append(Utils.toStringSelectionKey(fdtSelectionKey));
                     logger.log(Level.FINEST, sb.toString());
                 }
-                fdtSelectionKey.selectionKey.interestOps(fdtSelectionKey.selectionKey.interestOps()
-                        | fdtSelectionKey.interests);
+                fdtSelectionKey.selectionKey.interestOps(fdtSelectionKey.selectionKey.interestOps() | fdtSelectionKey.interests);
             }
+            
+            l.clear();
         }
 
         private void checkNew() {
+        	final List<FDTSelectionKey> l = newQueue;
+        	
+        	if(l.isEmpty()) return;
+        	
+        	final boolean finest = logger.isLoggable(Level.FINEST);
             
-            while (!newQueue.isEmpty()) {
+        	final Iterator<FDTSelectionKey> it = l.iterator();
+            while (it.hasNext()) {
                 try {
-                    FDTSelectionKey fdtSelectionKey = newQueue.remove();
+                    final FDTSelectionKey fdtSelectionKey = it.next();
                     fdtSelectionKey.selector = selector;
                     fdtSelectionKey.selectionKey = fdtSelectionKey.channel.register(selector, fdtSelectionKey.interests);
                     fdtSelectionKey.selectionKey.attach(fdtSelectionKey);
-                    if (logger.isLoggable(Level.FINEST)) {
+                    if (finest) {
                         StringBuilder sb = new StringBuilder();
-                        sb.append("[ SelectionManager ] [ checkNew ] for ")
-                          .append(Utils.toStringSelectionKey(fdtSelectionKey));
+                        sb.append("[ SelectionManager ] [ checkNew ] for ").append(Utils.toStringSelectionKey(fdtSelectionKey));
                         logger.log(Level.FINEST, sb.toString());
                     }
                 } catch (Throwable t) {
-                    
-                    t.printStackTrace();
+                    logger.log(Level.WARNING, " [ SelectionManager ] [ checkNew ] got exception. Cause", t);
                 }
             }
+            
+            l.clear();
         }
 
         public void run() {
 
             int count = 0;
 
-            while (hasToRun.get()) {
+            final ReentrantLock lock = this.lock;
 
-                synchronized (lock) {
+            while (hasToRun.get()) {
+                
+                lock.lock();
+                try {
                     checkRenew();
                     checkNew();
+                } finally {
+                    lock.unlock();
                 }
 
                 try {
                     count = selector.select();
                 } catch (IOException ioe) {
-                    ioe.printStackTrace();
+                    logger.log(Level.WARNING, " [ SelectionManager ] [ SelectionTask ] IOException in selector.select(). Cause: ", ioe);
                 } catch (Throwable t) {
-                    t.printStackTrace();
+                    logger.log(Level.WARNING, " [ SelectionManager ] [ SelectionTask ] Generic Exception in selector.select(). Cause: ", t);
                 }
 
                 
                 if (count == 0)
                     continue;
 
-                Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+                final Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                 while (it.hasNext()) {
 
-                    SelectionKey sk = it.next();
+                    final SelectionKey sk = it.next();
                     try {
                         it.remove();
 
-                        FDTSelectionKey fdtSelectionKey = (FDTSelectionKey) sk.attachment();
+                        final FDTSelectionKey fdtSelectionKey = (FDTSelectionKey) sk.attachment();
 
                         if (!sk.isValid()) {
                             if (fdtSelectionKey != null) {
@@ -142,10 +161,8 @@ public class SelectionManager {
                             sk.interestOps(sk.interestOps() & ~fdtSelectionKey.interests);
                             fdtSelectionKey.renewed.set(false);
                             fdtSelectionKey.handler.handleSelection(fdtSelectionKey);
-
                         } else {
-                            logger.log(Level.WARNING, "\n\n fdtSelectionKey is null in selection loop for sk: " + sk
-                                    + " channel: " + sk.channel() + ". The channle will be closed\n\n");
+                            logger.log(Level.WARNING, "\n\n fdtSelectionKey is null in selection loop for sk: " + sk + " channel: " + sk.channel() + ". The channle will be closed\n\n");
                             sk.cancel();
                             try {
                                 sk.channel().close();
@@ -153,11 +170,11 @@ public class SelectionManager {
                             }
                         }
                     } catch (Throwable t) {
-                        t.printStackTrace();
+                        logger.log(Level.WARNING, " [ SelectionManager ] [ SelectionTask ] Exception in main loop notifying FDTKeys to handlers. Cause: ", t);
                     }
                 }
 
-            } 
+            }
 
             cancelAllKeys();
         }
@@ -204,7 +221,6 @@ public class SelectionManager {
             for (Map.Entry<Selector, SelectionTask> entry : tmpSMgr.selTasksMap.entrySet()) {
                 Thread t = new Thread(entry.getValue(), " [ SelectionManager ] Selection task ( " + i++ + " )");
                 t.setDaemon(true);
-                t.setPriority(Thread.MAX_PRIORITY - 1);
                 t.start();
             }
         } catch (Throwable t) {
@@ -218,7 +234,7 @@ public class SelectionManager {
     private SelectionManager() throws IOException {
         selTasksMap = new HashMap<Selector, SelectionTask>();
         int sNo = Config.getInstance().getNumberOfSelectors();
-        ;
+
         selectorsQueue = new ArrayBlockingQueue<Selector>(sNo);
         for (int i = 0; i < sNo; i++) {
             Selector sel = Selector.open();
@@ -236,14 +252,19 @@ public class SelectionManager {
         SelectionTask st = selTasksMap.get(fdtSelectionKey.selector);
         boolean bShouldWakeup = false;
 
-        synchronized (st.lock) {
+        final ReentrantLock lock = st.lock;
 
+        lock.lock();
+        try {
             if (st.newQueue.isEmpty() || st.renewQueue.isEmpty()) {
                 bShouldWakeup = true;
             }
 
             st.renewQueue.add(fdtSelectionKey);
+        } finally {
+            lock.unlock();
         }
+
 
         if (bShouldWakeup) {
             st.selector.wakeup();
@@ -314,7 +335,10 @@ public class SelectionManager {
         
         
 
-        synchronized (st.lock) {
+        final ReentrantLock lock = st.lock;
+
+        lock.lock();
+        try {
 
             if (st.newQueue.isEmpty() || st.renewQueue.isEmpty()) {
                 bShouldWakeup = true;
@@ -322,6 +346,8 @@ public class SelectionManager {
 
             st.newQueue.add(fdtSelectionKey);
             fdtSelectionKey.selector = sel;
+        } finally {
+            lock.unlock();
         }
 
         if (bShouldWakeup) {

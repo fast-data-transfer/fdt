@@ -55,30 +55,29 @@ public class HeaderBufferPool {
     }
     
     private ByteBuffer tryAllocateBuffer() {
-        
-        if(!limitReached.get()) {
-            try {
-                return ByteBuffer.allocateDirect(BUFFER_SIZE);
-            }catch(OutOfMemoryError oom) {
-                if(limitReached.compareAndSet(false, true)) {
-                    logger.log(Level.WARNING,
-                               "\n\n !! Direct ByteBuffer memory pool reached max limit. Allocated: " + (totalAllocated() + DirectByteBufferPool.totalAllocated())/(1024*1024) + " MB. " +
-                               "\n FDT reuses the existing buffers, but the copy may be slow!!" +
-                               "\n You may consider to increase the default value used by the JVM ( e.g. -XX:MaxDirectMemorySize=256m )," +
-                               "\n or decrease either the buffer size( -bs param) or the number of workers (-P param) \n\n\n");
-                }
-                return null;
-            }catch(Throwable t) {
-                logger.log(Level.WARNING, " Got general exception trying to allocate the mem. Please notify the developers! ", t);
-                return null;
-            } finally {
-                if(!limitReached.get()) {
-                    POOL_SIZE.incrementAndGet();
-                }
+
+        boolean increment = true;
+        try {
+            return ByteBuffer.allocateDirect(BUFFER_SIZE);
+        }catch(OutOfMemoryError oom) {
+            if(limitReached.compareAndSet(false, true)) {
+                logger.log(Level.WARNING,
+                           "\n\n !! Direct ByteBuffer memory pool reached max limit. Allocated: " + (totalAllocated() + DirectByteBufferPool.totalAllocated())/(1024*1024) + " MB. " +
+                           "\n FDT reuses the existing buffers, but the copy may be slow!!" +
+                           "\n You may consider to increase the default value used by the JVM ( e.g. -XX:MaxDirectMemorySize=256m )," +
+                "\n or decrease either the buffer size( -bs param) or the number of workers (-P param) \n\n\n");
+            }
+            increment = false;
+            return null;
+        }catch(Throwable t) {
+            increment = false;
+            logger.log(Level.WARNING, " Got general exception trying to allocate the mem. Please notify the developers! ", t);
+            return null;
+        } finally {
+            if(increment) {
+                POOL_SIZE.incrementAndGet();
             }
         }
-        
-        return null;
     }
 
     

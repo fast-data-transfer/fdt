@@ -7,6 +7,7 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -42,24 +43,25 @@ public class Config {
     private final static String[] exportedSysProps = { "user.name", "user.home", "user.dir", "file.separator", "file.encoding", "path.separator"};
 
 
-    public static final String SINGLE_CMDLINE_ARGS[] = { "-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats", "-N", "-bio", "-gsi", "-gsissh"};
+    public static final String SINGLE_CMDLINE_ARGS[] = { "-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats", "-N", "-bio", "-gsi", "-gsissh", "-notmp"};
     
     public static final String VALUE_CMDLINE_ARGS[] = { "-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters", "-monID", "-ms", 
-        "-c", "-p", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d", "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl"};
+        "-c", "-p", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d", "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay"};
     
     public static final String POSSIBLE_VALUE_CMDLINE_ARGS[] = { "-enable_apmon", "-lisafdtclient", "-lisafdtserver", "-f", "-F", "-h", "-H", "--help", "-help," +
     		 "-u", "-U", "--update", "-update" };
 
     
+    
     public static final String FDT_MAJOR_VERSION = "0";
 
-    public static final String FDT_MINOR_VERSION = "8";
+    public static final String FDT_MINOR_VERSION = "9";
 
-    public static final String FDT_MAINTENANCE_VERSION = "3";
+    public static final String FDT_MAINTENANCE_VERSION = "4";
 
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "." + FDT_MAINTENANCE_VERSION;
 
-    public static final String FDT_RELEASE_DATE = "2007-10-03";
+    public static final String FDT_RELEASE_DATE = "2009-07-14";
 
     private volatile static boolean initialized;
 
@@ -120,6 +122,8 @@ public class Config {
 
     private String destDir;
 
+    private String sshKeyPath;
+    
     private String apMonHosts;
 
     private boolean bComputeMD5 = false;
@@ -176,6 +180,7 @@ public class Config {
     private String monID;
 
     private String massStorageConfig = null;
+    private String massStorageType = null;
 
     private MassStorage storageParams = null;
 
@@ -183,6 +188,10 @@ public class Config {
 
     private final Map<String, Object> configMap;
 
+    private boolean isNoTmpFlagSet = false;
+
+    private long consoleReportingTaskDelay = 5;
+    
     private static final int getMinMTU() {
         int retMTU = 1500;
 
@@ -257,6 +266,9 @@ public class Config {
         + "\n   -monID <monID>\t report session specific params with this monID" 
         + "\n   -gsissh\t\t uses gsi over ssh authentication. It is presumed that" 
         + "\n   \t\t\t the remote sshd server supports GSI authentication" 
+        + "\n   -sshKey <sshKey>\t Will try to use the ssh key specified by sshKey parameter" 
+        + "\n   \t\t\t By default, FDT will look for ssh keys in" 
+        + "\n   \t\t\t $HOME/.ssh/id_dsa.fdt (DSA); $HOME/.ssh/id_rsa.fdt (RSA)" 
         + "\n\nServer specific:" 
         + "\n   -S\t\t\t disable standalone mode; if specified, the server" 
         + "\n   \t\t\t will stop after the last client finishes" 
@@ -286,8 +298,9 @@ public class Config {
         + "\n   \t\t\t may be cascadated. f1,...,fn are java classes, which" 
         + "\n   \t\t\t will be loaded in the postProcessing phase.They must be" 
         + "\n   \t\t\t specified in the FDT \"receiver\" command line." 
-        + "\n   -ms <properties_file> Java properties file for transfers" 
-        + "\n   \t\t\t to/from storage. By default mass storage is not used." 
+
+
+
         + "\n   -wCount <wCount>\t number of writer threads per partition." 
         + "\n   \t\t\t Default wCount=1." 
         + "\n   -rCount <rCount>\t number of reader threads per partition." 
@@ -354,7 +367,7 @@ public class Config {
 
         rateLimit = Utils.getLongValue(configMap, "-limit", -1);
         if (rateLimit > 0 && rateLimit < NETWORK_BUFF_LEN_SIZE) {
-            rateLimit = 2 * (NETWORK_BUFF_LEN_SIZE + 1);
+            rateLimit = NETWORK_BUFF_LEN_SIZE;
             logger.log(Level.WARNING, " The rate limit (-limit) is too small. It will be set to " + rateLimit + " Bytes/s");
         }
         configMap.put("-limit", "" + rateLimit);
@@ -364,7 +377,8 @@ public class Config {
         monID = Utils.getStringValue(configMap, "-monID", null);
 
         this.massStorageConfig = Utils.getStringValue(configMap, "-ms", null);
-
+        this.massStorageType = Utils.getStringValue(configMap, "-mst", null);
+        
         hostname = Utils.getStringValue(configMap, "-c", null);
 
         if (hostname != null && hostname.length() == 0) {
@@ -380,6 +394,8 @@ public class Config {
         readersCount = Utils.getIntValue(configMap, "-rCount", 1);
         writersCount = Utils.getIntValue(configMap, "-wCount", 1);
         maxPartitionsCount = Utils.getIntValue(configMap, "-pCount", 100);
+
+        consoleReportingTaskDelay = Utils.getLongValue(configMap, "-reportDelay", 5);
         
         isNagleEnabled = (configMap.get("-N") != null);
         bGSIMode = (configMap.get("-gsi") != null);
@@ -393,7 +409,8 @@ public class Config {
         bCheckUpdate = (configMap.get("-u") != null);
         destDir = Utils.getStringValue(configMap, "-d", null);
         bComputeMD5 = (configMap.get("-md5") != null);
-
+        sshKeyPath = Utils.getStringValue(configMap, "-sshKey", null);
+                
         if (hostname != null && (destDir == null || destDir.length() == 0)) { throw new IllegalArgumentException("No destination specified"); }
 
         
@@ -406,6 +423,7 @@ public class Config {
             statsLevel = Level.INFO;
         }
 
+        isNoTmpFlagSet = (configMap.get("-notmp") != null);
         writeMode = Utils.getStringValue(configMap, "-writeMode", null);
 
         String sLisa = Utils.getStringValue(configMap, "-lisafdtclient", null);
@@ -489,8 +507,8 @@ public class Config {
         }
 
         
-        String lastParams = Utils.getStringValue(configMap, "LastParams", null);
-        if (lastParams == null || lastParams.length() == 0) {
+        List<String> lastParams = (List<String>)configMap.get("LastParams");
+        if (lastParams == null || lastParams.size() == 0) {
             String fList = Utils.getStringValue(configMap, "-fl", null);
             if (fList != null && fList.length() != 0) {
                 ArrayList<String> arrayFileList = new ArrayList<String>();
@@ -519,7 +537,7 @@ public class Config {
             }
         } else {
             configMap.remove("-fl");
-            fileList = lastParams.trim().split("(\\s)+");
+            fileList = lastParams.toArray(new String[lastParams.size()]);
             if (fileList != null && fileList.length == 0) {
                 fileList = null;
             }
@@ -545,12 +563,28 @@ public class Config {
         }
     }
 
+    public int getBulkSockConnect() {
+        return 30;
+    }
+
+    public long getBulkSockConnectWait() {
+        return 1500;
+    }
+
     public Map<String, Object> getConfigMap() {
         return configMap;
     }
 
     public static final String getUsage() {
         return usage;
+    }
+
+    public int getMaxTakePollIter() {
+        return 1000;
+    }
+
+    public long getReportingTaskDelay() {
+        return consoleReportingTaskDelay;
     }
 
     public Level getStatsLevel() {
@@ -648,6 +682,14 @@ public class Config {
         return lisaPort;
     }
 
+    public String getSshKeyPath() {
+        return sshKeyPath;
+    }
+
+    public boolean isNoTmpFlagSet() {
+       return isNoTmpFlagSet;
+    }
+    
     public void setHostName(String hostname) {
         this.configMap.put("-destinationHost", hostname);
         this.hostname = hostname;
@@ -832,6 +874,10 @@ public class Config {
         return this.massStorageConfig;
     }
 
+    public String massStorageType() {
+        return this.massStorageType;
+    }
+    
     public MassStorage storageParams() {
         return this.storageParams;
     }

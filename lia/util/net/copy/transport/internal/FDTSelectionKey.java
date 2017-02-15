@@ -20,14 +20,15 @@ public class FDTSelectionKey {
     protected SocketChannel channel;
     
     SelectionKey selectionKey;
-    SelectionHandler handler;
+    final SelectionHandler handler;
     
     final int interests;
     
-    AtomicBoolean canceled;
-    AtomicBoolean registered;
-    AtomicBoolean renewed;
-    UUID fdtSessionID;
+    final AtomicBoolean canceled;
+    final AtomicBoolean registered;
+    final AtomicBoolean renewed;
+    
+    protected final UUID fdtSessionID;
 
     public int opCount;
     private Object attachment;

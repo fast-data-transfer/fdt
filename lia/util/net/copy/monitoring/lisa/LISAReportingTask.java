@@ -23,7 +23,7 @@ public class LISAReportingTask extends FDTReportingTask {
     private final String lisaHost;
     private final int lisaPort;
     
-    MonClient lisaMon;
+    volatile public MonClient lisaMon;
     
     private boolean errorReported = false;
     
@@ -62,7 +62,7 @@ public class LISAReportingTask extends FDTReportingTask {
     private LISAReportingTask(String lisaHost, int lisaPort) {
         this.lisaHost = lisaHost;
         this.lisaPort = lisaPort;
-        lisaMon = null;
+        setupMonClient();
     }
     
     private void publishStartFinishParams(final FDTSession fdtSession) {
@@ -160,19 +160,23 @@ public class LISAReportingTask extends FDTReportingTask {
         publishStartFinishParams(fdtSession);
     }
     
+    private void setupMonClient(){
+        try {
+            lisaMon = new MonClient(lisaHost, lisaPort);
+        }catch(Throwable t) {
+            if(!errorReported) {
+                logger.log(Level.WARNING, " Cannot connect to lisa", t);
+            } else {
+                logger.log(Level.FINER, " Cannot connect to lisa", t);
+            }
+            errorReported = true;
+        }
+    }
+    
     public void run() {
         try {
             if(lisaMon == null) {
-                try {
-                    lisaMon = new MonClient(lisaHost, lisaPort);
-                }catch(Throwable t) {
-                    if(!errorReported) {
-                        logger.log(Level.WARNING, " Cannot connect to lisa", t);
-                    } else {
-                        logger.log(Level.FINER, " Cannot connect to lisa", t);
-                    }
-                    errorReported = true;
-                }
+            	setupMonClient();
             }
             
             if(lisaMon == null) return;

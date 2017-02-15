@@ -11,7 +11,7 @@ import lia.util.net.copy.transport.internal.FDTSelectionKey;
 
 public abstract class FDTKeyAttachement {
     
-    private static AtomicInteger SEQ = new AtomicInteger(0);
+    private static final AtomicInteger SEQ = new AtomicInteger(0);
     
     private static final HeaderBufferPool headerPool = HeaderBufferPool.getInstance();
     private static final DirectByteBufferPool payloadPool = DirectByteBufferPool.getInstance();
@@ -23,7 +23,7 @@ public abstract class FDTKeyAttachement {
     
     private final ByteBuffer[] _array = new ByteBuffer[2];
     
-    protected int seq;
+    protected final int seq;
     
     public FDTSelectionKey fdtSelectionKey;
     protected boolean useFixedSizeBlocks;
@@ -88,17 +88,6 @@ public abstract class FDTKeyAttachement {
         sb.append("SocketAttachement :- header: ").append(header).append(" :- payload: ").append(payload);
         return sb.toString();
     }
-    
-    public boolean equals(Object o) {
-        if(!(o instanceof FDTKeyAttachement)) {
-            return false;
-        }
-        
-        return ((FDTKeyAttachement)o).seq == this.seq;
-    }
-    
-    public int hashCode() {
-        return this.seq;
-    }
+  
 
 }

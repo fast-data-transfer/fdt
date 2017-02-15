@@ -109,7 +109,13 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             if(logger.isLoggable(Level.FINER)) {
                 logger.log(Level.FINER, "\n\n [ FDTWriterSession ] [ finalCleanup ] \n\n ");
             }
+            
             try {
+                notifySessionFinished();
+            }catch(Throwable ignore) {}
+            
+            try {
+                
                 StringBuilder sb = new StringBuilder();
                 sb.append("\n\nFDTWriterSession ( ").append(sessionID);
                 if(monID != null) {
@@ -264,11 +270,20 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
         
         int fCount = sccm.fileIDs.length;
+
+        
+        boolean noTmp = false;
+        if(config.isNoTmpFlagSet() || controlChannel.remoteConf.get("notmp") != null) {
+            noTmp = true;
+        }
+        
+        final boolean isAdCacheFile  = (config.massStorageType() != null && config.massStorageType().equals("dcache"));
+        
         for (int i = 0; i < fCount; i++) {
             FileWriterSession fws = new FileWriterSession(sccm.fileIDs[i], this.destinationDir
                                                           + File.separator
                                                           + ((shouldReplace) ? sccm.fileLists[i].replace(remoteCharSeparator, File.separatorChar)
-                                                                  : sccm.fileLists[i]), sccm.fileSizes[i], sccm.lastModifTimes[i], isLoop, writeMode);
+                                                                  : sccm.fileLists[i]), sccm.fileSizes[i], sccm.lastModifTimes[i], isLoop, writeMode, noTmp, isAdCacheFile);
             fileSessions.put(fws.sessionID, fws);
             setSessionSize(sessionSize() + fws.sessionSize());
         }

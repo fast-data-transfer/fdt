@@ -24,7 +24,6 @@ import javax.swing.filechooser.FileSystemView;
 
 import lia.util.net.common.AbstractFDTCloseable;
 import lia.util.net.common.Config;
-import lia.util.net.copy.FDTSessionManager;
 import lia.util.net.copy.transport.ControlChannel;
 import lia.util.net.copy.transport.CtrlMsg;
 import lia.util.net.copy.transport.FDTProcolException;
@@ -266,17 +265,21 @@ public class ServerSessionManager extends AbstractFDTCloseable implements Runnab
 			sendCtrlMessage(c);
 			break;
 		}
-		case 5: 
-		{
-			CtrlMsg c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(5, Boolean.valueOf(isRoot())));
-			sendCtrlMessage(c);
-			break;
-		}
+
+
+
+
+
+
 		case 6: 
 		{
 			String dir = (String)m.getMsg();
 			setAbsoluteDir(dir);
-			CtrlMsg c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(0, new Object[] { getWorkingDirectory(), canWrite }));
+			CtrlMsg c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(5, Boolean.valueOf(isRoot())));
+			sendCtrlMessage(c);
+			c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(12, freeSpace()));
+			sendCtrlMessage(c);
+			c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(0, new Object[] { getWorkingDirectory(), canWrite }));
 			sendCtrlMessage(c);
 			c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(3, getFileList()));
 			sendCtrlMessage(c);
@@ -286,7 +289,11 @@ public class ServerSessionManager extends AbstractFDTCloseable implements Runnab
 		{
 			String dir = (String)m.getMsg();
 			setRelativeDir(dir);
-			CtrlMsg c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(0, new Object[] { getWorkingDirectory(), canWrite }));
+			CtrlMsg c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(5, Boolean.valueOf(isRoot())));
+			sendCtrlMessage(c);
+			c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(12, freeSpace()));
+			sendCtrlMessage(c);
+			c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(0, new Object[] { getWorkingDirectory(), canWrite }));
 			sendCtrlMessage(c);
 			c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(3, getFileList()));
 			sendCtrlMessage(c);
@@ -295,7 +302,11 @@ public class ServerSessionManager extends AbstractFDTCloseable implements Runnab
 		case 8: 
 		{
 			setUpDir();
-			CtrlMsg c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(0, new Object[] { getWorkingDirectory(), canWrite }));
+			CtrlMsg c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(5, Boolean.valueOf(isRoot())));
+			sendCtrlMessage(c);
+			c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(12, freeSpace()));
+			sendCtrlMessage(c);
+			c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(0, new Object[] { getWorkingDirectory(), canWrite }));
 			sendCtrlMessage(c);
 			c = new CtrlMsg(CtrlMsg.GUI_MSG, new GUIMessage(3, getFileList()));
 			sendCtrlMessage(c);
@@ -403,6 +414,12 @@ public class ServerSessionManager extends AbstractFDTCloseable implements Runnab
         m = new GUIMessage(10, getFileSeparator());
         sendMsgImpl(m);
         
+        m = new GUIMessage(5, Boolean.valueOf(isRoot()));
+        sendMsgImpl(m);
+        
+		m = new GUIMessage(12, freeSpace());
+        sendMsgImpl(m);
+        
         m = new GUIMessage(3, getFileList());
         sendMsgImpl(m);
         
@@ -427,6 +444,37 @@ public class ServerSessionManager extends AbstractFDTCloseable implements Runnab
     	}
     	return h;
     }
+    
+    private final String freeSpace() {
+		if (currentFile == null) return null;
+		try {
+			long space = currentFile.getFreeSpace();
+			return parseSize(space);
+		} catch (Throwable t) {
+		}
+		return null;
+	}
+	
+	private final String parseSize(long space) {
+		if (space > 1024l) {
+			space = space / 1024l;
+			if (space > 1024l) {
+				space = space / 1024l;
+				if (space > 1024l) {
+					space = space / 1024l;
+					if (space > 1024l) {
+						space = space / 1024l;
+						return space + " TB";
+					} else
+						return space + " GB";
+				} else
+					return space + " MB";
+			} else
+				return space + "KB";
+		} else {
+			return space+" B";
+		}
+	}
 	
     private void cleanup() {
         if(ois != null) {

@@ -45,85 +45,60 @@ import java.util.logging.Logger;
 import lia.util.net.copy.FDT;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import apmon.ApMon;
+import java.util.UUID;
 
 
 public final class Utils {
 
     
-    private static final Logger                      logger                    = Logger.getLogger(Utils.class.getName());
-
-    private static final ScheduledThreadPoolExecutor scheduledExecutor         = getSchedExecService("FDT Monitoring ThPool",
-                                                                                                     5,
-                                                                                                     Thread.MIN_PRIORITY);
+    private static final Logger logger = Logger.getLogger(Utils.class.getName());
+    private static final ScheduledThreadPoolExecutor scheduledExecutor = getSchedExecService("FDT Monitoring ThPool",
+            5,
+            Thread.MIN_PRIORITY);
+    
+    private static ApMon apmon = null;
+    private static boolean apmonInitied = false;
+    public static final int VALUE_2_STRING_NO_UNIT = 1;
+    public static final int VALUE_2_STRING_UNIT = 2;
+    public static final int VALUE_2_STRING_SHORT_UNIT = 3;
+    private static final int AV_PROCS;
+    public static final long KILO_BIT = 1000;
+    public static final long MEGA_BIT = KILO_BIT * 1000;
+    public static final long GIGA_BIT = MEGA_BIT * 1000;
+    public static final long TERA_BIT = GIGA_BIT * 1000;
+    public static final long PETA_BIT = TERA_BIT * 1000;
+    public static final long KILO_BYTE = 1024;
+    public static final long MEGA_BYTE = KILO_BYTE * 1024;
+    public static final long GIGA_BYTE = MEGA_BYTE * 1024;
+    public static final long TERA_BYTE = GIGA_BYTE * 1024;
+    public static final long PETA_BYTE = TERA_BYTE * 1024;
+    private static final long[] BYTE_MULTIPLIERS = new long[]{
+        KILO_BYTE, MEGA_BYTE, GIGA_BYTE, TERA_BYTE, PETA_BYTE
+    };
+    private static final String[] BYTE_SUFIXES = new String[]{
+        "KB", "MB", "GB", "TB", "PB"
+    };
+    private static final long[] BIT_MULTIPLIERS = new long[]{
+        KILO_BIT, MEGA_BIT, GIGA_BIT, TERA_BIT, PETA_BIT
+    };
+    private static final String[] BIT_SUFIXES = new String[]{
+        "Kb", "Mb", "Gb", "Tb", "Pb"
+    };
+    public static final int URL_CONNECTION_TIMEOUT = 20 * 1000;
+    private static final Object lock = new Object();
 
     
-    private static ApMon                             apmon                     = null;
-
-    private static boolean                           apmonInitied              = false;
-
-    public static final int                          VALUE_2_STRING_NO_UNIT    = 1;
-
-    public static final int                          VALUE_2_STRING_UNIT       = 2;
-
-    public static final int                          VALUE_2_STRING_SHORT_UNIT = 3;
-
-    private static final int                         AV_PROCS;
-
-    public static final long                         KILO_BIT                  = 1000;
-
-    public static final long                         MEGA_BIT                  = KILO_BIT * 1000;
-
-    public static final long                         GIGA_BIT                  = MEGA_BIT * 1000;
-
-    public static final long                         TERA_BIT                  = GIGA_BIT * 1000;
-
-    public static final long                         PETA_BIT                  = TERA_BIT * 1000;
-
-    public static final long                         KILO_BYTE                 = 1000;
-
-    public static final long                         MEGA_BYTE                 = KILO_BYTE * 1000;
-
-    public static final long                         GIGA_BYTE                 = MEGA_BYTE * 1000;
-
-    public static final long                         TERA_BYTE                 = GIGA_BYTE * 1000;
-
-    public static final long                         PETA_BYTE                 = TERA_BYTE * 1000;
-
-    private static final long[]                      BYTE_MULTIPLIERS          = new long[] {
-            KILO_BYTE, MEGA_BYTE, GIGA_BYTE, TERA_BYTE, PETA_BYTE
-                                                                               };
-
-    private static final String[]                    BYTE_SUFIXES              = new String[] {
-            "KB", "MB", "GB", "TB", "PB"
-                                                                               };
-
-    private static final long[]                      BIT_MULTIPLIERS           = new long[] {
-            KILO_BIT, MEGA_BIT, GIGA_BIT, TERA_BIT, PETA_BIT
-                                                                               };
-
-    private static final String[]                    BIT_SUFIXES               = new String[] {
-            "Kb", "Mb", "Gb", "Tb", "Pb"
-                                                                               };
-
-    public static final int                          URL_CONNECTION_TIMEOUT    = 20 * 1000;
-
-    private static final Object                      lock                      = new Object();
+    private static final long SECONDS_IN_MINUTE = 60;
+    private static final long SECONDS_IN_HOUR = 60 * SECONDS_IN_MINUTE;
+    private static final long SECONDS_IN_DAY = 24 * SECONDS_IN_HOUR;
+    private static final String[] SELECTION_KEY_OPS_NAMES = {
+        "OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE"
+    };
+    private static final int[] SELECTION_KEY_OPS_VALUES = {
+        SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT, SelectionKey.OP_READ, SelectionKey.OP_WRITE
+    };
 
     
-    private static final long                        SECONDS_IN_MINUTE         = 60;
-
-    private static final long                        SECONDS_IN_HOUR           = 60 * SECONDS_IN_MINUTE;
-
-    private static final long                        SECONDS_IN_DAY            = 24 * SECONDS_IN_HOUR;
-
-    private static final String[]                    SELECTION_KEY_OPS_NAMES   = {
-            "OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE"
-                                                                               };
-
-    private static final int[]                       SELECTION_KEY_OPS_VALUES  = {
-            SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT, SelectionKey.OP_READ, SelectionKey.OP_WRITE
-                                                                               };
-
     
     
     
@@ -133,6 +108,7 @@ public final class Utils {
         int avProcs = Runtime.getRuntime().availableProcessors();
 
         if (avProcs <= 0) {
+
             avProcs = 1;
         }
 
@@ -141,8 +117,9 @@ public final class Utils {
     }
 
     public static final String getStackTrace(Throwable t) {
-        if (t == null)
+        if (t == null) {
             return "Stack trace unavailable";
+        }
         StringWriter sw = new StringWriter();
         t.printStackTrace(new PrintWriter(sw));
         return sw.toString();
@@ -175,8 +152,7 @@ public final class Utils {
                         Thread.sleep(SLEEP_TIME);
                     } catch (Throwable ignore) {
                     }
-                    System.err.println("\n\n [ RejectedExecutionHandler ] for " + name + " WorkerTask slept for "
-                            + SLEEP_TIME);
+                    System.err.println("\n\n [ RejectedExecutionHandler ] for " + name + " WorkerTask slept for " + SLEEP_TIME);
                     executor.execute(r);
                 } catch (Throwable t) {
                     t.printStackTrace();
@@ -192,22 +168,21 @@ public final class Utils {
             BlockingQueue<Runnable> taskQueue,
             final int threadPriority) {
         ThreadPoolExecutor texecutor = new ThreadPoolExecutor(corePoolSize,
-                                                              maxPoolSize,
-                                                              2 * 60,
-                                                              TimeUnit.SECONDS,
-                                                              taskQueue,
-                                                              new ThreadFactory() {
+                maxPoolSize,
+                2 * 60,
+                TimeUnit.SECONDS,
+                taskQueue,
+                new ThreadFactory() {
 
-                                                                  AtomicLong l = new AtomicLong(0);
+                    AtomicLong l = new AtomicLong(0);
 
-                                                                  public Thread newThread(Runnable r) {
-                                                                      Thread t = new Thread(r, name + " - WorkerTask "
-                                                                              + l.getAndIncrement());
-                                                                      t.setPriority(threadPriority);
-                                                                      t.setDaemon(true);
-                                                                      return t;
-                                                                  }
-                                                              });
+                    public Thread newThread(Runnable r) {
+                        Thread t = new Thread(r, name + " - WorkerTask " + l.getAndIncrement());
+                        t.setPriority(threadPriority);
+                        t.setDaemon(true);
+                        return t;
+                    }
+                });
         texecutor.setRejectedExecutionHandler(new RejectedExecutionHandler() {
 
             public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
@@ -221,8 +196,7 @@ public final class Utils {
                         Thread.sleep(SLEEP_TIME);
                     } catch (Throwable ignore) {
                     }
-                    System.err.println("\n\n [ RejectedExecutionHandler ] [ Full Throttle ] for " + name
-                            + " WorkerTask slept for " + SLEEP_TIME);
+                    System.err.println("\n\n [ RejectedExecutionHandler ] [ Full Throttle ] for " + name + " WorkerTask slept for " + SLEEP_TIME);
                     executor.getQueue().put(r);
                 } catch (Throwable t) {
                     t.printStackTrace();
@@ -474,11 +448,12 @@ public final class Utils {
 
         List<String> sArgs = Arrays.asList(singleArgs);
 
-        Map<String, Object> rHM = new HashMap<String, Object>();
-        if (args == null || args.length == 0)
+        final Map<String, Object> rHM = new HashMap<String, Object>();
+        if (args == null || args.length == 0) {
             return rHM;
-
-        StringBuilder lParams = new StringBuilder("");
+        }
+        
+        List<String> lParams = new ArrayList<String>();
 
         ArrayList<String> sshUsers = new ArrayList<String>();
         ArrayList<String> sshHosts = new ArrayList<String>();
@@ -530,7 +505,7 @@ public final class Utils {
                                     break;
                                 }
 
-                                lParams.append(args[i]).append(" ");
+                                lParams.add(args[i]);
                                 continue;
                             }
                         }
@@ -544,7 +519,7 @@ public final class Utils {
                             break;
                         }
 
-                        lParams.append(args[i]).append(" ");
+                        lParams.add(args[i]);
                         continue;
                     }
                 }
@@ -571,6 +546,7 @@ public final class Utils {
                 if (userHost != null) {
                     int idx1 = userHost.indexOf("@");
                     if (idx1 >= 0) { 
+
                         if (idx1 == 0) {
                             throw new IllegalArgumentException("Invalid scp syntax for " + args[i]);
                         }
@@ -606,7 +582,7 @@ public final class Utils {
                     break;
                 }
 
-                lParams.append(args[i]).append(" ");
+                lParams.add(args[i]);
             }
         }
 
@@ -644,13 +620,13 @@ public final class Utils {
 
                 rHM.put("Files", rHM.get("sourceFiles"));
 
-                
-                
-                
+            
+            
+            
             }
         }
 
-        rHM.put("LastParams", lParams.toString());
+        rHM.put("LastParams", lParams);
 
         return rHM;
     }
@@ -670,9 +646,9 @@ public final class Utils {
             final long DEFAULT_VALUE) {
         long rVal = DEFAULT_VALUE;
         Object obj = configMap.get(key);
-        if (obj == null)
+        if (obj == null) {
             rVal = DEFAULT_VALUE;
-        else {
+        } else {
             String cVal = obj.toString();
             if (cVal.length() == 0) {
                 rVal = DEFAULT_VALUE;
@@ -707,9 +683,9 @@ public final class Utils {
 
         double rVal = DEFAULT_VALUE;
         Object obj = configMap.get(key);
-        if (obj == null)
+        if (obj == null) {
             rVal = DEFAULT_VALUE;
-        else {
+        } else {
             String cVal = obj.toString();
             if (cVal.length() == 0) {
                 rVal = DEFAULT_VALUE;
@@ -741,9 +717,9 @@ public final class Utils {
 
         int rVal = DEFAULT_VALUE;
         Object obj = configMap.get(key);
-        if (obj == null)
+        if (obj == null) {
             rVal = DEFAULT_VALUE;
-        else {
+        } else {
             String cVal = obj.toString();
             if (cVal.length() == 0) {
                 rVal = DEFAULT_VALUE;
@@ -954,9 +930,10 @@ public final class Utils {
                 updateProperties.put(property + "_rst", "" + rstContor);
 
                 if (logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] store new properties: "
-                            + updateProperties);
+                    logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] store new properties: " + updateProperties);
                 }
+
+                checkAndSetInstanceID(updateProperties);
 
                 fos = new FileOutputStream(confFile);
                 updateProperties.store(fos, null);
@@ -964,8 +941,7 @@ public final class Utils {
 
             } catch (Throwable t) {
                 if (logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, "Unable to update properties file for property: " + property + " contor: "
-                            + total + " file: " + confFile, t);
+                    logger.log(Level.FINE, "Unable to update properties file for property: " + property + " contor: " + total + " file: " + confFile, t);
                 }
                 return false;
             } finally {
@@ -987,6 +963,53 @@ public final class Utils {
         }
 
         return true;
+    }
+
+    
+    private static final void checkAndSetInstanceID(final Properties props) {
+
+        if (props == null) {
+            if (logger.isLoggable(Level.FINE)) {
+                logger.log(Level.FINE, " [ Utils ] [ checkAndSetInstanceID ] Null properties ... nothing to check/set");
+            }
+            return;
+        }
+
+        try {
+            String instID = props.getProperty("instanceID");
+
+            if (instID == null || instID.trim().equals("")) {
+                instID = UUID.randomUUID().toString();
+                props.put("instanceID", instID);
+
+                final String parentFDTConfDirName = System.getProperty("user.home") + File.separator + ".fdt";
+                final String fdtUpdateConfFileName = "update.properties";
+                final File confFile = createOrGetRWFile(parentFDTConfDirName, fdtUpdateConfFileName);
+                FileOutputStream fos = null;
+
+                if (confFile != null) {
+                    try {
+                        fos = new FileOutputStream(confFile);
+                        props.store(fos, null);
+                        fos.flush();
+                    } catch (Throwable ignore) {
+                    } finally {
+                        if (fos != null) {
+                            try {
+                                fos.close();
+                            } catch (Throwable ignore1) {
+                            }
+                            ;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignore) {
+            if (logger.isLoggable(Level.FINE)) {
+                logger.log(Level.FINE, " [ Utils ] [ checkAndSetInstanceID ] Unable to get/set instanceID", ignore);
+            }
+        }
+
     }
 
     public static final boolean updateTotalReadContor(final long totalRead) throws Exception {
@@ -1044,6 +1067,7 @@ public final class Utils {
 
                 final long now = System.currentTimeMillis();
                 boolean bHaveUpdates = false;
+                checkAndSetInstanceID(updateProperties);
 
                 if (lastCheck + FDT.UPDATE_PERIOD < now) {
                     lastCheck = now;
@@ -1085,8 +1109,7 @@ public final class Utils {
                 }
             } else {
                 if (logger.isLoggable(Level.FINE)) {
-                    logger.log(Level.FINE, " [ checkForUpdate ] Cannot read or write the update conf file: "
-                            + parentFDTConfDirName + File.separator + fdtUpdateConfFileName);
+                    logger.log(Level.FINE, " [ checkForUpdate ] Cannot read or write the update conf file: " + parentFDTConfDirName + File.separator + fdtUpdateConfFileName);
                 }
                 return false;
             }
@@ -1105,8 +1128,10 @@ public final class Utils {
         final String partialURL = updateURL + (updateURL.endsWith("/") ? "" : "/") + "fdt.jar";
         System.out.print("Checking remote fdt.jar at URL: " + partialURL);
         String JVMVersion = "NotAvailable";
+        String JVMRuntimeVersion = "NotAvailable";
         String OSVersion = "NotAvailable";
         String OSName = "NotAvailable";
+        String OSArch = "NotAvailable";
 
         try {
             JVMVersion = System.getProperty("java.vm.version");
@@ -1115,9 +1140,21 @@ public final class Utils {
         }
 
         try {
+            JVMRuntimeVersion = System.getProperty("java.runtime.version");
+        } catch (Throwable t) {
+            JVMRuntimeVersion = "NotAvailable";
+        }
+
+        try {
             OSName = System.getProperty("os.name");
         } catch (Throwable t) {
             OSName = "NotAvailable";
+        }
+
+        try {
+            OSArch = System.getProperty("os.arch");
+        } catch (Throwable t) {
+            OSArch = "NotAvailable";
         }
 
         try {
@@ -1132,10 +1169,31 @@ public final class Utils {
         urlBuilder.append("&shouldUpdate=").append(shouldUpdate);
         urlBuilder.append("&tstamp=").append(System.currentTimeMillis());
         urlBuilder.append("&java.vm.version=").append(JVMVersion);
+        urlBuilder.append("&java.runtime.version=").append(JVMRuntimeVersion);
         urlBuilder.append("&os.name=").append(OSName);
         urlBuilder.append("&os.version=").append(OSVersion);
+        urlBuilder.append("&os.arch=").append(OSArch);
 
         final Properties p = getFDTUpdateProperties();
+
+        if (p.getProperty("totalRead") == null) {
+            p.put("totalRead", "0");
+        }
+
+        if (p.getProperty("totalWrite") == null) {
+            p.put("totalWrite", "0");
+        }
+
+        checkAndSetInstanceID(p);
+
+        if (p.getProperty("totalRead_rst") != null) {
+            p.remove("totalRead_rst");
+        }
+
+        if (p.getProperty("totalWrite_rst") != null) {
+            p.remove("totalWrite_rst");
+        }
+
         if (p != null && p.size() > 0) {
             for (final Map.Entry<Object, Object> entry : p.entrySet()) {
                 urlBuilder.append("&").append(entry.getKey()).append("=").append(entry.getValue());
@@ -1152,15 +1210,13 @@ public final class Utils {
 
         if (!currentJar.exists()) {
             
-            throw new IOException("Current fdt.jar path seems to be [ " + finalPath
-                    + " ] but the JVM cannot access it!");
+            throw new IOException("Current fdt.jar path seems to be [ " + finalPath + " ] but the JVM cannot access it!");
         }
 
         if (currentJar.isFile() && currentJar.canWrite()) {
             System.out.println("\nCurrent fdt.jar path is: " + finalPath);
         } else {
-            throw new IOException("Current fdt.jar path seems to be [ " + finalPath
-                    + " ] but it does not have write access!");
+            throw new IOException("Current fdt.jar path seems to be [ " + finalPath + " ] but it does not have write access!");
         }
 
         
@@ -1214,8 +1270,7 @@ public final class Utils {
                 return false;
             }
 
-            System.out.println("Remote FDT version: " + remoteVersion + " Local FDT version: " + currentVersion
-                    + ". Update available.");
+            System.out.println("Remote FDT version: " + remoteVersion + " Local FDT version: " + currentVersion + ". Update available.");
 
             if (shouldUpdate) {
                 copyFile2File(tmpUpdateFile, currentJar);
@@ -1271,18 +1326,18 @@ public final class Utils {
             final boolean shouldUpdate,
             final long updatePeriod,
             final String updateURL) {
-        String updateFile = System.getProperty("user.home") + File.separatorChar + ".fdt" + File.separatorChar
-                + "fdt_update";
+        String updateFile = System.getProperty("user.home") + File.separatorChar + ".fdt" + File.separatorChar + "fdt_update";
         File f = new File(updateFile);
         long lTime = -1;
+
         if (!f.exists()) {
             new File(f.getParent()).mkdirs();
             try {
                 f.createNewFile();
-                
-                
-                
-                
+            
+            
+            
+            
             } catch (IOException ex) {
                 System.out.println("Could not create update checking file. Information about new updates will not be available.");
             }
@@ -1294,11 +1349,12 @@ public final class Utils {
                 br = new BufferedReader(fr);
                 String line = br.readLine();
                 fr.close();
-                if (line != null)
+                if (line != null) {
                     lTime = Long.parseLong(line);
+                }
             } catch (Throwable t) {
                 System.out.println("Could not read update checking file. Information about new updates will not be available.");
-                
+            
             } finally {
                 if (br != null) {
                     try {
@@ -1326,8 +1382,9 @@ public final class Utils {
 
             try {
                 bw = new BufferedWriter(new FileWriter(f));
-                if (bw != null)
+                if (bw != null) {
                     bw.write("" + currentTime);
+                }
                 bw.close();
                 URL urlDown;
                 urlDown = new URL(updateURL + "version");
@@ -1372,11 +1429,11 @@ public final class Utils {
                         copyFile2File(tempFile, thisFile);
                         System.out.println("Application updated successfully. Exiting.");
                         return true;
-                        
-                        
-                        
-                        
-                        
+                    
+                    
+                    
+                    
+                    
                     }
                 } else {
                     System.out.println("You have the lastest version.");
@@ -1435,8 +1492,7 @@ public final class Utils {
             long ds = dstChannel.size();
 
             if (ss != ds || ss != tr) {
-                throw new Exception("Different size for sourceFile [ " + s + " ] DestinationFileSize [ " + d
-                        + " ] Transferred [ " + tr + " ] ");
+                throw new Exception("Different size for sourceFile [ " + s + " ] DestinationFileSize [ " + d + " ] Transferred [ " + tr + " ] ");
             }
         } finally {
             if (srcChannel != null) {
@@ -1458,40 +1514,44 @@ public final class Utils {
     
     public static final void getRecursiveFiles(String fileName, List<String> allFiles) throws Exception {
 
-        if (allFiles == null)
+        if (allFiles == null) {
             throw new NullPointerException("File list is null");
-
+        }
         File file = new File(fileName);
         if (file.exists() && file.canRead()) {
             if (file.isFile()) {
                 allFiles.add(fileName);
             } else if (file.isDirectory()) {
                 String[] listContents = file.list();
-                if (listContents != null && listContents.length > 0)
-                    for (String subFile : listContents)
+                if (listContents != null && listContents.length > 0) {
+                    for (String subFile : listContents) {
                         getRecursiveFiles(fileName + File.separator + subFile, allFiles);
+                    }
+                }
             } else {
+
                 allFiles.add(fileName);
             }
         }
     }
 
     public static final String toStringSelectionKey(final FDTSelectionKey fsk) {
-        if(fsk == null) return " Null FDTSelectionKey ! ";
-        
+        if (fsk == null) {
+            return " Null FDTSelectionKey ! ";
+        }
         final SocketChannel sc = fsk.channel();
         final Selector sel = fsk.selector();
-        
+
         final StringBuilder sb = new StringBuilder("Socket ");
-        if(sc == null) {
+        if (sc == null) {
             sb.append(" NULL! ");
         } else {
             sb.append(sc.socket());
-            if(sel == null) {
+            if (sel == null) {
                 sb.append(" NULL SELECTOR! ");
             } else {
                 final SelectionKey sk = sc.keyFor(sel);
-                if(sk == null) {
+                if (sk == null) {
                     sb.append(" no such SelectionKey for selector! ");
                 } else {
                     sb.append(" ").append(toStringSelectionKey(sk));

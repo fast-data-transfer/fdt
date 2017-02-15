@@ -96,7 +96,7 @@ class FDTWriterKeyAttachement extends FDTKeyAttachement implements Comparable<FD
     
     public int compareTo(FDTWriterKeyAttachement o) {
         
-        if(this.seq == o.seq) return 0;
+        if(this == o) return 0;
         
         if(this.lastOperation < o.lastOperation) return -1;
         if(this.lastOperation > o.lastOperation) return 1;
