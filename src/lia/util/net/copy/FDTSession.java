@@ -1,5 +1,5 @@
 /*
- * $Id: FDTSession.java 633 2011-02-08 15:46:30Z ramiro $
+ * $Id: FDTSession.java 659 2012-03-04 20:07:24Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -412,16 +412,20 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
     public void finishFileSession(UUID sessionID, Throwable downCause) {
         FileSession fs = null;
+        final boolean bFinest = logger.isLoggable(Level.FINEST);
+        final boolean bFiner = bFinest || logger.isLoggable(Level.FINER);
+        final boolean bFine = bFiner || logger.isLoggable(Level.FINE);
+        
         synchronized (lock) {
             fs = fileSessions.get(sessionID);
 
             if (fs != null) {
                 if (!isLoop) {
                     if (!finishedSessions.add(sessionID)) {
-                        if (logger.isLoggable(Level.FINE)) {
+                        if (bFine) {
                             logger.log(Level.FINE, " [ FDTSession ] [ HANDLED ] The fileSession [ " + sessionID + " ] is already in the finised sessions list");
                         }
-                        if (logger.isLoggable(Level.FINEST)) {
+                        if (bFinest) {
                             Thread.dumpStack();
                         }
                     } else {
@@ -430,7 +434,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
                         }
                     }
                 } else {
-                    if (logger.isLoggable(Level.FINER)) {
+                    if (bFiner) {
                         logger.log(Level.FINER, " I was supposed to finish ( " + sessionID + " ], but runnig in loop mode");
                     }
                 }

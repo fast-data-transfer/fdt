@@ -1,5 +1,5 @@
 /*
- * $Id: FileSession.java 632 2011-02-08 15:02:37Z ramiro $
+ * $Id: FileSession.java 659 2012-03-04 20:07:24Z ramiro $
  */
 package lia.util.net.copy;
 
@@ -66,7 +66,6 @@ public abstract class FileSession extends IOSession {
             
             if(fileName.startsWith(DEV_NULL_FILENAME)) {
                 iFile = new File(DEV_NULL_FILENAME);
-                this.fileName = DEV_NULL_FILENAME;
                 bNull = true;
                 return;
             }
@@ -74,7 +73,6 @@ public abstract class FileSession extends IOSession {
             if(fileName.startsWith(DEV_ZERO_FILENAME)) {
                 iFile = new File(DEV_ZERO_FILENAME);
                 bZero = true;
-                this.fileName = DEV_ZERO_FILENAME;
                 return;
             }
         } finally {
