@@ -71,7 +71,6 @@ public class cmdExec {
 			}
 			
 			if (ret.length() != 0){
-//				System.out.println(ret);
 				return null;
 			}
 			

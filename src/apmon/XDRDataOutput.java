@@ -7,7 +7,7 @@ import java.io.IOException;
 /**
  * An interface implemented by output streams that support XDR.
  * @author Tony Johnson (tonyj@slac.stanford.edu)
- * @version $Id: XDRDataOutput.java,v 1.1.1.1 2005/08/10 12:51:21 catac Exp $
+ * @version $Id: XDRDataOutput.java,v 1.1.1.1 2005-08-10 12:51:21 catac Exp $
  */
 public interface XDRDataOutput extends DataOutput
 {

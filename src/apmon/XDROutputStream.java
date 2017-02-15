@@ -14,7 +14,7 @@ import java.io.OutputStream;
  * 4-byte boundary after writing an element or array of elements that may not
  * span a multiple of 4 bytes.
  * @author Tony Johnson (tonyj@slac.stanford.edu)
- * @version $Id: XDROutputStream.java,v 1.1.1.1 2005/08/10 12:51:21 catac Exp $
+ * @version $Id: XDROutputStream.java,v 1.1.1.1 2005-08-10 12:51:21 catac Exp $
  */
 public class XDROutputStream extends DataOutputStream implements XDRDataOutput
 {

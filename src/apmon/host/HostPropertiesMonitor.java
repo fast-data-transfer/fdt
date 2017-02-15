@@ -10,10 +10,9 @@ public class HostPropertiesMonitor {
 	static MacHostPropertiesMonitor macHostMonitor = null;
 	
 	static {
-//		if (System.getProperty("os.name").indexOf("Linux") == -1 && System.getProperty("os.name").indexOf("Mac") == -1) {
-//			System.loadLibrary("system");
-//		} else  
-		if (System.getProperty("os.name").indexOf("Linux") != -1){
+		if (System.getProperty("os.name").indexOf("Linux") == -1 && System.getProperty("os.name").indexOf("Mac") == -1) {
+			System.loadLibrary("system");
+		} else  if (System.getProperty("os.name").indexOf("Linux") != -1){
 			reader = new ProcReader();
 		} else {
 			macHostMonitor = new MacHostPropertiesMonitor();
@@ -28,6 +27,8 @@ public class HostPropertiesMonitor {
         return null;
     }
 
+    public native String getMacAddresses();
+	
 	public String getMacAddressesCall() {
 		
 		if (osName.indexOf("Linux") != -1) {
@@ -35,8 +36,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getMacAddresses();
-		return "";
+		return getMacAddresses();
 	}
+	
+	public native void update();
 	
 	public void updateCall() {
 
@@ -48,7 +51,10 @@ public class HostPropertiesMonitor {
 			macHostMonitor.update();
 			return;
 		}
+		update();
 	}
+	
+	public native String getCpuUsage();
 	
 	public String getCpuUsageCall() {
 		
@@ -58,9 +64,11 @@ public class HostPropertiesMonitor {
 		if (osName.indexOf("Mac") != -1) {
 			return macHostMonitor.getCpuUsage();
 		}
-		return "";
+		return getCpuUsage();
 	}
 
+	public native String getCpuUSR();
+	
 	public String getCpuUSRCall() {
 		
 		if (osName.indexOf("Linux") != -1) {
@@ -68,9 +76,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getCpuUSR();
-		return "";
+		return getCpuUSR();
 	}
 	
+	public native String getCpuSYS();
 	
 	public String getCpuSYSCall() {
 		
@@ -79,8 +88,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getCpuSYS();
-		return null;
+		return getCpuSYS();
 	}
+	
+	public native String getCpuNICE();
 	
 	public String getCpuNICECall() {
 		
@@ -89,9 +100,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getCpuNICE();
-		return null;
+		return getCpuNICE();
 	}
 	
+	public native String getCpuIDLE();
 	
 	public String getCpuIDLECall() {
 		
@@ -100,9 +112,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getCpuIDLE();
-		return null;
+		return getCpuIDLE();
 	}
 	
+	public native String getPagesIn();
 	
 	public String getPagesInCall() {
 		
@@ -111,9 +124,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getPagesIn();
-		return null;
+		return getPagesIn();
 	}
 	
+	public native String getPagesOut();
 	
 	public String getPagesOutCall() {
 		
@@ -122,9 +136,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getPagesOut();
-		return null;
+		return getPagesOut();
 	}
 	
+	public native String getMemUsage();
 	
 	public String getMemUsageCall() {
 		
@@ -133,9 +148,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getMemUsage();
-		return null;
+		return getMemUsage();
 	}
 	
+	public native String getMemUsed();
 	
 	public String getMemUsedCall() {
 		
@@ -144,7 +160,7 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getMemUsed();
-		return null;
+		return getMemUsed();
 	}
 	
 	
@@ -173,6 +189,7 @@ public class HostPropertiesMonitor {
         return null;
     }
     
+    public native String getMemFree();
 
     public String getMemFreeCall() {
 		
@@ -181,9 +198,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getMemFree();
-		return null;
+		return getMemFree();
 	}
 	
+	public native String getDiskIO();
 	
 	public String getDiskIOCall() {
 		
@@ -192,9 +210,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getDiskIO();
-		return null;
+		return getDiskIO();
 	}
 	
+	public native String getDiskTotal();
 	
 	public String getDiskTotalCall() {
 		
@@ -203,8 +222,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getDiskTotal();
-		return null;
+		return getDiskTotal();
 	}
+	
+	public native String getDiskUsed();
 	
 	public String getDiskUsedCall() {
 		
@@ -213,9 +234,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getDiskUsed();
-		return null;
+		return getDiskUsed();
 	}
 	
+	public native String getDiskFree();
 	
 	public String getDiskFreeCall() {
 		
@@ -224,9 +246,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getDiskFree();
-		return null;
+		return getDiskFree();
 	}
 	
+	public native String getNoProcesses();
 	
 	public String getNoProcessesCall() {
 		
@@ -235,8 +258,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getNoProcesses();
-		return null;
+		return getNoProcesses();
 	}
+	
+	public native String getLoad1();
 	
 	public String getLoad1Call() {
 		
@@ -245,8 +270,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getLoad1();
-		return null;
+		return getLoad1();
 	}
+	
+	public native String getLoad5();
 	
 	public String getLoad5Call() {
 		
@@ -255,8 +282,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getLoad5();
-		return null;
+		return getLoad5();
 	}
+	
+	public native String getLoad15();
 	
 	public String getLoad15Call() {
 		
@@ -265,8 +294,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getLoad15();
-		return null;
+		return getLoad15();
 	}
+	
+	public native String[] getNetInterfaces();
 	
 	public String[] getNetInterfacesCall() {
 		
@@ -275,9 +306,11 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getNetInterfaces();
-		return null;
+		return getNetInterfaces();
 	}
 
+	public native String getNetIn(String ifName);
+	
 	public String getNetInCall(String ifName) {
 		
 		if (osName.indexOf("Linux") != -1) {
@@ -285,8 +318,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getNetIn(ifName);
-		return null;
+		return getNetIn(ifName);
 	}
+	
+	public native String getNetOut(String ifName);
 	
 	public String getNetOutCall(String ifName) {
 		
@@ -295,8 +330,10 @@ public class HostPropertiesMonitor {
 		}
 		if (osName.indexOf("Mac") != -1)
 			return macHostMonitor.getNetOut(ifName);
-		return null;
+		return getNetOut(ifName);
 	}
+    
+    public native Hashtable getProcessesState();
     
     public Hashtable getPState() {
         
@@ -305,8 +342,10 @@ public class HostPropertiesMonitor {
         }
         if (osName.indexOf("Mac") != -1)
             return macHostMonitor.getProcessesState();
-        return null;        
+        return getProcessesState();        
     }
+    
+    public native Hashtable getNetSockets();
     
     public Hashtable getSockets() {
         
@@ -315,8 +354,10 @@ public class HostPropertiesMonitor {
         }
         if (osName.indexOf("Mac") != -1)
             return macHostMonitor.getNetSockets();
-        return null;        
+        return getNetSockets();        
     }
+    
+    public native Hashtable getTcpDetails();
     
     public Hashtable getTCPDetails() {
         
@@ -325,7 +366,7 @@ public class HostPropertiesMonitor {
         }
         if (osName.indexOf("Mac") != -1)
             return macHostMonitor.getTcpDetails();
-        return null;        
+        return getTcpDetails();        
     }
 	
 	public void stopIt() {

@@ -1,17 +1,11 @@
-/*
- * Created on Nov 4, 2004
- *  
- */
 package apmon.host;
 
-import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.Enumeration;
 import java.util.StringTokenizer;
 
-//import lisa.core.util.cmdExec;
-
 /**
- * @author Greg
+ * @author Gregory Denis
  * 
  * TODO To change the template for this generated type comment go to Window -
  * Preferences - Java - Code Style - Code Templates

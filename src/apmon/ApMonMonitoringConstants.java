@@ -1,13 +1,8 @@
-/**
- * \file ApMonMonitoringConstants.java
- * This file contains definitions for ApMon specific constants.
- */
-
 /*
  * ApMon - Application Monitoring Tool
- * Version: 2.2.2
+ * Version: 2.2.7
  *
- * Copyright (C) 2006 California Institute of Technology
+ * Copyright (C) 2006 - 2010 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to use, copy and modify 
  * this software and its documentation (the "Software") for any

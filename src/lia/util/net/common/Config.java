@@ -1,5 +1,5 @@
 /*
- * $Id: Config.java 611 2010-06-22 15:30:41Z ramiro $
+ * $Id: Config.java 618 2010-08-31 18:05:06Z ramiro $
  */
 package lia.util.net.common;
 
@@ -72,9 +72,9 @@ public class Config {
     // all of this are set by the ant script
     public static final String FDT_MAJOR_VERSION = "0";
     public static final String FDT_MINOR_VERSION = "9";
-    public static final String FDT_MAINTENANCE_VERSION = "16";
+    public static final String FDT_MAINTENANCE_VERSION = "17";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "." + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2010-06-29";
+    public static final String FDT_RELEASE_DATE = "2010-08-31";
     private volatile static Config _thisInstance;
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )
@@ -488,8 +488,9 @@ public class Config {
             if (logger.isLoggable(Level.FINE)) {
                 StringBuilder sb = new StringBuilder();
                 sb.append("Source file list --> remaped file list:\n");
+                final boolean bRemapFLNull = (remappedFileList == null);
                 for (int i = 0; fileList != null && i < fileList.length; i++) {
-                    sb.append(fileList[i]).append(" ---> ").append((remappedFileList[i] == null)? " default mapping: " + fileList[i]: " remapped to: " + remappedFileList[i]).append("\n");
+                    sb.append(fileList[i]).append(" ---> ").append((bRemapFLNull || remappedFileList[i] == null)? " default mapping: " + fileList[i]: " remapped to: " + remappedFileList[i]).append("\n");
                 }
                 logger.log(Level.FINE, sb.toString());
                 logger.log(Level.FINE, "Remote destination directory: {0}\nRemote host: {1} port: {2}", new Object[]{destDir, hostname, portNo});

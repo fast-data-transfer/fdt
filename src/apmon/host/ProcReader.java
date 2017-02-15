@@ -151,7 +151,7 @@ public class ProcReader {
         String line = "";
 
         if (hwAddress == null) {
-            output = exec.executeCommandReality("/sbin/ifconfig -a", "b");
+            output = exec.executeCommandReality("ifconfig -a", "b");
             if (exec.isError()) output = null;
 
             if (output != null && !output.equals("")) {
@@ -204,11 +204,11 @@ public class ProcReader {
                     dpOut = -1;
                 }
                 if (dpIn >= 0) {
-                    pagesIn = "" + (((double)diffWithOverflowCheck(dpIn, dpagesIn)) / diffCall);
+                    pagesIn = "" + ((diffWithOverflowCheck(dpIn, dpagesIn)) / diffCall);
                     dpagesIn = dpIn;
                 }
                 if (dpOut >= 0) {
-                    pagesOut = "" + (((double)diffWithOverflowCheck(dpOut, dpagesOut)) / diffCall);
+                    pagesOut = "" + ((diffWithOverflowCheck(dpOut, dpagesOut)) / diffCall);
                     dpagesOut = dpOut;
                 }
             }
@@ -242,10 +242,10 @@ public class ProcReader {
                     dcIdle = -1;
                 }
                 
-                double tmpUsr = ((double)diffWithOverflowCheck(dcUsr, dcpuUsr)) / diffCall;
-                double tmpSys = ((double)diffWithOverflowCheck(dcSys, dcpuSys)) / diffCall;
-                double tmpIdle = ((double)diffWithOverflowCheck(dcIdle, dcpuIdle)) / diffCall;
-                double tmpNice = ((double)diffWithOverflowCheck(dcNice, dcpuNice)) / diffCall;
+                double tmpUsr = diffWithOverflowCheck(dcUsr, dcpuUsr) / diffCall;
+                double tmpSys = (diffWithOverflowCheck(dcSys, dcpuSys)) / diffCall;
+                double tmpIdle = (diffWithOverflowCheck(dcIdle, dcpuIdle)) / diffCall;
+                double tmpNice = (diffWithOverflowCheck(dcNice, dcpuNice)) / diffCall;
                 if (tmpUsr >= 0.0 && tmpSys >= 0.0 && tmpIdle >= 0.0 && tmpNice >= 0.0) {
                     dcpuUsr = dcUsr;
                     dcpuSys = dcSys;
@@ -339,8 +339,8 @@ public class ProcReader {
                         if (l >= 0.0) blkWrite += l;
                     }
                     
-                    double dRead = ((double)diffWithOverflowCheck(blkRead, dblkRead)) /diffCall;
-					double dWrite = ((double)diffWithOverflowCheck(blkWrite, dblkWrite)) /diffCall;
+                    double dRead = (diffWithOverflowCheck(blkRead, dblkRead)) /diffCall;
+					double dWrite = (diffWithOverflowCheck(blkWrite, dblkWrite)) /diffCall;
                     diskIO = "" + (dRead + dWrite);
                     //ddiskIO = blkRead + blkWrite;
                 	dblkRead = blkRead;
@@ -379,8 +379,8 @@ public class ProcReader {
                         }
                         if (l >= 0) blkWrite += l;
                     }
-                    double dRead = ((double)diffWithOverflowCheck(blkRead, dblkRead)) /diffCall;
-					double dWrite = ((double)diffWithOverflowCheck(blkWrite, dblkWrite)) /diffCall;
+                    double dRead = (diffWithOverflowCheck(blkRead, dblkRead)) /diffCall;
+					double dWrite = (diffWithOverflowCheck(blkWrite, dblkWrite)) /diffCall;
 					diskIO = ""+(dRead + dWrite);
 					ddiskIO = blkRead + blkWrite;
 
@@ -702,7 +702,7 @@ public class ProcReader {
                             d = -1;
                         }
                         if (oldReceived >= 0 && d >= 0) {
-                        	double in = ((double)diffWithOverflowCheck(d,oldReceived)) / diffCall;
+                        	double in = (diffWithOverflowCheck(d,oldReceived)) / diffCall;
                             //double in = (d - oldReceived) / diffCall;
                             in = in / (1024.0 * 1024.0);
                             oldReceived = d;
@@ -739,7 +739,7 @@ public class ProcReader {
                             d = -1;
                         }
                         if (oldSent >= 0 && d >= 0) {
-                        	double out = ((double)diffWithOverflowCheck(d, oldSent)) / diffCall;
+                        	double out = (diffWithOverflowCheck(d, oldSent)) / diffCall;
                             //double out = (d - oldSent) / diffCall;
                             out = out / (1024.0 * 1024.0);
                             oldSent = d;
@@ -788,7 +788,7 @@ public class ProcReader {
                             d = -1;
                         }
                         if (oldReceived >= 0 && d >= 0) {
-                        	double in = ((double)diffWithOverflowCheck(d, oldReceived)) / diffCall;
+                        	double in = (diffWithOverflowCheck(d, oldReceived)) / diffCall;
                             //double in = (d - oldReceived) / diffCall;
                             in = in / (1024.0 * 1024.0);
                             oldReceived = d;
@@ -826,7 +826,7 @@ public class ProcReader {
                         }                                            
                         
                         if (oldSent >= 0 && d >= 0) {
-                        	double out = ((double)diffWithOverflowCheck(d, oldSent)) / diffCall;
+                        	double out = (diffWithOverflowCheck(d, oldSent)) / diffCall;
                             //double out = (d - oldSent) / diffCall;
                             out = out / (1024.0 * 1024.0);
                             oldSent = d;
