@@ -1,6 +1,3 @@
-/*
- * $Id: AbstractAccountableMonitoringTask.java 558 2009-12-15 06:42:31Z ramiro $
- */
 package lia.util.net.copy.monitoring.base;
 
 import java.util.Map;
@@ -56,6 +53,7 @@ public abstract class AbstractAccountableMonitoringTask implements Runnable {
             this.debug = debug;
         }
 
+        @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append(" startTimeMillis: ").append(startTime).append(", ");
@@ -76,13 +74,15 @@ public abstract class AbstractAccountableMonitoringTask implements Runnable {
 
     public AbstractAccountableMonitoringTask(Accountable[] accountableList) {
         //nehotarat mai esti ... poate vrei mai tarliu
-        if(accountableList == null) return;
+        if (accountableList == null) {
+            return;
+        }
         int pos = 0;
-        for(Accountable accountable: accountableList) {
+        for (Accountable accountable : accountableList) {
             try {
                 addIfAbsent(accountable);
                 pos++;
-            } catch(NullPointerException npe) {
+            } catch (NullPointerException npe) {
                 throw new NullPointerException(" accountable is null on pos: " + pos);
             }
         }
@@ -90,30 +90,32 @@ public abstract class AbstractAccountableMonitoringTask implements Runnable {
 
     private final void iComputeRate(final Accountable accountable, final AccountableEntry accEntry, final long now) {
         try {
-            if(accEntry.debug) {
-                logger.log(Level.INFO, " AbstractAccountableMonitoringTask debug for : " + accountable + " BEFORE: \n:" + accEntry);
+            if (accEntry.debug) {
+                logger.log(Level.INFO, " AbstractAccountableMonitoringTask debug for : " + accountable + " BEFORE: \n:"
+                        + accEntry);
             }
             accEntry.currentUtilBytes = accountable.getUtilBytes();
             accEntry.currentTotalBytes = accountable.getTotalBytes();
 
-            if(accEntry.lastTimeCalled != 0) {
+            if (accEntry.lastTimeCalled != 0) {
                 computeRate(accEntry, now);
 
             }
 
-            if(accEntry.debug) {
-                logger.log(Level.INFO, " AbstractAccountableMonitoringTask debug for : " + accountable + " AFTER: \n:" + accEntry);
+            if (accEntry.debug) {
+                logger.log(Level.INFO, " AbstractAccountableMonitoringTask debug for : " + accountable + " AFTER: \n:"
+                        + accEntry);
             }
-        } catch(Throwable t) {
-            logger.log(Level.WARNING, " [ AbstractAccountableMonitoringTask ] got exception computing rate for " + accountable, t);
+        } catch (Throwable t) {
+            logger.log(Level.WARNING, " [ AbstractAccountableMonitoringTask ] got exception computing rate for "
+                    + accountable, t);
         } finally {
 
-            if(accEntry.lastTimeCalled == 0) {
+            if (accEntry.lastTimeCalled == 0) {
                 accEntry.startTime = now;
 
                 accEntry.startUtilBytes = accEntry.currentUtilBytes;
                 accEntry.startTotalBytes = accEntry.currentTotalBytes;
-            } else {
             }
 
             accEntry.lastTimeCalled = now;
@@ -121,19 +123,21 @@ public abstract class AbstractAccountableMonitoringTask implements Runnable {
             accEntry.lastTotalBytes = accEntry.currentTotalBytes;
         }
     }
+
     public void run() {
         final long now = System.nanoTime();
 
         try {
-            for(final Map.Entry<Accountable, AccountableEntry> entry: accMap.entrySet()) 
+            for (final Map.Entry<Accountable, AccountableEntry> entry : accMap.entrySet()) {
                 iComputeRate(entry.getKey(), entry.getValue(), now);
+            }
         } catch (Throwable t) {
             logger.log(Level.WARNING, " [ AbstractAccountableMonitoringTask ] got exception main loop ", t);
         }
 
         try {
             rateComputed();
-        }catch(Throwable t) {
+        } catch (Throwable t) {
             logger.log(Level.WARNING, " [ AbstractAccountableMonitoringTask ] calling rateComputed", t);
         }
     }
@@ -141,14 +145,14 @@ public abstract class AbstractAccountableMonitoringTask implements Runnable {
     public abstract void rateComputed();
 
     protected void resetAllCounters() {
-        for(final AccountableEntry accEntry: accMap.values()) {
+        for (final AccountableEntry accEntry : accMap.values()) {
             accEntry.startTime = accEntry.lastTimeCalled = 0;
 
             accEntry.lastUtilBytes = accEntry.startUtilBytes = accEntry.lastTotalBytes = accEntry.startTotalBytes = 0;
 
             accEntry.utilRate = accEntry.totalRate = 0;
 
-            accEntry.avgUtilRate =  accEntry.avgTotalRate = 0;
+            accEntry.avgUtilRate = accEntry.avgTotalRate = 0;
         }
 
     }
@@ -162,7 +166,7 @@ public abstract class AbstractAccountableMonitoringTask implements Runnable {
 
         accEntry.utilRate = accEntry.totalRate = 0;
 
-        accEntry.avgUtilRate =  accEntry.avgTotalRate = 0;
+        accEntry.avgUtilRate = accEntry.avgTotalRate = 0;
     }
 
     /**
@@ -173,29 +177,31 @@ public abstract class AbstractAccountableMonitoringTask implements Runnable {
 
         accEntry.monCount++;
 
-        if(dt <= 0) {
-            logger.log(Level.WARNING, " Going back in the future ? Class: [ " +  getClass() + " ] The count the average from now on ... ");
-            accEntry.startTime = now;
-            accEntry.startUtilBytes = accEntry.currentUtilBytes;
-            accEntry.startTotalBytes = accEntry.currentTotalBytes;
-            throw new Exception(" [ AbstractAccountableMonitoringTask ] Going back in the future ? lastTime: " + accEntry.lastTimeCalled + " now: " + now);
-        }
-
-        accEntry.utilRate  = ( accEntry.currentUtilBytes - accEntry.lastUtilBytes ) * 1000D / dt;
-        accEntry.totalRate = ( accEntry.currentTotalBytes - accEntry.lastTotalBytes ) * 1000D / dt;
-
-        dt = TimeUnit.NANOSECONDS.toMillis(now - accEntry.startTime);
-
-        if(dt <= 0) {
-            logger.log(Level.WARNING, " Going back in the future ? The count the average from now on ...");
+        if (dt <= 0) {
+            logger.log(Level.WARNING, "[ " + getClass() + " ] Timing issues detected on the system. lastTime: "
+                    + accEntry.lastTimeCalled + "ns now: " + now + "ns. The average and instant rates will be reseted.");
             accEntry.startTime = now;
             accEntry.startUtilBytes = accEntry.currentUtilBytes;
             accEntry.startTotalBytes = accEntry.currentTotalBytes;
             return;
         }
 
-        accEntry.avgUtilRate = ( accEntry.currentUtilBytes - accEntry.startUtilBytes ) * 1000D / dt; 
-        accEntry.avgTotalRate = ( accEntry.currentTotalBytes - accEntry.startTotalBytes ) * 1000D / dt; 
+        accEntry.utilRate = ((accEntry.currentUtilBytes - accEntry.lastUtilBytes) * 1000D) / dt;
+        accEntry.totalRate = ((accEntry.currentTotalBytes - accEntry.lastTotalBytes) * 1000D) / dt;
+
+        dt = TimeUnit.NANOSECONDS.toMillis(now - accEntry.startTime);
+
+        if (dt <= 0) {
+            logger.log(Level.WARNING, "[ " + getClass() + " ] Timing issues detected on the system. lastTime: "
+                    + accEntry.startTime + "ns now: " + now + "ns. The average and instant rates will be reseted.");
+            accEntry.startTime = now;
+            accEntry.startUtilBytes = accEntry.currentUtilBytes;
+            accEntry.startTotalBytes = accEntry.currentTotalBytes;
+            return;
+        }
+
+        accEntry.avgUtilRate = ((accEntry.currentUtilBytes - accEntry.startUtilBytes) * 1000D) / dt;
+        accEntry.avgTotalRate = ((accEntry.currentTotalBytes - accEntry.startTotalBytes) * 1000D) / dt;
     }
 
     protected double getUtilRate(final Accountable accountable) {
@@ -220,22 +226,24 @@ public abstract class AbstractAccountableMonitoringTask implements Runnable {
 
     private AccountableEntry getEntry(final Accountable accountable) {
         final AccountableEntry accEntry = accMap.get(accountable);
-        if(accEntry == null) {
+        if (accEntry == null) {
             throw new NoSuchElementException("No entry for " + accountable);
         }
         return accEntry;
     }
 
     protected boolean addIfAbsent(final Accountable accountable) {
-        if(accountable == null) throw new NullPointerException(" Accountable cannot be null ");
-        return ( accMap.putIfAbsent(accountable, new AccountableEntry()) == null);
+        if (accountable == null) {
+            throw new NullPointerException(" Accountable cannot be null ");
+        }
+        return (accMap.putIfAbsent(accountable, new AccountableEntry()) == null);
     }
 
     protected boolean addIfAbsent(final Accountable accountable, boolean debug) {
         final AccountableEntry accEntry = new AccountableEntry(debug);
-        
-        final boolean bRet = ( accMap.putIfAbsent(accountable, accEntry) == null);
-        if(bRet) {
+
+        final boolean bRet = (accMap.putIfAbsent(accountable, accEntry) == null);
+        if (bRet) {
             iComputeRate(accountable, accEntry, System.nanoTime());
         }
         return bRet;
