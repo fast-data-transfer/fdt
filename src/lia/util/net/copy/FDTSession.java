@@ -271,7 +271,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         if (ctrlSet) {
             cLimit = newRate;
         } else {
-            if ((newRate < cLimit) && (newRate > 0)) {
+            if ((newRate != cLimit) && (newRate > 0)) {
                 cLimit = newRate;
             }
         }
