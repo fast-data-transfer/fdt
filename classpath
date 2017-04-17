@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="lib/globus/jgss.jar"/>
+	<classpathentry kind="lib" path="lib/globus/cryptix.jar"/>
+	<classpathentry kind="lib" path="lib/gsi-sshterm/SSHTerm-1.0.0.jar"/>
+	<classpathentry kind="lib" path="lib/globus/puretls.jar"/>
+	<classpathentry kind="lib" path="lib/globus/cog-jglobus.jar"/>
+	<classpathentry kind="lib" path="lib/globus/log4j-1.2.13.jar"/>
+	<classpathentry kind="lib" path="lib/globus/commons-logging-1.1.jar"/>
+	<classpathentry kind="lib" path="lib/gsi-sshterm/j2ssh-common-0.2.7.jar"/>
+	<classpathentry kind="lib" path="lib/gsi-sshterm/j2ssh-core-0.2.7.jar"/>
+	<classpathentry kind="output" path="build/classes"/>
+</classpath>

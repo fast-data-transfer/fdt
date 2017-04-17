@@ -1,0 +1,19 @@
+ Fast Data Transfer - Licence Agreement Terms and Conditions
+
+    Software	Fast Data Transfer
+    Version	0.9.8
+
+    The California Institute of Technology ("CIT"), will provide you or your company ("LICENSEE") an executable version of "Fast Data Transfer" - FDT - ("SOFTWARE"). The SOFTWARE is available to LICENSEE on the following terms:
+
+        CIT agrees to grant a non-commercial, nonexclusive, non-transferable, royalty-free license without licence fees to use and reproduce the SOFTWARE in its unmodified form.
+        None of the SOFTWARE provided may be used in commercial products or services directly or indirectly unless a license granting the right to use the SOFTWARE in commercial products or services is executed between CIT and LICENSEE. LICENSEE agrees that it will not license or sell the SOFTWARE or any other software, information or data that incorporate any part of the SOFTWARE, including derivative works thereof ("DERIVATIVES"), to any other parties.
+        The Licensee may distribute the SOFTWARE complete and unmodified.
+        Distribution of modified versions and making them publicly available is subject to prior written consent of the Licensor.
+        The Source Code is provided solely for reference purposes of the Licensee. The Source Code may be redistributed unmodified.
+        Other than the licenses expressly granted in this License, the Licensor retains all rights, title, and interest in the program.
+        NO WARRANTY:
+
+        DISCLAIMER
+        THE SOFTWARE AND/OR RELATED MATERIALS ARE PROVIDED "AS-IS" WITHOUT WARRANTY OF ANY KIND INCLUDING ANY WARRANTIES OF PERFORMANCE OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR USE OR PURPOSE (AS SET FORTH IN UCC 23212-2313) OR FOR ANY PURPOSE WHATSOEVER, FOR THE LICENSED PRODUCT, HOWEVER USED. IN NO EVENT SHALL CALTECH BE LIABLE FOR ANY DAMAGES AND/OR COSTS, INCLUDING BUT NOT LIMITED TO INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING ECONOMIC DAMAGE OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER CALTECH SHALL BE ADVISED, HAVE REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY. LICENSEE BEARS ALL RISK RELATING TO QUALITY AND PERFORMANCE OF THE SOFTWARE AND/OR RELATED MATERIALS. 
+
+
