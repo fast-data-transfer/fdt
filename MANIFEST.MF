@@ -6,7 +6,7 @@ Built-Jdk: 1.8.0_66-b17
 Built-By: jbalcas
 Built-Arch: amd64
 Built-Os: Linux 4.3.0-040300-generic
-Release-Date: 2017-04-15
-Release-Version: 0.24.1
-Implementation-Version: 0.24.1-201704151353
+Release-Date: 2017-04-20
+Release-Version: 0.25.0
+Implementation-Version: 0.25.1-201704201041
 Class-Path: 
