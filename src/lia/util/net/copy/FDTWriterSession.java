@@ -18,7 +18,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import lia.util.net.common.Config;
+import lia.util.net.common.DirectByteBufferPool;
 import lia.util.net.common.FileChannelProvider;
+import lia.util.net.common.NetloggerRecord;
 import lia.util.net.common.StoragePathDecoder;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.disk.DiskWriterManager;
@@ -136,6 +138,33 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 logger.log(Level.FINER, "\n\n [ FDTWriterSession ] [ finalCleanup ] STARTED \n\n ");
             }
 
+            // for logging the time the transfer completed
+            final Date endDate = new Date();
+
+            NetloggerRecord nlrec = new NetloggerRecord();
+            nlrec.setBlock(DirectByteBufferPool.getInstance().getBufferSize());
+            nlrec.setBuffer(Math.max(0, config.getSockBufSize()));
+            if (downCause() == null && downMessage() == null) {
+                nlrec.setCode("226");  // = "Closing data connection. Requested file action successful."
+            } else {
+                nlrec.setCode("426");  // = "Connection closed; transfer aborted."
+            }
+            nlrec.setCompleted(endDate);
+            nlrec.setDestination(controlChannel.remoteAddress);
+            try {
+                nlrec.setHost(InetAddress.getLocalHost());
+            } catch (java.net.UnknownHostException ex) {
+                /* do nothing */
+            }
+            nlrec.setNbytes(getTotalBytes());
+            nlrec.setStart(new Date(startTimeMillis));
+            if (getTransportProvider() != null) {
+                nlrec.setStreams(getTransportProvider().getNumberOfStreams());
+            }
+            nlrec.setType("STOR");
+
+            System.out.println(nlrec.toULMString());
+
             try {
                 notifySessionFinished();
             } catch (Throwable ignore) {
@@ -154,7 +183,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 }
                 sb.append(" ) final stats:");
                 sb.append("\n Started: ").append(new Date(startTimeMillis));
-                sb.append("\n Ended:   ").append(new Date());
+                sb.append("\n Ended:   ").append(endDate);
                 sb.append("\n Transfer period:   ")
                         .append(Utils.getETA(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNanos)));
                 sb.append("\n TotalBytes: ").append(getTotalBytes());
