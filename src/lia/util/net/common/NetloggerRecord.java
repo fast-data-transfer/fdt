@@ -17,9 +17,9 @@ public class NetloggerRecord {
     /** time the transfer completed */
     private Date completed = new Date();
     /** the destination host */
-    private InetAddress destination = InetAddress.getLoopbackAddress();
+    private InetAddress destination = Utils.getLoopbackAddress();
     /** hostname of the server */
-    private InetAddress host = InetAddress.getLoopbackAddress();
+    private InetAddress host = Utils.getLoopbackAddress();
     /** the total number of bytes transferred */
     private long nbytes;
     /** time the transfer started */
@@ -119,7 +119,7 @@ public class NetloggerRecord {
     }
 
     public String toULMString() {
-        String ulm = String.join(" ",
+        String ulm = Utils.joinString(" ",
                 "DATE="+toULMDate(completed),
                 "HOST="+host.getHostName(),
                 "PROG=fdt",
