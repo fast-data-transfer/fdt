@@ -25,7 +25,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import lia.util.net.common.Config;
+import lia.util.net.common.DirectByteBufferPool;
 import lia.util.net.common.FileChannelProvider;
+import lia.util.net.common.NetloggerRecord;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.disk.DiskReaderManager;
 import lia.util.net.copy.disk.DiskReaderTask;
@@ -604,6 +606,33 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 logger.log(Level.FINER, "\n\n\n [ FDTReaderSession ]  [ finalCleanup ]   EXECUTING !!!!!!!!!!! \n\n");
             }
 
+            // for logging the time the transfer completed
+            final Date endDate = new Date();
+
+            NetloggerRecord nlrec = new NetloggerRecord();
+            nlrec.setBlock(DirectByteBufferPool.getInstance().getBufferSize());
+            nlrec.setBuffer(Math.max(0, config.getSockBufSize()));
+            if (downCause() == null && downMessage() == null) {
+                nlrec.setCode("226");  // = "Closing data connection. Requested file action successful."
+            } else {
+                nlrec.setCode("426");  // = "Connection closed; transfer aborted."
+            }
+            nlrec.setCompleted(endDate);
+            nlrec.setDestination(controlChannel.remoteAddress);
+            try {
+                nlrec.setHost(InetAddress.getLocalHost());
+            } catch (java.net.UnknownHostException ex) {
+                /* do nothing */
+            }
+            nlrec.setNbytes(getTotalBytes());
+            nlrec.setStart(new Date(startTimeMillis));
+            if (getTransportProvider() != null) {
+                nlrec.setStreams(getTransportProvider().getNumberOfStreams());
+            }
+            nlrec.setType("RETR");
+
+            System.out.println(nlrec.toULMString());
+
             // log final statistics
             try {
                 StringBuilder sb = new StringBuilder();
@@ -613,7 +642,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 }
                 sb.append(" ) final stats:");
                 sb.append("\n Started: ").append(new Date(startTimeMillis));
-                sb.append("\n Ended:   ").append(new Date());
+                sb.append("\n Ended:   ").append(endDate);
                 sb.append("\n Transfer period:   ")
                         .append(Utils.getETA(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNanos)));
                 sb.append("\n TotalBytes: ").append(getTotalBytes());

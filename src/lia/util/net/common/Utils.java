@@ -11,11 +11,13 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.io.StringWriter;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SelectionKey;
@@ -1709,5 +1711,31 @@ public final class Utils {
 
         sb.append("}");
         return sb.toString();
+    }
+
+    public static String joinString(CharSequence delimiter, CharSequence... elements) {
+        StringBuilder sb = new StringBuilder();
+
+        if (elements.length > 0) {
+            sb.append(elements[0]);
+        }
+        for (int i = 1; i < elements.length; i++) {
+            sb.append(delimiter).append(elements[i]);
+        }
+
+        return sb.toString();
+    }
+
+    public static InetAddress getLoopbackAddress() {
+        InetAddress localhost = null;
+
+        try {
+            byte[] address = {127, 0, 0, 1};  // 127.0.0.1
+            localhost = InetAddress.getByAddress("localhost", address);
+        } catch (UnknownHostException ex) {
+            // do nothing
+        }
+
+        return localhost;
     }
 }
