@@ -157,6 +157,8 @@ public class FDTServer extends AbstractFDTCloseable {
                             logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Got a remote control channel [ " + s
                                     + " ] but in GSI mode ... will be rejected.");
                             try {
+                                byte[] key = {0};
+                                sc.write(ByteBuffer.wrap(key));
                                 sc.close();
                             } catch (Throwable ignored) {
                                 // ignore

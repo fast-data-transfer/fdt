@@ -7,9 +7,9 @@ import javax.security.auth.Subject;
 
 import org.globus.gsi.gssapi.auth.Authorization;
 import org.globus.gsi.gssapi.auth.AuthorizationException;
-import org.globus.gsi.jaas.GlobusPrincipal;
-import org.globus.gsi.jaas.JaasGssUtil;
-import org.globus.gsi.jaas.UserNamePrincipal;
+import org.globus.gsi.gssapi.jaas.GlobusPrincipal;
+import org.globus.gsi.gssapi.JaasGssUtil;
+import org.globus.gsi.gssapi.jaas.UserNamePrincipal;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSException;
 

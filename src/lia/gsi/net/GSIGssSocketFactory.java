@@ -25,16 +25,14 @@ import javax.security.auth.Subject;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.globus.common.CoGProperties;
-import org.globus.gsi.GSIConstants;
-import org.globus.gsi.GlobusCredential;
-import org.globus.gsi.GlobusCredentialException;
+import org.globus.gsi.*;
 import org.globus.gsi.gssapi.GSSConstants;
 import org.globus.gsi.gssapi.GlobusGSSCredentialImpl;
+import org.globus.gsi.gssapi.JaasGssUtil;
 import org.globus.gsi.gssapi.net.GssSocket;
 import org.globus.gsi.gssapi.net.GssSocketFactory;
 import org.globus.gsi.gssapi.net.impl.GSIGssSocket;
-import org.globus.gsi.jaas.GlobusPrincipal;
-import org.globus.gsi.jaas.JaasGssUtil;
+import org.globus.gsi.gssapi.jaas.GlobusPrincipal;
 import org.gridforum.jgss.ExtendedGSSContext;
 import org.gridforum.jgss.ExtendedGSSManager;
 import org.ietf.jgss.GSSContext;
@@ -164,27 +162,27 @@ public class GSIGssSocketFactory extends GssSocketFactory {
 		return new GSIGssSocket(host, port, context);
 	}
 
-	public static GSSCredential createUserCredential(String x509UserProxy) throws GlobusCredentialException, GSSException {
+	public static GSSCredential createUserCredential(String x509UserProxy) throws GlobusCredentialException, GSSException, CredentialException {
 		if (x509UserProxy != null) {
-			GlobusCredential gcred = new GlobusCredential(x509UserProxy);
+			X509Credential gcred = new X509Credential(x509UserProxy);
 			GSSCredential cred = new GlobusGSSCredentialImpl(gcred, GSSCredential.INITIATE_ONLY);
 			return cred;
 		}
-		GlobusCredential gcred = GlobusCredential.getDefaultCredential();
+		X509Credential gcred = X509Credential.getDefaultCredential();
 		GSSCredential cred = new GlobusGSSCredentialImpl(gcred, GSSCredential.INITIATE_ONLY);
 		return cred;
 
 	}
 
 	public static GSSCredential createUserCredential(String x509ServiceCert, String x509ServiceKey) throws GlobusCredentialException,
-			GSSException {
+			GSSException, CredentialException, IOException {
 		if (x509ServiceCert != null && x509ServiceKey != null) {
-			GlobusCredential gcred = new GlobusCredential(x509ServiceCert, x509ServiceKey);
+			X509Credential gcred = new X509Credential(x509ServiceCert, x509ServiceKey);
 			GSSCredential cred = new GlobusGSSCredentialImpl(gcred, GSSCredential.INITIATE_ONLY);
 			return cred;
 		}
 
-		GlobusCredential gcred = GlobusCredential.getDefaultCredential();
+		X509Credential gcred = X509Credential.getDefaultCredential();
 		GSSCredential cred = new GlobusGSSCredentialImpl(gcred, GSSCredential.INITIATE_ONLY);
 		return cred;
 	}

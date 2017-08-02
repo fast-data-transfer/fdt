@@ -15,38 +15,28 @@ package lia.gsi.ssh;
  */
 // (Changes (c) CCLRC 2006)
 // (Changes Adi.Muraru 2007 - avoid GUIs dependencies, and rely on environment to get the proxy location)
-import java.io.File;
-import java.io.IOException;
-import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import com.sshtools.j2ssh.authentication.*;
+import com.sshtools.j2ssh.io.ByteArrayReader;
+import com.sshtools.j2ssh.io.ByteArrayWriter;
+import com.sshtools.j2ssh.io.UnsignedInteger32;
 import org.globus.common.CoGProperties;
+import org.globus.gsi.CredentialException;
 import org.globus.gsi.GSIConstants;
-import org.globus.gsi.GlobusCredential;
+import org.globus.gsi.X509Credential;
 import org.globus.gsi.GlobusCredentialException;
 import org.globus.gsi.gssapi.GSSConstants;
 import org.globus.gsi.gssapi.GlobusGSSCredentialImpl;
 import org.globus.gsi.gssapi.GlobusGSSManagerImpl;
 import org.globus.gsi.gssapi.auth.HostAuthorization;
 import org.gridforum.jgss.ExtendedGSSContext;
-import org.ietf.jgss.GSSContext;
-import org.ietf.jgss.GSSCredential;
-import org.ietf.jgss.GSSException;
-import org.ietf.jgss.GSSName;
-import org.ietf.jgss.Oid;
+import org.ietf.jgss.*;
 
-import com.sshtools.j2ssh.authentication.AuthenticationProtocolClient;
-import com.sshtools.j2ssh.authentication.AuthenticationProtocolState;
-import com.sshtools.j2ssh.authentication.SshAuthenticationClient;
-import com.sshtools.j2ssh.authentication.SshMsgUserAuthRequest;
-import com.sshtools.j2ssh.authentication.SshMsgUserauthGssapiExchangeComplete;
-import com.sshtools.j2ssh.authentication.SshMsgUserauthGssapiResponse;
-import com.sshtools.j2ssh.authentication.SshMsgUserauthGssapiToken;
-import com.sshtools.j2ssh.authentication.TerminatedStateException;
-import com.sshtools.j2ssh.io.ByteArrayReader;
-import com.sshtools.j2ssh.io.ByteArrayWriter;
-import com.sshtools.j2ssh.io.UnsignedInteger32;
+import java.io.File;
+import java.io.IOException;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class GSIAuthenticationClient extends SshAuthenticationClient {
 
@@ -83,7 +73,7 @@ public class GSIAuthenticationClient extends SshAuthenticationClient {
 
 		try {
 			gsscredential = createUserCredential(x509UserProxy);
-		} catch (GlobusCredentialException e) {
+		} catch (GlobusCredentialException | CredentialException e) {
 			throw new IOException("Could not load user proxy certificate from:" + x509UserProxy);
 		}
 		if (gsscredential == null) {
@@ -177,13 +167,13 @@ public class GSIAuthenticationClient extends SshAuthenticationClient {
 		}
 	}
 
-	public static GSSCredential createUserCredential(String x509UserProxy) throws GlobusCredentialException, GSSException {
+	public static GSSCredential createUserCredential(String x509UserProxy) throws GlobusCredentialException, GSSException, CredentialException {
 		if (x509UserProxy != null) {
-			GlobusCredential gcred = new GlobusCredential(x509UserProxy);
+			X509Credential gcred = new X509Credential(x509UserProxy);
 			GSSCredential cred = new GlobusGSSCredentialImpl(gcred, GSSCredential.INITIATE_ONLY);
 			return cred;
 		}
-		GlobusCredential gcred = GlobusCredential.getDefaultCredential();
+		X509Credential gcred = X509Credential.getDefaultCredential();
 		GSSCredential cred = new GlobusGSSCredentialImpl(gcred, GSSCredential.INITIATE_ONLY);
 		return cred;
 

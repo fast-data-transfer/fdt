@@ -4,6 +4,7 @@
 package lia.util.net.copy;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -271,6 +272,11 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 .newReaderFileChannelProvider(this);
 
         for (final String fName : newFileList) {
+            if (!new File(fName).exists())
+            {
+                logger.warning("File listed in file list does not exist! " + fName);
+                throw new IOException("File does not exist! " + fName);
+            }
             FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);
             fileSessions.put(frs.sessionID, frs);
             setSessionSize(sessionSize() + frs.sessionSize());

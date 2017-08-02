@@ -3,6 +3,7 @@
  */
 package lia.gsi;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -14,11 +15,12 @@ import javax.security.auth.Subject;
 import lia.gsi.net.GSIBaseServer;
 import lia.gsi.net.Peer;
 
+import org.globus.gsi.CredentialException;
 import org.globus.gsi.GSIConstants;
-import org.globus.gsi.GlobusCredential;
 import org.globus.gsi.GlobusCredentialException;
+import org.globus.gsi.X509Credential;
 import org.globus.gsi.gssapi.GlobusGSSCredentialImpl;
-import org.globus.gsi.jaas.UserNamePrincipal;
+import org.globus.gsi.gssapi.jaas.UserNamePrincipal;
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
 
@@ -75,8 +77,8 @@ public class GSIServer extends GSIBaseServer {
 		super(generateGSSCredential(serverKey, serverCert), port);
 	}
 
-	public static GSSCredential generateGSSCredential(String serverKey, String serverCert) throws GlobusCredentialException, IOException, GSSException {
-		GlobusCredential credentials = null;
+	public static GSSCredential generateGSSCredential(String serverKey, String serverCert) throws GlobusCredentialException, CredentialException, IOException, GSSException {
+		X509Credential credentials;
 
 		// first try to read the service cert and key from the jvm properties
 		if (serverKey == null && serverCert == null) {
@@ -97,17 +99,27 @@ public class GSIServer extends GSIBaseServer {
 			// read it from env
 			serverKey  = "/etc/grid-security/hostkey.pem";
 			serverCert = "/etc/grid-security/hostcert.pem";
+			File certFile = new File(serverCert);
+			File keyFile = new File(serverKey);
+			// last, try to use user proxy, if it exists (currently disabled, look above)
+			if (!certFile.exists())
+			{
+				serverCert = null;
+			}
+			if (!keyFile.exists())
+			{
+				serverKey = null;
+			}
 		}
 
-		// last, try to use user proxy, if it exists (currently disabled, look above)
 		if (serverKey == null && serverCert == null) {
 			// no X509_HOST_* var, use client cert (proxy-cert)
-			credentials = GlobusCredential.getDefaultCredential();
+			credentials = X509Credential.getDefaultCredential();
 			if (logger.isLoggable(Level.INFO)) {
 				logger.log(Level.INFO, "Using user proxy certificate:" + credentials.getSubject());
 			}
 		} else if (serverKey != null && serverCert != null) {
-			credentials = new GlobusCredential(serverCert, serverKey);
+				credentials = new X509Credential(serverCert, serverKey);
 			if (logger.isLoggable(Level.INFO)) {
 				logger.log(Level.INFO, "Using host certificate:" + credentials.getSubject());
 			}
@@ -140,7 +152,7 @@ public class GSIServer extends GSIBaseServer {
 	/**
 	 * Handles individual client connections by starting a different thread.
 	 * 
-	 * @param socket
+	 * @param peer
 	 *            is connected to a client ready to send request to the gatekeeper.
 	 * @throws IOException
 	 *             if authentication/authorization exception
