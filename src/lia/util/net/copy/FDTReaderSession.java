@@ -274,7 +274,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         for (final String fName : newFileList) {
             if (!new File(fName).exists())
             {
-                logger.warning("File listen in file list does not exist! " + fName);
+                logger.warning("File listed in file list does not exist! " + fName);
                 throw new IOException("File does not exist! " + fName);
             }
             FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);
