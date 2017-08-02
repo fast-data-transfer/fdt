@@ -129,7 +129,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     /**
      * Try to connect to a remote FDT instance
      * 
-     * @param address
+     * @param inetAddress
      * @param port
      * @param fdtSessionID
      * @param notifier
@@ -245,7 +245,21 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
         sendMsgImpl(versionMsg);
 
-        ois = new ObjectInputStream(new BufferedInputStream(controlSocket.getInputStream()));
+        try {
+            BufferedInputStream bis = new BufferedInputStream(controlSocket.getInputStream());
+            if (bis.available() == 1)
+            {
+                throw new IllegalStateException("Could not initialise stream to server, client did not use GSI");
+            }
+            else {
+                ois = new ObjectInputStream(new BufferedInputStream(controlSocket.getInputStream()));
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.log(Level.WARNING, "Could not initialise stream to server, check if server is running or certificates present" + ex);
+            throw ex;
+        }
 
         // wait for remote version
         CtrlMsg ctrlMsg = (CtrlMsg) ois.readObject();
