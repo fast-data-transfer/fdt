@@ -3,19 +3,18 @@
  */
 package lia.util.net.copy;
 
+import lia.util.net.common.*;
+import lia.util.net.copy.disk.DiskReaderManager;
+import lia.util.net.copy.disk.DiskReaderTask;
+import lia.util.net.copy.filters.Postprocessor;
+import lia.util.net.copy.filters.Preprocessor;
+import lia.util.net.copy.filters.ProcessorInfo;
+import lia.util.net.copy.transport.*;
+
 import java.io.File;
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.TreeMap;
-import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -24,30 +23,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.Config;
-import lia.util.net.common.DirectByteBufferPool;
-import lia.util.net.common.FileChannelProvider;
-import lia.util.net.common.NetloggerRecord;
-import lia.util.net.common.Utils;
-import lia.util.net.copy.disk.DiskReaderManager;
-import lia.util.net.copy.disk.DiskReaderTask;
-import lia.util.net.copy.filters.Postprocessor;
-import lia.util.net.copy.filters.Preprocessor;
-import lia.util.net.copy.filters.ProcessorInfo;
-import lia.util.net.copy.transport.ControlChannel;
-import lia.util.net.copy.transport.CtrlMsg;
-import lia.util.net.copy.transport.FDTProcolException;
-import lia.util.net.copy.transport.FDTSessionConfigMsg;
-import lia.util.net.copy.transport.TCPSessionWriter;
-
 /**
  * The "reader" session; it will send data over the wire
- * 
+ *
  * @author ramiro
  */
 public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final Logger logger = Logger.getLogger(FDTReaderSession.class.getName());
 
     private static final DiskReaderManager diskManager = DiskReaderManager.getInstance();
@@ -82,7 +67,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
     /**
      * LOCAL SESSION - look in the Config
-     * 
+     *
      * @throws Exception
      */
     public FDTReaderSession() throws Exception {
@@ -112,7 +97,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
     /**
      * REMOTE SESSION - wait for init()
-     * 
+     *
      * @param ctrlChannel
      * @throws Exception
      */
@@ -167,6 +152,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             logger.log(Level.FINER, "\n\n FDTReaderSession - internalInit ENTER \n\n FileList:\n"
                     + Arrays.toString(fileList) + "\n\nRemappedFileList:\n" + Arrays.toString(remappedFileList));
         }
+
+        cleanupMissingFiles(fileList);
 
         int filtersCount = 0;
         final ProcessorInfo processorInfo = new ProcessorInfo();
@@ -259,7 +246,11 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 int c = 0;
                 if (remappedFileList != null) {
                     for (String f : newFileList) {
-                        newRemappedFileList.put(new File(f).getAbsolutePath(), remappedFileList[c++]);
+                        if (new File(f).exists()) {
+                            newRemappedFileList.put(new File(f).getAbsolutePath(), remappedFileList[c++]);
+                        } else {
+                            logger.warning("File does not exist! " + f);
+                        }
                     }
                 } else {
                     newRemappedFileList = null;
@@ -271,9 +262,13 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 .newReaderFileChannelProvider(this);
 
         for (final String fName : newFileList) {
-            FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);
-            fileSessions.put(frs.sessionID, frs);
-            setSessionSize(sessionSize() + frs.sessionSize());
+            if (new File(fName).exists()) {
+                FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);
+                fileSessions.put(frs.sessionID, frs);
+                setSessionSize(sessionSize() + frs.sessionSize());
+            } else {
+                logger.warning("File does not exist! " + fName);
+            }
         }
 
         buildPartitionMap();
@@ -291,6 +286,16 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         }
 
         sendRemoteSessions(initialMapping, newRemappedFileList);
+    }
+
+    private static void cleanupMissingFiles(String[] fileList) {
+        Iterator<String> fileListIterator = Arrays.asList(fileList).iterator();
+        while (fileListIterator.hasNext()) {
+            String file = fileListIterator.next();
+            if (!new File(file).exists()) {
+                fileListIterator.remove();
+            }
+        }
     }
 
     @Override
@@ -862,7 +867,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     }
 
     /**
-     * @param ctrlMsg  
+     * @param ctrlMsg
      */
     @Override
     public void handleStartFDTSession(CtrlMsg ctrlMsg) throws Exception {
