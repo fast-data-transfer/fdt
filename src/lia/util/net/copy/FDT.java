@@ -1,35 +1,19 @@
 package lia.util.net.copy;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Vector;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.LogManager;
-
-import lia.util.net.common.AbstractFDTCloseable;
-import lia.util.net.common.Config;
-import lia.util.net.common.ControlStream;
-import lia.util.net.common.DirectByteBufferPool;
-import lia.util.net.common.FDTCloseable;
-import lia.util.net.common.FileChannelProviderFactory;
-import lia.util.net.common.HeaderBufferPool;
-import lia.util.net.common.InvalidFDTParameterException;
-import lia.util.net.common.SSHControlStream;
-import lia.util.net.common.Utils;
+import apmon.ApMon;
+import lia.util.net.common.*;
 import lia.util.net.copy.monitoring.ApMonReportingTask;
 import lia.util.net.copy.monitoring.ConsoleReportingTask;
 import lia.util.net.copy.monitoring.FDTInternalMonitoringTask;
 import lia.util.net.copy.monitoring.lisa.LISAReportingTask;
 import lia.util.net.copy.transport.FDTProcolException;
 import lia.util.net.copy.transport.internal.SelectionManager;
-import apmon.ApMon;
+
+import java.io.*;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 
 /**
  * The "main" class ... Everything will start from here, more or less
@@ -42,11 +26,14 @@ public class FDT {
 
     private static final String name = "FDT";
 
-    private static String UPDATE_URL = "http://monalisa.cern.ch/FDT/lib/";
+    private static final Logger logger = Logger.getLogger(FDT.class.getName());
+
+    private static String REPO_HOME = "https://github.com/fast-data-transfer/fdt";
+    private static String UPDATE_OWNER = "fast-data-transfer";
+    private static String UPDATE_REPO = "fdt";
+    private static String UPDATE_URL = "https://api.github.com/repos/" + UPDATE_OWNER + "/" + UPDATE_REPO + "/releases";
 
     public static final String FDT_FULL_VERSION = "0.24.0-201512041353";
-
-    String mlDestinations = "monalisa2.cern.ch:28884";
 
     /** two weeks between checking for updates */
     public static final long UPDATE_PERIOD = 2 * 24 * 3600 * 1000;
@@ -70,15 +57,15 @@ public class FDT {
         }
     }
 
-    private static final void initLocalProps(String level) {
+    private static void initLocalProps(String level) {
 
         FileInputStream fis = null;
         File confFile = null;
         try {
             confFile = new File(
                     System.getProperty("user.home") + File.separator + ".fdt" + File.separator + "fdt.properties");
-            if (level.indexOf("FINE") >= 0) {
-                System.out.println("Using local properties file: " + confFile);
+            if (level.contains("FINE")) {
+                logger.info("Using local properties file: " + confFile);
             }
             if (confFile.exists() && confFile.canRead()) {
                 fis = new FileInputStream(confFile);
@@ -86,7 +73,7 @@ public class FDT {
             }
         } catch (Throwable t) {
             if (confFile != null) {
-                if (level.indexOf("FINE") >= 0) {
+                if (level.contains("FINE")) {
                     System.err.println("Unable to read local configuration file " + confFile);
                     t.printStackTrace();
                 }
@@ -95,18 +82,18 @@ public class FDT {
             Utils.closeIgnoringExceptions(fis);
         }
 
-        if (level.indexOf("FINE") >= 0) {
+        if (level.contains("FINE")) {
             if (localProps.size() > 0) {
-                if (level.indexOf("FINER") >= 0) {
-                    System.out.println(" LocalProperties loaded: " + localProps);
+                if (level.contains("FINER")) {
+                    logger.info(" LocalProperties loaded: " + localProps);
                 }
             } else {
-                System.out.println("No local properties defined");
+                logger.info("No local properties defined");
             }
         }
     }
 
-    private static final void initLogger(String level, File logFile) {
+    private static void initLogger(String level, File logFile) {
         initLocalProps(level);
         Properties loggingProps = new Properties();
         loggingProps.putAll(localProps);
@@ -136,8 +123,8 @@ public class FDT {
                 loggingProps.put(".level", level);
             }
 
-            if (level.indexOf("FINER") >= 0) {
-                System.out.println("\n Logging props: " + loggingProps);
+            if (level.contains("FINER")) {
+                logger.info("\n Logging props: " + loggingProps);
             }
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -159,12 +146,13 @@ public class FDT {
             long lStart = System.currentTimeMillis();
             ApMon apmon = null;
 
+            String mlDestinations = "monalisa2.cern.ch:28884";
             final String apMonHosts = (configApMonHosts.length() > 0) ? configApMonHosts : mlDestinations;
 
-            System.out.println("Trying to instantiate apMon to: " + apMonHosts);
+            logger.info("Trying to instantiate apMon to: " + apMonHosts);
             try {
-                Vector<String> vHosts = new Vector<String>();
-                Vector<Integer> vPorts = new Vector<Integer>();
+                Vector<String> vHosts = new Vector<>();
+                Vector<Integer> vPorts = new Vector<>();
                 final String[] apMonDstTks = apMonHosts.split(",");
 
                 if (apMonDstTks == null || apMonDstTks.length == 0) {
@@ -186,7 +174,7 @@ public class FDT {
                             port = 28884;
                         }
                         vHosts.add(host);
-                        vPorts.add(Integer.valueOf(port));
+                        vPorts.add(port);
                     }
 
                     ApMon.setLogLevel("WARNING");
@@ -210,7 +198,7 @@ public class FDT {
                     try {
                         apmon.sendParameter(cluster_name, node_name, "FDT_version", FDT_FULL_VERSION);
                     } catch (Exception e) {
-                        System.out.println("Send operation failed: ");
+                        logger.info("Send operation failed: ");
                         e.printStackTrace();
                     }
 
@@ -236,7 +224,7 @@ public class FDT {
             }
 
             long lEnd = System.currentTimeMillis();
-            System.out.println("ApMon initialization took " + (lEnd - lStart) + " ms");
+            logger.info("ApMon initialization took " + (lEnd - lStart) + " ms");
         }
 
         Utils.getMonitoringExecService().scheduleWithFixedDelay(FDTInternalMonitoringTask.getInstance(), 1, 5,
@@ -267,11 +255,11 @@ public class FDT {
     }
 
     private static void printVersion() {
-        System.out.println(name + " " + FDT_FULL_VERSION);
-        System.out.println("Contact: support-fdt@monalisa.cern.ch");
+        logger.info(name + ' ' + FDT_FULL_VERSION);
+        logger.info("Contact: support-fdt@monalisa.cern.ch");
     }
 
-    private int doWork() {
+    private static int doWork() {
 
         FDTSessionManager fdtSessionManager = FDTSessionManager.getInstance();
 
@@ -293,7 +281,7 @@ public class FDT {
                         if (!config.isStandAlone() && fdtSessionManager.isInited()
                                 && fdtSessionManager.sessionsNumber() == 0) {
                             SelectionManager.getInstance().stopIt();
-                            System.out.println(
+                            logger.info(
                                     "Server started with -S flag set and all the sessions have finished ... FDT will stop now");
                             break;
                         }
@@ -305,7 +293,7 @@ public class FDT {
             }
         } finally {
             try {
-                System.out.println(" [ " + new Date().toString()
+                logger.info(" [ " + new Date().toString()
                         + " ] - GracefulStopper hook started ... Waiting for the cleanup to finish");
 
                 GracefulStopper stopper = new GracefulStopper();
@@ -325,7 +313,7 @@ public class FDT {
                         }
                     }
                 }
-                System.out.println(" [ " + new Date().toString() + " ]  - GracefulStopper hook finished!");
+                logger.info(" [ " + new Date().toString() + " ]  - GracefulStopper hook finished!");
             } catch (Throwable gExc) {
                 System.err.println(" [GracefulStopper] Got exception stopper");
                 gExc.printStackTrace();
@@ -337,26 +325,26 @@ public class FDT {
         if (tExit != null || mExit != null) {
             System.err.println("\n [ " + new Date().toString() + " ]  FDT Session finished with errors: ");
             if (mExit != null) {
-                System.err.println(mExit + "\n");
+                System.err.println(mExit + '\n');
             }
 
             if (tExit != null) {
-                System.err.println(Utils.getStackTrace(tExit) + "\n");
+                System.err.println(Utils.getStackTrace(tExit) + '\n');
             }
 
             return 1;
         }
 
-        System.out.println("\n [ " + new Date().toString() + " ]  FDT Session finished OK.\n");
+        logger.info("\n [ " + new Date().toString() + " ]  FDT Session finished OK.\n");
         return 0;
     }
 
     private static void processSCPSyntax(String[] args) throws Exception {
         int iTransferConfiguration = config.getSSHConfig();
         if (iTransferConfiguration > 0) {
-            ControlStream sshConn = null;
+            ControlStream sshConn;
             String localAddresses;
-            String remoteCmd;
+            StringBuilder remoteCmd;
             String[] clients;
 
             final int sshPort = config.getSSHPort();
@@ -377,10 +365,10 @@ public class FDT {
                 sshConn.connect();
                 localAddresses = config.getLocalAddresses();
                 // append the required options to the configurable java command
-                remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f "
-                        + localAddresses;
+                remoteCmd = new StringBuilder(config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f "
+                        + localAddresses);
                 System.err.println(" [ CONFIG ] Starting FDT server over SSH using [ " + remoteCmd + " ]");
-                sshConn.startProgram(remoteCmd);
+                sshConn.startProgram(remoteCmd.toString());
                 sshConn.waitForControlMessage("READY");
                 System.err.println(" [ CONFIG ] FDT server successfully started on [ " + config.getHostName() + " ]");
                 break;
@@ -389,7 +377,7 @@ public class FDT {
                 System.err.println("[SSH Mode] SSH_REMOTE_SERVER_LOCAL_CLIENT_PULL. Remote ssh port: " + sshPort);
                 // the host running the FDT server is the source in this case
                 String remoteServerHost = config.getSourceHosts()[0];
-                String remoteServerUsername = null;
+                String remoteServerUsername;
                 clients = config.getSourceUsers();
                 if (clients != null && clients.length > 0 && clients[0] != null) {
                     remoteServerUsername = clients[0];
@@ -411,10 +399,10 @@ public class FDT {
                 sshConn.connect();
                 localAddresses = config.getLocalAddresses();
                 // append the required options to the configurable java command
-                remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f "
-                        + localAddresses;
+                remoteCmd = new StringBuilder(config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f "
+                        + localAddresses);
                 System.err.println(" [ CONFIG ] Starting FDT server over SSH using [ " + remoteCmd + " ]");
-                sshConn.startProgram(remoteCmd);
+                sshConn.startProgram(remoteCmd.toString());
                 sshConn.waitForControlMessage("READY");
                 System.err.println(" [ CONFIG ] FDT server successfully started on [ " + remoteServerHost + " ]");
                 break;
@@ -433,16 +421,16 @@ public class FDT {
                     throw new Exception("GSI libraries not loaded. You should set CLASSPATH accordingly!");
                 }
                 // append the required options to the configurable java command
-                remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f "
-                        + clientHost;
+                remoteCmd = new StringBuilder(config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f "
+                        + clientHost);
                 System.err.println(" [ CONFIG ] Starting remote FDT server over SSH using [ " + remoteCmd + " ]");
-                sshConn.startProgram(remoteCmd);
+                sshConn.startProgram(remoteCmd.toString());
                 sshConn.waitForControlMessage("READY");
                 System.err.println(" [ CONFIG ] FDT server successfully started on [ " + config.getHostName() + " ]");
                 // server ok
 
                 // start FDT client
-                String clientUser = null;
+                String clientUser;
                 clients = config.getSourceUsers();
                 if (clients != null && clients.length > 0 && clients[0] != null) {
                     clientUser = clients[0];
@@ -457,18 +445,18 @@ public class FDT {
                 } catch (NoClassDefFoundError t) {
                     throw new Exception("GSI libraries not loaded. You should set CLASSPATH accordingly!");
                 }
-                remoteCmd = config.getRemoteCommand();
-                for (int i = 0; i < args.length; i++) {
-                    if (args[i].indexOf(':') < 0) {
-                        remoteCmd += " " + args[i];
+                remoteCmd = new StringBuilder(config.getRemoteCommand());
+                for (String arg : args) {
+                    if (arg.indexOf(':') < 0) {
+                        remoteCmd.append(' ').append(arg);
                     }
                 }
-                remoteCmd += " -c " + config.getHostName();
-                remoteCmd += " -d " + config.getDestinationDir();
+                remoteCmd.append(" -c ").append(config.getHostName());
+                remoteCmd.append(" -d ").append(config.getDestinationDir());
                 String[] files = (String[]) config.getConfigMap().get("Files");
-                remoteCmd += " " + files[0];
+                remoteCmd.append(' ').append(files[0]);
                 System.err.println(" [ CONFIG ] Starting FDT client over SSH using [ " + remoteCmd + " ]");
-                sshConn.startProgram(remoteCmd);
+                sshConn.startProgram(remoteCmd.toString());
                 // wait for client termination or forced exit
                 sshConn.waitForControlMessage("DONE", true);
                 // after the remote client finished, our 'proxy' program should also exit
@@ -481,19 +469,167 @@ public class FDT {
         }
     }
 
-    private static final void initManagement() throws Exception {
+    private static void initManagement() throws Exception {
         // not there yet
     }
 
     // the one and only entry point
-    public static final void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
         // Init the logging
 
         // If the ${HOME}/.fdt/fdt.properties exists
         String logLevel = null;
         File logFile = null;
+        initLogging(args, logLevel, logFile);
 
+        Map<String, Object> argsMap = Utils.parseArguments(args, Config.SINGLE_CMDLINE_ARGS);
+
+        if (argsMap.get("-c") != null) {
+            if (argsMap.get("-d") == null && argsMap.get("-nettest") == null) {
+                throw new IllegalArgumentException("No destination specified");
+            }
+
+            @SuppressWarnings("unchecked")
+            final List<String> lParams = (List<String>) argsMap.get("LastParams");
+
+            if (argsMap.get("-nettest") == null && argsMap.get("-fl") == null
+                    && (lParams == null || lParams.size() == 0) && argsMap.get("Files") == null) {
+                throw new IllegalArgumentException("No source specified");
+            }
+        }
+
+        final boolean noLock = argsMap.get("-nolock") != null || argsMap.get("-nolocks") != null;
+        if (argsMap.get("-h") != null || argsMap.get("-H") != null || argsMap.get("-help") != null
+                || argsMap.get("--help") != null) {
+            printHelp();
+            System.exit(0);
+        } else if (argsMap.get("-V") != null || argsMap.get("--version") != null || argsMap.get("-version") != null) {
+            printVersion();
+            System.exit(0);
+        } else if (argsMap.get("-u") != null || argsMap.get("-U") != null || argsMap.get("-update") != null
+                || argsMap.get("--update") != null) {
+            final Object urlS = argsMap.get("-U");
+            String updateURL = UPDATE_URL;
+
+            if (urlS != null && urlS instanceof String) {
+                updateURL = (String) urlS;
+                if (updateURL.length() == 0) {
+                    updateURL = UPDATE_URL;
+                }
+            }
+
+            if (Utils.updateFDT(FDT_FULL_VERSION, updateURL, true, noLock)) {
+                // Just print the current version ...
+                logger.info("\nThe update finished successfully\n");
+                System.exit(0);
+            } else {
+                logger.info("\nNo updates available\n");
+                System.exit(100);
+            }
+        }
+
+        if (argsMap.get("-noupdates") == null) {
+            final Object urlS = argsMap.get("-U");
+            String updateURL = UPDATE_URL;
+
+            if (urlS != null && urlS instanceof String) {
+                updateURL = (String) urlS;
+                if (updateURL.length() == 0) {
+                    updateURL = UPDATE_URL;
+                }
+            }
+            try {
+                if (Utils.checkForUpdate(FDT_FULL_VERSION, updateURL, noLock)) {
+                    if (argsMap.get("-silent") == null) {
+                        System.out.print(
+                                "\n\nAn update is available ... Do you want to upgrade to the new version? [Y/n]");
+                        char car = (char) System.in.read();
+                        logger.info("\n");
+                        if (car == 'Y' || car == 'y' || car == '\n' || car == '\r') {
+                            System.out.print("\nTrying to update FDT to the new version ... ");
+                            if (Utils.updateFDT(FDT_FULL_VERSION, updateURL, true, noLock)) {
+                                // Just print the current version ...
+                                logger.info("\nThe update finished successfully\n");
+                                System.exit(0);
+                            } else {
+                                logger.info("\nNo updates available\n");
+                                System.exit(100);
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable t) {
+                logger.info("Got exception checking for updates: " + t.getCause());
+                if (logLevel.startsWith("FIN")) {
+                    t.printStackTrace();
+                }
+            }
+        }
+
+        logger.info("\n\n" + name + " [ " + FDT_FULL_VERSION + " ] STARTED ... \n\n");
+
+        try {
+            Config.initInstance(argsMap);
+        } catch (InvalidFDTParameterException e) {
+            System.err.println("Invalid parameters supplied: " + e.getMessage());
+            e.printStackTrace();
+            System.err.flush();
+            System.exit(1);
+        } catch (Throwable t1) {
+            System.err.println("got exception parsing command args");
+            t1.printStackTrace();
+            System.err.flush();
+            System.exit(1);
+        }
+
+        config = Config.getInstance();
+        logger.info("FDT uses" + ((!config.isBlocking()) ? " *non-" : " *") + "blocking* I/O mode.");
+
+        processSCPSyntax(args);
+
+        HeaderBufferPool.initInstance();
+
+        FDT jnc = null;
+
+        if (!config.isLisaDisabled()) {
+            LISAReportingTask lrt = LISAReportingTask.initInstance(config.getLisaHost(), config.getLisaPort());
+            Utils.getMonitoringExecService().scheduleWithFixedDelay(lrt, 1, config.getLisaReportingInterval(),
+                    TimeUnit.SECONDS);
+        }
+
+        try {
+            jnc = new FDT();
+            initManagement();
+        } catch (Throwable t) {
+            t.printStackTrace();
+            System.out.flush();
+            System.err.flush();
+            System.exit(1);
+        }
+
+        final int exitCode = FDT.doWork();
+
+        Utils.getMonitoringExecService().shutdownNow();
+        try {
+            if (config.massStorageType() != null && config.massStorageType().equals("dcache")) {
+                final FileChannelProviderFactory fcpf = config.getFileChannelProviderFactory();
+                if (fcpf instanceof FDTCloseable) {
+                    ((FDTCloseable) fcpf).close(null, null);
+                }
+            }
+        } catch (Throwable t) {
+            System.err.println("FDT got exception trying to close the dCapLayer. Cause:");
+            t.printStackTrace();
+            System.out.flush();
+            System.err.flush();
+            System.exit(2502);
+        }
+
+        System.exit(exitCode);
+    }
+
+    private static String initLogging(String[] args, String logLevel, File logFile) throws IOException {
         for (int i = 0; i < args.length; i++) {
             if (logLevel == null) {
                 if (args[i].equals("-v")) {
@@ -560,164 +696,9 @@ public class FDT {
         }
 
         if (logLevel.startsWith("FIN")) {
-            System.out.println(" LogLevel: " + logLevel);
+            logger.info(" LogLevel: " + logLevel);
         }
         initLogger(logLevel, logFile);
-
-        Map<String, Object> argsMap = Utils.parseArguments(args, Config.SINGLE_CMDLINE_ARGS);
-
-        if (argsMap.get("-c") != null) {
-            if (argsMap.get("-d") == null && argsMap.get("-nettest") == null) {
-                throw new IllegalArgumentException("No destination specified");
-            }
-
-            @SuppressWarnings("unchecked")
-            final List<String> lParams = (List<String>) argsMap.get("LastParams");
-
-            if (argsMap.get("-nettest") == null && argsMap.get("-fl") == null
-                    && (lParams == null || lParams.size() == 0) && argsMap.get("Files") == null) {
-                throw new IllegalArgumentException("No source specified");
-            }
-        }
-
-        // FDTCommandLine fdtCommandLine = new FDTCommandLine(args);
-
-        // if( fdtCommandLine.getOption("-h") != null || fdtCommandLine.getOption("-help") != null ||
-        // fdtCommandLine.getOption("--help") != null ) {
-        // printHelp();
-        // System.exit(0);
-        // } else if ( fdtCommandLine.getOption("-v")!=null || fdtCommandLine.getOption("--version")!=null ) {
-        // printVersion();
-        // System.exit(0);
-        // }
-
-        final boolean noLock = argsMap.get("-nolock") != null || argsMap.get("-nolocks") != null;
-        if (argsMap.get("-h") != null || argsMap.get("-H") != null || argsMap.get("-help") != null
-                || argsMap.get("--help") != null) {
-            printHelp();
-            System.exit(0);
-        } else if (argsMap.get("-V") != null || argsMap.get("--version") != null || argsMap.get("-version") != null) {
-            printVersion();
-            System.exit(0);
-        } else if (argsMap.get("-u") != null || argsMap.get("-U") != null || argsMap.get("-update") != null
-                || argsMap.get("--update") != null) {
-            final Object urlS = argsMap.get("-U");
-            String updateURL = UPDATE_URL;
-
-            if (urlS != null && urlS instanceof String) {
-                updateURL = (String) urlS;
-                if (updateURL.length() == 0) {
-                    updateURL = UPDATE_URL;
-                }
-            }
-
-            if (Utils.updateFDT(FDT_FULL_VERSION, updateURL, true, noLock)) {
-                // Just print the current version ...
-                System.out.println("\nThe update finished successfully\n");
-                System.exit(0);
-            } else {
-                System.out.println("\nNo updates available\n");
-                System.exit(100);
-            }
-        }
-
-        if (argsMap.get("-noupdates") == null) {
-            final Object urlS = argsMap.get("-U");
-            String updateURL = UPDATE_URL;
-
-            if (urlS != null && urlS instanceof String) {
-                updateURL = (String) urlS;
-                if (updateURL.length() == 0) {
-                    updateURL = UPDATE_URL;
-                }
-            }
-            try {
-                if (Utils.checkForUpdate(FDT_FULL_VERSION, updateURL, noLock)) {
-                    if (argsMap.get("-silent") == null) {
-                        System.out.print(
-                                "\n\nAn update is available ... Do you want to upgrade to the new version? [Y/n]");
-                        char car = (char) System.in.read();
-                        System.out.println("\n");
-                        if (car == 'Y' || car == 'y' || car == '\n' || car == '\r') {
-                            System.out.print("\nTrying to update FDT to the new version ... ");
-                            if (Utils.updateFDT(FDT_FULL_VERSION, updateURL, true, noLock)) {
-                                // Just print the current version ...
-                                System.out.println("\nThe update finished successfully\n");
-                                System.exit(0);
-                            } else {
-                                System.out.println("\nNo updates available\n");
-                                System.exit(100);
-                            }
-                        }
-                    }
-                }
-            } catch (Throwable t) {
-                System.out.println("Got exception checking for updates: " + t.getCause());
-                if (logLevel.startsWith("FIN")) {
-                    t.printStackTrace();
-                }
-            }
-        }
-
-        System.out.println("\n\n" + name + " [ " + FDT_FULL_VERSION + " ] STARTED ... \n\n");
-
-        try {
-            Config.initInstance(argsMap);
-        } catch (InvalidFDTParameterException e) {
-            System.err.println("Invalid parameters supplied: " + e.getMessage());
-            e.printStackTrace();
-            System.err.flush();
-            System.exit(1);
-        } catch (Throwable t1) {
-            System.err.println("got exception parsing command args");
-            t1.printStackTrace();
-            System.err.flush();
-            System.exit(1);
-        }
-
-        config = Config.getInstance();
-        System.out.println("FDT uses" + ((!config.isBlocking()) ? " *non-" : " *") + "blocking* I/O mode.");
-
-        processSCPSyntax(args);
-
-        HeaderBufferPool.initInstance();
-
-        FDT jnc = null;
-
-        if (!config.isLisaDisabled()) {
-            LISAReportingTask lrt = LISAReportingTask.initInstance(config.getLisaHost(), config.getLisaPort());
-            Utils.getMonitoringExecService().scheduleWithFixedDelay(lrt, 1, config.getLisaReportingInterval(),
-                    TimeUnit.SECONDS);
-        }
-
-        try {
-            jnc = new FDT();
-            initManagement();
-        } catch (Throwable t) {
-            t.printStackTrace();
-            System.out.flush();
-            System.err.flush();
-            System.exit(1);
-        }
-
-        final int exitCode = jnc.doWork();
-
-        Utils.getMonitoringExecService().shutdownNow();
-        try {
-            if (config.massStorageType() != null && config.massStorageType().equals("dcache")) {
-                final FileChannelProviderFactory fcpf = config.getFileChannelProviderFactory();
-                if (fcpf instanceof FDTCloseable) {
-                    ((FDTCloseable) fcpf).close(null, null);
-                }
-            }
-        } catch (Throwable t) {
-            System.err.println("FDT got exception trying to close the dCapLayer. Cause:");
-            t.printStackTrace();
-            System.out.flush();
-            System.err.flush();
-            System.exit(2502);
-        }
-
-        System.exit(exitCode);
+        return logLevel;
     }
 }

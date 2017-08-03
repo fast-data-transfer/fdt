@@ -1,57 +1,28 @@
 package lia.util.net.common;
 
-import java.io.BufferedReader;
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.io.RandomAccessFile;
-import java.io.StringWriter;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.URI;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.UnknownHostException;
+import apmon.ApMon;
+import lia.util.net.copy.FDT;
+import lia.util.net.copy.FileBlock;
+import lia.util.net.copy.transport.internal.FDTSelectionKey;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.*;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Queue;
-import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import lia.util.net.copy.FDT;
-import lia.util.net.copy.FileBlock;
-import lia.util.net.copy.transport.internal.FDTSelectionKey;
-import apmon.ApMon;
 
 /**
  * Various utilities functions used in the entire application
@@ -60,13 +31,18 @@ import apmon.ApMon;
  */
 public final class Utils {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final Logger logger = Logger.getLogger(Utils.class.getName());
 
     private static final ScheduledThreadPoolExecutor scheduledExecutor = getSchedExecService("FDT Monitoring ThPool",
             5, Thread.MIN_PRIORITY);
+    public static final char ZERO = '0';
 
-    /** reference to the monitor reporting api, initialized in the constructor of {@link FDT} */
+    /**
+     * reference to the monitor reporting api, initialized in the constructor of {@link FDT}
+     */
     private static ApMon apmon = null;
 
     private static boolean apmonInitied = false;
@@ -79,35 +55,35 @@ public final class Utils {
 
     private static final int AV_PROCS;
 
-    public static final long KILO_BIT = 1000;
+    private static final long KILO_BIT = 1000;
 
     public static final long MEGA_BIT = KILO_BIT * 1000;
 
-    public static final long GIGA_BIT = MEGA_BIT * 1000;
+    private static final long GIGA_BIT = MEGA_BIT * 1000;
 
-    public static final long TERA_BIT = GIGA_BIT * 1000;
+    private static final long TERA_BIT = GIGA_BIT * 1000;
 
-    public static final long PETA_BIT = TERA_BIT * 1000;
+    private static final long PETA_BIT = TERA_BIT * 1000;
 
-    public static final long KILO_BYTE = 1024;
+    private static final long KILO_BYTE = 1024;
 
     public static final long MEGA_BYTE = KILO_BYTE * 1024;
 
-    public static final long GIGA_BYTE = MEGA_BYTE * 1024;
+    private static final long GIGA_BYTE = MEGA_BYTE * 1024;
 
-    public static final long TERA_BYTE = GIGA_BYTE * 1024;
+    private static final long TERA_BYTE = GIGA_BYTE * 1024;
 
-    public static final long PETA_BYTE = TERA_BYTE * 1024;
+    private static final long PETA_BYTE = TERA_BYTE * 1024;
 
-    private static final long[] BYTE_MULTIPLIERS = new long[] { KILO_BYTE, MEGA_BYTE, GIGA_BYTE, TERA_BYTE, PETA_BYTE };
+    private static final long[] BYTE_MULTIPLIERS = new long[]{KILO_BYTE, MEGA_BYTE, GIGA_BYTE, TERA_BYTE, PETA_BYTE};
 
-    private static final String[] BYTE_SUFIXES = new String[] { "KB", "MB", "GB", "TB", "PB" };
+    private static final String[] BYTE_SUFIXES = new String[]{"KB", "MB", "GB", "TB", "PB"};
 
-    private static final long[] BIT_MULTIPLIERS = new long[] { KILO_BIT, MEGA_BIT, GIGA_BIT, TERA_BIT, PETA_BIT };
+    private static final long[] BIT_MULTIPLIERS = new long[]{KILO_BIT, MEGA_BIT, GIGA_BIT, TERA_BIT, PETA_BIT};
 
-    private static final String[] BIT_SUFIXES = new String[] { "Kb", "Mb", "Gb", "Tb", "Pb" };
+    private static final String[] BIT_SUFIXES = new String[]{"Kb", "Mb", "Gb", "Tb", "Pb"};
 
-    public static final int URL_CONNECTION_TIMEOUT = 20 * 1000;
+    private static final int URL_CONNECTION_TIMEOUT = 20 * 1000;
 
     private static final Object lock = new Object();
 
@@ -117,10 +93,10 @@ public final class Utils {
 
     private static final long SECONDS_IN_DAY = TimeUnit.DAYS.toSeconds(1);
 
-    private static final String[] SELECTION_KEY_OPS_NAMES = { "OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE" };
+    private static final String[] SELECTION_KEY_OPS_NAMES = {"OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE"};
 
-    private static final int[] SELECTION_KEY_OPS_VALUES = { SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT,
-        SelectionKey.OP_READ, SelectionKey.OP_WRITE };
+    private static final int[] SELECTION_KEY_OPS_VALUES = {SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT,
+            SelectionKey.OP_READ, SelectionKey.OP_WRITE};
 
     //
     // END this should not be here any more after FDT will use only Java6
@@ -139,7 +115,7 @@ public final class Utils {
 
     }
 
-    public static final String getStackTrace(Throwable t) {
+    public static String getStackTrace(Throwable t) {
         if (t == null) {
             return "Stack trace unavailable";
         }
@@ -148,8 +124,8 @@ public final class Utils {
         return sw.toString();
     }
 
-    public static final ScheduledThreadPoolExecutor getSchedExecService(final String name, final int corePoolSize,
-            final int threadPriority) {
+    public static ScheduledThreadPoolExecutor getSchedExecService(final String name, final int corePoolSize,
+                                                                  final int threadPriority) {
         return new ScheduledThreadPoolExecutor(corePoolSize, new ThreadFactory() {
 
             AtomicLong l = new AtomicLong(0);
@@ -186,8 +162,8 @@ public final class Utils {
         });
     }
 
-    public static final ExecutorService getStandardExecService(final String name, final int corePoolSize,
-            final int maxPoolSize, BlockingQueue<Runnable> taskQueue, final int threadPriority) {
+    public static ExecutorService getStandardExecService(final String name, final int corePoolSize,
+                                                         final int maxPoolSize, BlockingQueue<Runnable> taskQueue, final int threadPriority) {
         ThreadPoolExecutor texecutor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, 2 * 60, TimeUnit.SECONDS,
                 taskQueue, new ThreadFactory() {
 
@@ -231,12 +207,12 @@ public final class Utils {
         return texecutor;
     }
 
-    public static final ExecutorService getStandardExecService(final String name, final int corePoolSize,
-            final int maxPoolSize, final int threadPriority) {
+    public static ExecutorService getStandardExecService(final String name, final int corePoolSize,
+                                                         final int maxPoolSize, final int threadPriority) {
         return getStandardExecService(name, corePoolSize, maxPoolSize, new SynchronousQueue<Runnable>(), threadPriority);
     }
 
-    public static final String formatWithByteFactor(final double number, final long factor, final String append) {
+    public static String formatWithByteFactor(final double number, final long factor, final String append) {
         String appendUM = "";
         double fNo = number;
 
@@ -267,10 +243,10 @@ public final class Utils {
 
         appendUM += append;
 
-        return speedDecimalFormat(fNo) + " " + appendUM;
+        return speedDecimalFormat(fNo) + ' ' + appendUM;
     }
 
-    public static final String formatWithBitFactor(final double number, final long factor, final String append) {
+    public static String formatWithBitFactor(final double number, final long factor, final String append) {
         String appendUM = "";
         double fNo = number;
 
@@ -301,28 +277,28 @@ public final class Utils {
         }
         appendUM += append;
 
-        return speedDecimalFormat(fNo) + " " + appendUM;
+        return speedDecimalFormat(fNo) + ' ' + appendUM;
     }
 
-    public static final String speedDecimalFormat(final double no) {
+    private static String speedDecimalFormat(final double no) {
         final DecimalFormat SPEED_DECIMAL_FORMAT = ((DecimalFormat) DecimalFormat.getNumberInstance());
         SPEED_DECIMAL_FORMAT.applyPattern("##0.000");
         return SPEED_DECIMAL_FORMAT.format(no);
     }
 
-    public static final String percentDecimalFormat(final double no) {
+    public static String percentDecimalFormat(final double no) {
         final DecimalFormat PERCENT_DECIMAL_FORMAT = ((DecimalFormat) DecimalFormat.getNumberInstance());
         PERCENT_DECIMAL_FORMAT.applyPattern("00.00");
         return PERCENT_DECIMAL_FORMAT.format(no);
     }
 
-    public final static String getETA(final long seconds) {
+    public static String getETA(final long seconds) {
         long delta = seconds;
         StringBuilder sb = new StringBuilder();
         final long days = seconds / SECONDS_IN_DAY;
         if (days > 0) {
             if (days < 10) {
-                sb.append("0");
+                sb.append(ZERO);
             }
             sb.append(days).append("d ");
             delta -= days * SECONDS_IN_DAY;
@@ -332,7 +308,7 @@ public final class Utils {
         if (hours > 0) {
             delta -= hours * SECONDS_IN_HOUR;
             if (hours < 10) {
-                sb.append("0");
+                sb.append(ZERO);
             }
             sb.append(hours).append("h ");
         }
@@ -344,7 +320,7 @@ public final class Utils {
         final long minutes = delta / SECONDS_IN_MINUTE;
         if (minutes > 0) {
             if (minutes < 10) {
-                sb.append("0");
+                sb.append(ZERO);
             }
             sb.append(minutes).append("m ");
             delta -= minutes * SECONDS_IN_MINUTE;
@@ -355,9 +331,9 @@ public final class Utils {
         }
 
         if (delta < 10) {
-            sb.append("0");
+            sb.append(ZERO);
         }
-        sb.append(delta).append("s");
+        sb.append(delta).append('s');
 
         return sb.toString();
     }
@@ -370,7 +346,7 @@ public final class Utils {
      * @return the ETA as String representation
      * @since Java 1.6
      */
-    public final static String getETA(final long value, TimeUnit unit) {
+    public static String getETA(final long value, TimeUnit unit) {
         long delta = value;
 
         StringBuilder sb = new StringBuilder();
@@ -379,7 +355,7 @@ public final class Utils {
         final long days = TimeUnit.DAYS.convert(delta, unit);
         if (days > 0) {
             if (days < 10) {
-                sb.append("0");
+                sb.append(ZERO);
             }
             sb.append(days).append("d ");
             delta -= unit.convert(days, TimeUnit.DAYS);
@@ -389,7 +365,7 @@ public final class Utils {
         if (hours > 0) {
             delta -= unit.convert(hours, TimeUnit.HOURS);
             if (hours < 10) {
-                sb.append("0");
+                sb.append(ZERO);
             }
             sb.append(hours).append("h ");
         }
@@ -401,7 +377,7 @@ public final class Utils {
         final long minutes = TimeUnit.MINUTES.convert(delta, unit);
         if (minutes > 0) {
             if (minutes < 10) {
-                sb.append("0");
+                sb.append(ZERO);
             }
             sb.append(minutes).append("m ");
             delta -= unit.convert(minutes, TimeUnit.MINUTES);
@@ -412,30 +388,30 @@ public final class Utils {
         }
 
         if (delta < 10) {
-            sb.append("0");
+            sb.append(ZERO);
         }
-        sb.append(delta).append("s");
+        sb.append(delta).append('s');
 
         return sb.toString();
     }
 
-    public static final ScheduledThreadPoolExecutor getMonitoringExecService() {
+    public static ScheduledThreadPoolExecutor getMonitoringExecService() {
         return scheduledExecutor;
     }
 
-    public static final DirectByteBufferPool getDirectBufferPool() {
+    public static DirectByteBufferPool getDirectBufferPool() {
         return DirectByteBufferPool.getInstance();
     }
 
-    public static final int availableProcessors() {
+    public static int availableProcessors() {
         return AV_PROCS;
     }
 
-    public static final HeaderBufferPool getHeaderBufferPool() {
+    public static HeaderBufferPool getHeaderBufferPool() {
         return HeaderBufferPool.getInstance();
     }
 
-    public static final void initApMonInstance(ApMon apmon) throws Exception {
+    public static void initApMonInstance(ApMon apmon) throws Exception {
         synchronized (Utils.class) {
             if (apmonInitied) {
                 return;
@@ -448,7 +424,7 @@ public final class Utils {
         }
     }
 
-    public static final ApMon getApMon() {
+    public static ApMon getApMon() {
         synchronized (Utils.class) {
 
             // just check that initApMonInstance will be ever called ....
@@ -468,12 +444,12 @@ public final class Utils {
         }
     }
 
-    public static final boolean isCustomLog() {
+    public static boolean isCustomLog() {
         final String customLogProperty = System.getProperty("CustomLog");
         boolean bCustomLog = false;
-        if(customLogProperty != null) {
+        if (customLogProperty != null) {
             final String trimLower = customLogProperty.trim().toLowerCase();
-            if(!trimLower.isEmpty()) {
+            if (!trimLower.isEmpty()) {
                 bCustomLog = trimLower.startsWith("t") || trimLower.startsWith("1") || trimLower.startsWith("on");
             }
         }
@@ -481,20 +457,20 @@ public final class Utils {
         return bCustomLog;
     }
 
-    public static final String buffToString(final ByteBuffer bb) {
+    public static String buffToString(final ByteBuffer bb) {
 
         if (bb == null) {
             return "null";
         }
 
         StringBuilder sb = new StringBuilder(512);
-        sb.append(bb).append(" id=").append(System.identityHashCode(bb)).append(" ");
+        sb.append(bb).append(" id=").append(System.identityHashCode(bb)).append(' ');
 
         return sb.toString();
     }
 
     // TODO - should not parse here -c -d -bullshit
-    public static final Map<String, Object> parseArguments(final String args[], final String[] singleArgs) {
+    public static Map<String, Object> parseArguments(final String args[], final String[] singleArgs) {
 
         List<String> sArgs = Arrays.asList(singleArgs);
 
@@ -525,8 +501,8 @@ public final class Utils {
                     rHM.put(args[i], args[i + 1]);
                     i++;
                 }
-            } else if (args[i].indexOf(":") >= 0) {
-                int idx = args[i].indexOf(":");
+            } else if (args[i].contains(":")) {
+                int idx = args[i].indexOf(':');
 
                 // /////////////
                 // handle windows stupid FS naming
@@ -683,7 +659,7 @@ public final class Utils {
         return rHM;
     }
 
-    public static final String getStringValue(final Map<String, Object> configMap, String key, String DEFAULT_VALUE) {
+    static String getStringValue(final Map<String, Object> configMap, String key, String DEFAULT_VALUE) {
         Object obj = configMap.get(key);
         if (obj == null) {
             return DEFAULT_VALUE;
@@ -692,8 +668,8 @@ public final class Utils {
         return obj.toString();
     }
 
-    public static final long getLongValue(final Map<String, Object> configMap, final String key,
-            final long DEFAULT_VALUE) {
+    public static long getLongValue(final Map<String, Object> configMap, final String key,
+                                    final long DEFAULT_VALUE) {
         long rVal = DEFAULT_VALUE;
         Object obj = configMap.get(key);
         if (obj == null) {
@@ -726,8 +702,8 @@ public final class Utils {
         return rVal;
     }
 
-    public static final double getDoubleValue(final Map<String, Object> configMap, final String key,
-            final double DEFAULT_VALUE) {
+    public static double getDoubleValue(final Map<String, Object> configMap, final String key,
+                                        final double DEFAULT_VALUE) {
 
         double rVal = DEFAULT_VALUE;
         Object obj = configMap.get(key);
@@ -761,7 +737,7 @@ public final class Utils {
         return rVal;
     }
 
-    public static final int getIntValue(final Map<String, Object> configMap, final String key, final int DEFAULT_VALUE) {
+    public static int getIntValue(final Map<String, Object> configMap, final String key, final int DEFAULT_VALUE) {
 
         int rVal = DEFAULT_VALUE;
         Object obj = configMap.get(key);
@@ -795,7 +771,7 @@ public final class Utils {
         return rVal;
     }
 
-    private static final File createOrGetRWFile(final String parentDirName, final String fileName) {
+    private static File createOrGetRWFile(final String parentDirName, final String fileName) {
 
         final File parentDir = new File(parentDirName);
         final File file = new File(parentDirName + File.separator + fileName);
@@ -853,7 +829,7 @@ public final class Utils {
         return null;
     }
 
-    public static final void updatePropertyAndStore(String dirName, String fileName, String property, String value) {
+    public static void updatePropertyAndStore(String dirName, String fileName, String property, String value) {
 
         synchronized (lock) {
             final File file = createOrGetRWFile(dirName, fileName);
@@ -982,8 +958,8 @@ public final class Utils {
     }
 
     /**
-     * @since FDT 0.9.0 - basic instanceID per FDT instance
      * @param props
+     * @since FDT 0.9.0 - basic instanceID per FDT instance
      */
     private static void checkAndSetInstanceID(final Properties props) {
 
@@ -997,7 +973,7 @@ public final class Utils {
         try {
             String instID = props.getProperty("instanceID");
 
-            if ((instID == null) || instID.trim().equals("")) {
+            if ((instID == null) || instID.trim().isEmpty()) {
                 instID = UUID.randomUUID().toString();
                 props.put("instanceID", instID);
 
@@ -1028,11 +1004,11 @@ public final class Utils {
 
     }
 
-    public static final boolean updateTotalReadContor(final long totalRead) throws Exception {
+    public static boolean updateTotalReadContor(final long totalRead) throws Exception {
         return updateTotalContor(totalRead, "totalRead");
     }
 
-    public static final boolean updateTotalWriteContor(final long totalWrite) throws Exception {
+    public static boolean updateTotalWriteContor(final long totalWrite) throws Exception {
         return updateTotalContor(totalWrite, "totalWrite");
     }
 
@@ -1040,7 +1016,7 @@ public final class Utils {
      * @param fileBlockQueue
      * @return - number of "recovered" FileBlock-s
      */
-    public static final int drainFileBlockQueue(Queue<FileBlock> fileBlockQueue) {
+    public static int drainFileBlockQueue(Queue<FileBlock> fileBlockQueue) {
         final boolean isInterrupted = Thread.interrupted();
         int status = 0;
         final DirectByteBufferPool bPool = DirectByteBufferPool.getInstance();
@@ -1049,7 +1025,7 @@ public final class Utils {
                 return status;
             }
 
-            for (;;) {
+            for (; ; ) {
                 try {
                     final FileBlock fb = fileBlockQueue.poll();
                     if (fb == null) {
@@ -1072,7 +1048,7 @@ public final class Utils {
         }
     }
 
-    public static final boolean checkForUpdate(final String currentVersion, final String updateURL, boolean noLock)
+    public static boolean checkForUpdate(final String currentVersion, final String updateURL, boolean noLock)
             throws Exception {
         try {
 
@@ -1109,7 +1085,6 @@ public final class Utils {
                 } catch (Throwable t) {
                     logger.log(Level.WARNING, "Cannot load update properties file: " + confFile, t);
                 } finally {
-                    closeIgnoringExceptions(fos);
                     closeIgnoringExceptions(fis);
                 }
 
@@ -1121,7 +1096,7 @@ public final class Utils {
                     lastCheck = now;
                     try {
                         System.out
-                        .println("\n\nChecking for remote updates ... This may be disabled using -noupdates flag.");
+                                .println("\n\nChecking for remote updates ... This may be disabled using -noupdates flag.");
                         bHaveUpdates = updateFDT(currentVersion, updateURL, false, noLock);
                         if (bHaveUpdates) {
                             System.out.println("FDT may be updated using: java -jar fdt.jar -update");
@@ -1167,61 +1142,12 @@ public final class Utils {
 
     /**
      * @return true if update was available and FDT was successfuly updated, and false if now update was avaiable
-     * @throws Exception
-     *             if update was unsuccesfully or there was a problem connecting to the update server
+     * @throws Exception if update was unsuccesfully or there was a problem connecting to the update server
      */
-    public static final boolean updateFDT(final String currentVersion, final String updateURL, boolean shouldUpdate,
-            boolean noLock) throws Exception {
+    public static boolean updateFDT(final String currentVersion, final String updateURL, boolean shouldUpdate,
+                                    boolean noLock) throws Exception {
 
-        final String partialURL = updateURL + (updateURL.endsWith("/") ? "" : "/") + "fdt.jar";
-        System.out.print("Checking remote fdt.jar at URL: " + partialURL);
-        String JVMVersion = "NotAvailable";
-        String JVMRuntimeVersion = "NotAvailable";
-        String OSVersion = "NotAvailable";
-        String OSName = "NotAvailable";
-        String OSArch = "NotAvailable";
-
-        try {
-            JVMVersion = System.getProperty("java.vm.version");
-        } catch (Throwable t) {
-            JVMVersion = "NotAvailable";
-        }
-
-        try {
-            JVMRuntimeVersion = System.getProperty("java.runtime.version");
-        } catch (Throwable t) {
-            JVMRuntimeVersion = "NotAvailable";
-        }
-
-        try {
-            OSName = System.getProperty("os.name");
-        } catch (Throwable t) {
-            OSName = "NotAvailable";
-        }
-
-        try {
-            OSArch = System.getProperty("os.arch");
-        } catch (Throwable t) {
-            OSArch = "NotAvailable";
-        }
-
-        try {
-            OSVersion = System.getProperty("os.version");
-        } catch (Throwable t) {
-            OSVersion = "NotAvailable";
-        }
-
-        StringBuilder urlBuilder = new StringBuilder();
-        urlBuilder.append(partialURL);
-        urlBuilder.append("?FDTCurrentVersion=").append(currentVersion);
-        urlBuilder.append("&shouldUpdate=").append(shouldUpdate);
-        urlBuilder.append("&tstamp=").append(System.currentTimeMillis());
-        urlBuilder.append("&java.vm.version=").append(JVMVersion);
-        urlBuilder.append("&java.runtime.version=").append(JVMRuntimeVersion);
-        urlBuilder.append("&os.name=").append(OSName);
-        urlBuilder.append("&os.version=").append(OSVersion);
-        urlBuilder.append("&os.arch=").append(OSArch);
-
+        logger.info("Checking remote fdt.jar at URL: " + updateURL);
         final Properties p = getFDTUpdateProperties();
 
         if (p.getProperty("totalRead") == null) {
@@ -1242,16 +1168,8 @@ public final class Utils {
             p.remove("totalWrite_rst");
         }
 
-        if (p.size() > 0) {
-            for (final Map.Entry<Object, Object> entry : p.entrySet()) {
-                urlBuilder.append("&").append(entry.getKey()).append("=").append(entry.getValue());
-            }
-        }
 
-        // final String finalPath =
-        // FDT.class.getProtectionDomain().getCodeSource().getLocation().getPath().replaceAll("%20", " ");
-        final String finalPath = new URI(FDT.class.getProtectionDomain().getCodeSource().getLocation().toString())
-        .getPath();
+        final String finalPath = new URI(FDT.class.getProtectionDomain().getCodeSource().getLocation().toString()).getPath();
 
         if ((finalPath == null) || (finalPath.length() == 0)) {
             throw new IOException("Cannot determine the path to current fdt jar");
@@ -1265,44 +1183,65 @@ public final class Utils {
                     + " ] but the JVM cannot access it!");
         }
 
-        if (currentJar.isFile() && currentJar.canWrite()) {
-            System.out.println("\nCurrent fdt.jar path is: " + finalPath);
-        } else {
-            throw new IOException("Current fdt.jar path seems to be [ " + finalPath
-                    + " ] but it does not have write access!");
-        }
+//        if (currentJar.isFile() && currentJar.canWrite()) {
+//            logger.info("\nCurrent fdt.jar path is: " + finalPath);
+//        } else {
+//            throw new IOException("Current fdt.jar path seems to be [ " + finalPath
+//                    + " ] but it does not have write access!");
+//        }
 
         // Check if it is possible to use a temporary file
         File tmpUpdateFile = null;
         FileOutputStream fos = null;
-        JarFile jf = null;
+        JarFile jf;
         InputStream connInputStream = null;
+        InputStream downInputStream = null;
         try {
             // first try to create the destination update file
             tmpUpdateFile = File.createTempFile("fdt_update_tmp", ".jar");
             tmpUpdateFile.deleteOnExit();
-
             fos = new FileOutputStream(tmpUpdateFile);
+            connInputStream = connectTo(updateURL);
+            logger.info("OK");
 
-            final URLConnection urlConnection = new URL(urlBuilder.toString()).openConnection();
-            urlConnection.setDefaultUseCaches(false);
-            urlConnection.setUseCaches(false);
+            BufferedReader streamReader = new BufferedReader(new InputStreamReader(connInputStream, "UTF-8"));
+            StringBuilder responseStrBuilder = new StringBuilder(10);
+            String inputStr;
+            while ((inputStr = streamReader.readLine()) != null)
+                responseStrBuilder.append(inputStr);
 
-            urlConnection.setConnectTimeout(URL_CONNECTION_TIMEOUT);
-            urlConnection.setReadTimeout(URL_CONNECTION_TIMEOUT);
+            String response = responseStrBuilder.toString();
+            if (response.startsWith("["))
+                response = response.substring(1);
+            if (response.endsWith("]"));
+                response = response.substring(0, response.length()-1);
+            JSONObject jsonObject = new JSONObject(response);
+            String tagName = (String)jsonObject.get("tag_name");
+            logger.info("Latest available version: " + tagName);
 
-            System.out.print("Connecting ... ");
-            urlConnection.connect();
-            connInputStream = urlConnection.getInputStream();
-            System.out.println("OK");
+            String name = (String)jsonObject.get("name");
+            logger.info("Name: " + name);
+
+            String publishedAt = (String)jsonObject.get("published_at");
+            logger.info("Publish date: " + publishedAt);
+
+            JSONArray assets = (JSONArray)jsonObject.get("assets");
+            JSONObject asset = new JSONObject(assets.get(0).toString());
+            String downloadUrl = (String)asset.get("browser_download_url");
+            logger.info("FDT download url: " + downloadUrl);
+
+            String body = (String)jsonObject.get("body");
+            logger.info("Release notes: " + body);
+
+            downInputStream = connectTo(downloadUrl);
+            logger.info("OK");
             byte[] buff = new byte[8192];
 
             int count = 0;
-            while ((count = connInputStream.read(buff)) > 0) {
+            while ((count = downInputStream.read(buff)) > 0) {
                 fos.write(buff, 0, count);
             }
             fos.flush();
-
             // try to check the version
             jf = new JarFile(tmpUpdateFile);
             final Manifest mf = jf.getManifest();
@@ -1337,7 +1276,7 @@ public final class Utils {
                         //
                         logger.log(Level.WARNING,
                                 "[ WARNING CHECK ] The OS reported that is unable to write in parent dir: " + parentDir
-                                + " continue anyway; the call might be broken.");
+                                        + " continue anyway; the call might be broken.");
                     }
 
                     final File bkpJar = new File(parentDir.getPath() + File.separator + "fdt_"
@@ -1383,14 +1322,27 @@ public final class Utils {
 
     }
 
-    public static final String getUsage() {
+    private static InputStream connectTo(String updateURL) throws IOException {
+
+        final URLConnection urlConnection = new URL(updateURL).openConnection();
+        urlConnection.setDefaultUseCaches(false);
+        urlConnection.setUseCaches(false);
+        urlConnection.setConnectTimeout(URL_CONNECTION_TIMEOUT);
+        urlConnection.setReadTimeout(URL_CONNECTION_TIMEOUT);
+
+        logger.info("Connecting ... ");
+        urlConnection.connect();
+        return urlConnection.getInputStream();
+    }
+
+    public static String getUsage() {
         final String newline = System.getProperty("line.separator");
 
         InputStream is = null;
         try {
             BufferedReader br = new BufferedReader(new InputStreamReader(Utils.class.getResourceAsStream("usage")));
             StringBuilder sb = new StringBuilder();
-            for (;;) {
+            for (; ; ) {
                 final String line = br.readLine();
                 if (line == null) {
                     break;
@@ -1406,7 +1358,7 @@ public final class Utils {
         }
     }
 
-    public static final String md5ToString(byte[] md5sum) {
+    public static String md5ToString(byte[] md5sum) {
         StringBuilder sb = new StringBuilder();
 
         for (byte element : md5sum) {
@@ -1419,13 +1371,11 @@ public final class Utils {
     /**
      * Optimized file transfer method. In most moder OS-es "zero-copy" should be used by the underlying OS.
      *
-     * @param s
-     *            source file
-     * @param d
-     *            destination file
+     * @param s source file
+     * @param d destination file
      * @throws IOException
      */
-    public static final void copyFile2File(File s, File d, boolean noLock) throws IOException {
+    private static void copyFile2File(File s, File d, boolean noLock) throws IOException {
         FileChannel srcChannel = null;
         FileChannel dstChannel = null;
 
@@ -1488,8 +1438,8 @@ public final class Utils {
     /**
      * fills an array of File objects based on a list of files and directories
      */
-    public static final void getRecursiveFiles(String fileName, String remappedFileName, List<String> allFiles,
-            List<String> allRemappedFiles) throws Exception {
+    public static void getRecursiveFiles(String fileName, String remappedFileName, List<String> allFiles,
+                                         List<String> allRemappedFiles) throws Exception {
 
         if (allFiles == null) {
             throw new NullPointerException("File list is null");
@@ -1521,10 +1471,9 @@ public final class Utils {
     /**
      * Helper method to close a {@link FDTCloseable} ignoring eventual exceptions
      *
-     * @param closeable
-     *            to be closed
+     * @param closeable to be closed
      */
-    public static final void closeIgnoringExceptions(FDTCloseable closeable, String downMessage, Throwable downCause) {
+    public static void closeIgnoringExceptions(FDTCloseable closeable, String downMessage, Throwable downCause) {
         if (closeable != null) {
             try {
                 closeable.close(downMessage, downCause);
@@ -1539,10 +1488,9 @@ public final class Utils {
     /**
      * Helper method to close a {@link Closeable} ignoring eventual exceptions
      *
-     * @param closeable
-     *            to be closed
+     * @param closeable to be closed
      */
-    public static final void closeIgnoringExceptions(Closeable closeable) {
+    public static void closeIgnoringExceptions(Closeable closeable) {
         if (closeable != null) {
             try {
                 closeable.close();
@@ -1557,10 +1505,9 @@ public final class Utils {
     /**
      * Helper method to close a {@link Selector} ignoring eventual exceptions
      *
-     * @param selector
-     *            to be closed
+     * @param selector to be closed
      */
-    public static final void closeIgnoringExceptions(Selector selector) {
+    public static void closeIgnoringExceptions(Selector selector) {
         if (selector != null) {
             try {
                 selector.close();
@@ -1575,10 +1522,9 @@ public final class Utils {
     /**
      * Helper method to close a {@link Socket} ignoring eventual exceptions
      *
-     * @param socket
-     *            to be closed
+     * @param socket to be closed
      */
-    public static final void closeIgnoringExceptions(Socket socket) {
+    public static void closeIgnoringExceptions(Socket socket) {
         if (socket != null) {
             try {
                 socket.close();
@@ -1590,7 +1536,7 @@ public final class Utils {
         }
     }
 
-    public static final boolean cancelFutureIgnoringException(Future<?> f, boolean mayInterruptIfRunning) {
+    public static boolean cancelFutureIgnoringException(Future<?> f, boolean mayInterruptIfRunning) {
         if (f != null) {
             try {
                 return f.cancel(mayInterruptIfRunning);
@@ -1608,10 +1554,9 @@ public final class Utils {
     /**
      * Helper method to close a {@link ServerSocket} ignoring eventual exceptions
      *
-     * @param serverSocket
-     *            to be closed
+     * @param serverSocket to be closed
      */
-    public static final void closeIgnoringExceptions(ServerSocket serverSocket) {
+    public static void closeIgnoringExceptions(ServerSocket serverSocket) {
         if (serverSocket != null) {
             try {
                 serverSocket.close();
@@ -1623,7 +1568,7 @@ public final class Utils {
         }
     }
 
-    public static final String toStringSelectionKey(final FDTSelectionKey fsk) {
+    public static String toStringSelectionKey(final FDTSelectionKey fsk) {
         if (fsk == null) {
             return " Null FDTSelectionKey ! ";
         }
@@ -1644,7 +1589,7 @@ public final class Utils {
                     if (sk == null) {
                         sb.append(" no such SelectionKey for selector! ");
                     } else {
-                        sb.append(" ").append(toStringSelectionKey(sk));
+                        sb.append(' ').append(toStringSelectionKey(sk));
                     }
                 }
             }
@@ -1654,7 +1599,7 @@ public final class Utils {
         return sb.toString();
     }
 
-    public static final String toStringSelectionKey(final SelectionKey sk) {
+    private static String toStringSelectionKey(final SelectionKey sk) {
         final StringBuilder sb = new StringBuilder("SelectionKey [ ");
         if (sk.isValid()) {
             sb.append("INVALID");
@@ -1671,11 +1616,10 @@ public final class Utils {
      * @param versionString1
      * @param versionString2
      * @return 0 if equals or both null, 1 if first is first version is greater, -1 otherwise
-     * @throws NullPointerException
-     *             if one of the two params is null (XOR test).
+     * @throws NullPointerException if one of the two params is null (XOR test).
      * @see FDTVersion#compareTo(FDTVersion)
      */
-    public static final int compareVersions(final String versionString1, final String versionString2) {
+    public static int compareVersions(final String versionString1, final String versionString2) {
         if ((versionString1 == null) && (versionString2 == null)) {
             return 0;
         }
@@ -1693,27 +1637,27 @@ public final class Utils {
         return FDTVersion.fromVersionString(versionString1).compareTo(FDTVersion.fromVersionString(versionString2));
     }
 
-    public static final String toStringSelectionKeyOps(final int keyOps) {
+    private static String toStringSelectionKeyOps(final int keyOps) {
         final StringBuilder sb = new StringBuilder("{");
 
         boolean bAdded = false;
         for (int i = 0; i < SELECTION_KEY_OPS_VALUES.length; i++) {
             if ((keyOps & SELECTION_KEY_OPS_VALUES[i]) == SELECTION_KEY_OPS_VALUES[i]) {
                 if (bAdded) {
-                    sb.append("|");
+                    sb.append('|');
                 } else {
                     bAdded = true;
                 }
 
-                sb.append(" ").append(SELECTION_KEY_OPS_NAMES[i]).append(" ");
+                sb.append(' ').append(SELECTION_KEY_OPS_NAMES[i]).append(' ');
             }
         }
 
-        sb.append("}");
+        sb.append('}');
         return sb.toString();
     }
 
-    public static String joinString(CharSequence delimiter, CharSequence... elements) {
+    static String joinString(CharSequence delimiter, CharSequence... elements) {
         StringBuilder sb = new StringBuilder();
 
         if (elements.length > 0) {
@@ -1726,7 +1670,7 @@ public final class Utils {
         return sb.toString();
     }
 
-    public static InetAddress getLoopbackAddress() {
+    static InetAddress getLoopbackAddress() {
         InetAddress localhost = null;
 
         try {
