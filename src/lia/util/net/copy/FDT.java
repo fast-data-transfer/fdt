@@ -28,10 +28,9 @@ public class FDT {
 
     private static final Logger logger = Logger.getLogger(FDT.class.getName());
 
-    private static String REPO_HOME = "https://github.com/fast-data-transfer/fdt";
     private static String UPDATE_OWNER = "fast-data-transfer";
     private static String UPDATE_REPO = "fdt";
-    private static String UPDATE_URL = "https://api.github.com/repos/" + UPDATE_OWNER + "/" + UPDATE_REPO + "/releases";
+    public static String UPDATE_URL = "https://api.github.com/repos/" + UPDATE_OWNER + "/" + UPDATE_REPO + "/releases";
 
     public static final String FDT_FULL_VERSION = "0.24.0-201512041353";
 

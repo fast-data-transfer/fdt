@@ -5,6 +5,7 @@ import lia.util.net.copy.FDT;
 import lia.util.net.copy.FileBlock;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.*;
@@ -485,10 +486,8 @@ public final class Utils {
         ArrayList<String> sshHosts = new ArrayList<String>();
         ArrayList<String> sshFiles = new ArrayList<String>();
 
-        // System.out.println(" Args are: " + Arrays.toString(args));
         int i = 0;
         for (i = 0; i < args.length; i++) {
-            // System.out.println("trying to match "+args[i]);
             if (args[i].startsWith("-")) {
                 if ((i == (args.length - 1)) || args[i + 1].startsWith("-") || sArgs.contains(args[i])) {
                     rHM.put(args[i], "");
@@ -647,10 +646,6 @@ public final class Utils {
                 rHM.put("sourceFiles", sFiles);
 
                 rHM.put("Files", rHM.get("sourceFiles"));
-
-                // System.out.println(" sUsers: " + Arrays.toString(sUsers) +
-                // " sHosts: " + Arrays.toString(sHosts) +
-                // " sFiles: " + Arrays.toString(sFiles));
             }
         }
 
@@ -670,7 +665,7 @@ public final class Utils {
 
     public static long getLongValue(final Map<String, Object> configMap, final String key,
                                     final long DEFAULT_VALUE) {
-        long rVal = DEFAULT_VALUE;
+        long rVal;
         Object obj = configMap.get(key);
         if (obj == null) {
             rVal = DEFAULT_VALUE;
@@ -705,7 +700,7 @@ public final class Utils {
     public static double getDoubleValue(final Map<String, Object> configMap, final String key,
                                         final double DEFAULT_VALUE) {
 
-        double rVal = DEFAULT_VALUE;
+        double rVal;
         Object obj = configMap.get(key);
         if (obj == null) {
             rVal = DEFAULT_VALUE;
@@ -739,7 +734,7 @@ public final class Utils {
 
     public static int getIntValue(final Map<String, Object> configMap, final String key, final int DEFAULT_VALUE) {
 
-        int rVal = DEFAULT_VALUE;
+        int rVal;
         Object obj = configMap.get(key);
         if (obj == null) {
             rVal = DEFAULT_VALUE;
@@ -882,7 +877,7 @@ public final class Utils {
         return updateProperties;
     }
 
-    private static boolean updateTotalContor(final long total, final String property) {
+    private static boolean updateTotalCounter(final long total, final String property) {
 
         final String parentFDTConfDirName = System.getProperty("user.home") + File.separator + ".fdt";
         final String fdtUpdateConfFileName = "update.properties";
@@ -928,8 +923,8 @@ public final class Utils {
                     rstContor++;
                 }
 
-                updateProperties.put(property, "" + lastContor);
-                updateProperties.put(property + "_rst", "" + rstContor);
+                updateProperties.put(property, lastContor);
+                updateProperties.put(property + "_rst", rstContor);
 
                 if (logger.isLoggable(Level.FINEST)) {
                     logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] store new properties: {0}",
@@ -1004,12 +999,12 @@ public final class Utils {
 
     }
 
-    public static boolean updateTotalReadContor(final long totalRead) throws Exception {
-        return updateTotalContor(totalRead, "totalRead");
+    public static boolean updateTotalReadCounter(final long totalRead) throws Exception {
+        return updateTotalCounter(totalRead, "totalRead");
     }
 
-    public static boolean updateTotalWriteContor(final long totalWrite) throws Exception {
-        return updateTotalContor(totalWrite, "totalWrite");
+    public static boolean updateTotalWriteCounter(final long totalWrite) throws Exception {
+        return updateTotalCounter(totalWrite, "totalWrite");
     }
 
     /**
@@ -1051,7 +1046,6 @@ public final class Utils {
     public static boolean checkForUpdate(final String currentVersion, final String updateURL, boolean noLock)
             throws Exception {
         try {
-
             final String parentFDTConfDirName = System.getProperty("user.home") + File.separator + ".fdt";
             final String fdtUpdateConfFileName = "update.properties";
             final File confFile = createOrGetRWFile(parentFDTConfDirName, fdtUpdateConfFileName);
@@ -1093,13 +1087,12 @@ public final class Utils {
                 checkAndSetInstanceID(updateProperties);
 
                 if ((lastCheck + FDT.UPDATE_PERIOD) < now) {
-                    lastCheck = now;
                     try {
                         System.out
                                 .println("\n\nChecking for remote updates ... This may be disabled using -noupdates flag.");
                         bHaveUpdates = updateFDT(currentVersion, updateURL, false, noLock);
                         if (bHaveUpdates) {
-                            System.out.println("FDT may be updated using: java -jar fdt.jar -update");
+                            logger.info("FDT may be updated using: java -jar fdt.jar -update");
                         } else {
                             if (logger.isLoggable(Level.FINE)) {
                                 logger.log(Level.FINE, "No updates available");
@@ -1112,7 +1105,7 @@ public final class Utils {
 
                     }
 
-                    updateProperties.put("LastCheck", "" + now);
+                    updateProperties.put("LastCheck", now);
 
                     try {
                         fos = new FileOutputStream(confFile);
@@ -1141,8 +1134,8 @@ public final class Utils {
     }
 
     /**
-     * @return true if update was available and FDT was successfuly updated, and false if now update was avaiable
-     * @throws Exception if update was unsuccesfully or there was a problem connecting to the update server
+     * @return true if update was available and FDT was successfully updated, and false if no update was available
+     * @throws Exception if update was unsuccessfully or there was a problem connecting to the update server
      */
     public static boolean updateFDT(final String currentVersion, final String updateURL, boolean shouldUpdate,
                                     boolean noLock) throws Exception {
@@ -1195,70 +1188,53 @@ public final class Utils {
         FileOutputStream fos = null;
         JarFile jf;
         InputStream connInputStream = null;
-        InputStream downInputStream = null;
         try {
             // first try to create the destination update file
             tmpUpdateFile = File.createTempFile("fdt_update_tmp", ".jar");
             tmpUpdateFile.deleteOnExit();
             fos = new FileOutputStream(tmpUpdateFile);
-            connInputStream = connectTo(updateURL);
-            logger.info("OK");
-
-            BufferedReader streamReader = new BufferedReader(new InputStreamReader(connInputStream, "UTF-8"));
-            StringBuilder responseStrBuilder = new StringBuilder(10);
-            String inputStr;
-            while ((inputStr = streamReader.readLine()) != null)
-                responseStrBuilder.append(inputStr);
-
-            String response = responseStrBuilder.toString();
-            if (response.startsWith("["))
-                response = response.substring(1);
-            if (response.endsWith("]"));
-                response = response.substring(0, response.length()-1);
-            JSONObject jsonObject = new JSONObject(response);
-            String tagName = (String)jsonObject.get("tag_name");
-            logger.info("Latest available version: " + tagName);
-
-            String name = (String)jsonObject.get("name");
-            logger.info("Name: " + name);
-
-            String publishedAt = (String)jsonObject.get("published_at");
-            logger.info("Publish date: " + publishedAt);
-
-            JSONArray assets = (JSONArray)jsonObject.get("assets");
-            JSONObject asset = new JSONObject(assets.get(0).toString());
-            String downloadUrl = (String)asset.get("browser_download_url");
-            logger.info("FDT download url: " + downloadUrl);
-
-            String body = (String)jsonObject.get("body");
-            logger.info("Release notes: " + body);
-
-            downInputStream = connectTo(downloadUrl);
-            logger.info("OK");
-            byte[] buff = new byte[8192];
-
-            int count = 0;
-            while ((count = downInputStream.read(buff)) > 0) {
-                fos.write(buff, 0, count);
+            if (updateURL.equals(FDT.UPDATE_URL)) {
+                connInputStream = connectTo(updateURL);
+                logger.info("OK");
+                JSONObject jsonObject = getJsonInfo(connInputStream);
+                String tagName = getTagName(jsonObject);
+                String currentVersionString = currentVersion.substring(0, tagName.length());
+                logger.info("Current version: " + currentVersionString + " Latest version: " + tagName);
+                if (currentVersionString.equals(tagName)) {
+                    logger.info("No need to update");
+                    return false;
+                }
+                logAdditionalInfo(jsonObject);
+                String downloadUrl = getDownloadURL(jsonObject);
+                downloadFDT(fos, downloadUrl);
+                // try to check the version
             }
-            fos.flush();
-            // try to check the version
+            else
+            {
+                downloadFDT(fos, updateURL);
+            }
             jf = new JarFile(tmpUpdateFile);
             final Manifest mf = jf.getManifest();
             final Attributes attr = mf.getMainAttributes();
             final String remoteVersion = attr.getValue("Implementation-Version");
 
-            if ((remoteVersion == null) || (remoteVersion.trim().length() == 0)) {
-                throw new Exception("Cannot read the version from the downloaded jar...Cannot compare versions!");
-            }
+            if (!Boolean.getBoolean("skip.version.check")) {
+                if ((remoteVersion == null) || (remoteVersion.trim().length() == 0)) {
+                    throw new Exception("Cannot read the version from the downloaded jar...Cannot compare versions! " +
+                            "You can skip version checking by using system property: skip.version.check");
+                }
 
-            if (currentVersion.equals(remoteVersion.trim())) {
-                // no need for update
-                return false;
+                if (currentVersion.equals(remoteVersion.trim())) {
+                    // no need for update
+                    return false;
+                }
+                logger.info("Remote FDT version: " + remoteVersion + " Local FDT version: " + currentVersion
+                        + ". Update available.");
             }
-
-            System.out.println("Remote FDT version: " + remoteVersion + " Local FDT version: " + currentVersion
-                    + ". Update available.");
+            else
+            {
+                logger.info("Skipped version checking.");
+            }
 
             if (shouldUpdate) {
                 try {
@@ -1285,10 +1261,10 @@ public final class Utils {
                     if (bDel) {
                         bDel = bkpJar.delete();
                         if (!bDel) {
-                            System.out.println("[ WARNING ] Unable to delete backup jar with the same version: "
+                            logger.info("[ WARNING ] Unable to delete backup jar with the same version: "
                                     + bkpJar + " ... will continue");
                         } else {
-                            System.out.println("[ INFO ] Backup jar (same version as the update) " + bkpJar
+                            logger.info("[ INFO ] Backup jar (same version as the update) " + bkpJar
                                     + " delete it.");
                         }
                     }
@@ -1298,7 +1274,7 @@ public final class Utils {
                         logger.log(Level.WARNING, "Unable to create backup: " + bkpJar
                                 + " for current FDT before update.");
                     } else {
-                        System.out.println("Backing up old FDT succeeded: " + bkpJar);
+                        logger.info("Backing up old FDT succeeded: " + bkpJar);
                     }
 
                 } catch (Throwable t) {
@@ -1319,7 +1295,87 @@ public final class Utils {
                 }
             }
         }
+    }
 
+    private static void downloadFDT(FileOutputStream fos, String downloadURL) throws IOException {
+        InputStream downInputStream;
+        if (!downloadURL.endsWith("fdt.jar"))
+        {
+            if(!downloadURL.endsWith("/"))
+            {
+                downloadURL = downloadURL + "/fdt.jar";
+            }
+            else
+            {
+                downloadURL = downloadURL + "fdt.jar";
+            }
+        }
+        logger.info("Trying to download update from " + downloadURL);
+        downInputStream = connectTo(downloadURL);
+        logger.info("OK");
+        byte[] buff = new byte[8192];
+
+        int count;
+        while ((count = downInputStream.read(buff)) > 0) {
+            fos.write(buff, 0, count);
+        }
+        fos.flush();
+    }
+
+    private static void logAdditionalInfo(JSONObject jsonObject) throws JSONException {
+        logReleaseName(jsonObject);
+        logPublishDate(jsonObject);
+        logReleaseNotes(jsonObject);
+    }
+
+    private static void logReleaseName(JSONObject jsonObject) throws JSONException {
+        String name = (String) jsonObject.get("name");
+        logger.info("Name: " + name);
+    }
+
+    private static void logReleaseNotes(JSONObject jsonObject) throws JSONException {
+        String body = (String) jsonObject.get("body");
+        logger.info("Release notes: " + body);
+    }
+
+    private static String getDownloadURL(JSONObject jsonObject) throws JSONException {
+        JSONArray assets = (JSONArray) jsonObject.get("assets");
+        JSONObject asset = new JSONObject(assets.get(0).toString());
+        String downloadUrl = (String) asset.get("browser_download_url");
+        logger.info("FDT download url: " + downloadUrl);
+        return downloadUrl;
+    }
+
+    private static String logPublishDate(JSONObject jsonObject) throws JSONException {
+        String publishedAt = (String) jsonObject.get("published_at");
+        logger.info("Publish date: " + publishedAt);
+        return publishedAt;
+    }
+
+    private static JSONObject getJsonInfo(InputStream connInputStream) throws IOException, JSONException {
+        BufferedReader streamReader = new BufferedReader(new InputStreamReader(connInputStream, "UTF-8"));
+        StringBuilder responseStrBuilder = new StringBuilder(10);
+        String inputStr;
+        while ((inputStr = streamReader.readLine()) != null)
+            responseStrBuilder.append(inputStr);
+
+        String response = responseStrBuilder.toString();
+        response = getJsonString(response);
+        return new JSONObject(response);
+    }
+
+    private static String getTagName(JSONObject jsonObject) throws JSONException {
+        String tag_name = (String) jsonObject.get("tag_name");
+        logger.info("Latest available version: " + tag_name);
+        return tag_name;
+    }
+
+    private static String getJsonString(String response) {
+        if (response.startsWith("["))
+            response = response.substring(1);
+        if (response.endsWith("]"))
+            response = response.substring(0, response.length() - 1);
+        return response;
     }
 
     private static InputStream connectTo(String updateURL) throws IOException {
@@ -1338,7 +1394,6 @@ public final class Utils {
     public static String getUsage() {
         final String newline = System.getProperty("line.separator");
 
-        InputStream is = null;
         try {
             BufferedReader br = new BufferedReader(new InputStreamReader(Utils.class.getResourceAsStream("usage")));
             StringBuilder sb = new StringBuilder();
@@ -1353,8 +1408,6 @@ public final class Utils {
             return sb.toString();
         } catch (Throwable t) {
             return "Unable to load help msg.";
-        } finally {
-            closeIgnoringExceptions(is);
         }
     }
 
@@ -1536,19 +1589,17 @@ public final class Utils {
         }
     }
 
-    public static boolean cancelFutureIgnoringException(Future<?> f, boolean mayInterruptIfRunning) {
+    @SuppressWarnings("SameParameterValue")
+    public static void cancelFutureIgnoringException(Future<?> f, boolean mayInterruptIfRunning) {
         if (f != null) {
             try {
-                return f.cancel(mayInterruptIfRunning);
+                f.cancel(mayInterruptIfRunning);
             } catch (Throwable ign) {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER, "Exceptions canceling Future '" + f + "'. Cause: ", ign);
                 }
             }
         }
-
-        //should not reach this point but life is full of misteries!
-        return false;
     }
 
     /**
@@ -1594,7 +1645,7 @@ public final class Utils {
                 }
             }
         } catch (Throwable t) {
-            sb.append(" [ toStringSelectionKey ] Exception " + t);
+            sb.append(" [ toStringSelectionKey ] Exception ").append(t);
         }
         return sb.toString();
     }
@@ -1619,6 +1670,7 @@ public final class Utils {
      * @throws NullPointerException if one of the two params is null (XOR test).
      * @see FDTVersion#compareTo(FDTVersion)
      */
+    @SuppressWarnings("SameParameterValue")
     public static int compareVersions(final String versionString1, final String versionString2) {
         if ((versionString1 == null) && (versionString2 == null)) {
             return 0;
@@ -1629,6 +1681,7 @@ public final class Utils {
                 throw new NullPointerException("versionString1 is null");
             }
 
+            //noinspection ConstantConditions
             if (versionString2 == null) {
                 throw new NullPointerException("versionString2 is null");
             }

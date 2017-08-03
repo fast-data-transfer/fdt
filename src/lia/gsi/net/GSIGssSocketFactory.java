@@ -61,7 +61,7 @@ public class GSIGssSocketFactory extends GssSocketFactory {
 	 * @return the GSI-protected socket connected to the remote host
 	 * @throws IOException
 	 */
-	public java.net.Socket createSocket(java.net.InetAddress inetAddress, int port, boolean doDelegation, boolean fullDelegation)
+	public static java.net.Socket createSocket(java.net.InetAddress inetAddress, int port, boolean doDelegation, boolean fullDelegation)
 			throws IOException {
 		// raw socket
 		Socket socket = null;
