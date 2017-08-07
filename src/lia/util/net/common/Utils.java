@@ -1105,7 +1105,7 @@ public final class Utils {
 
                     }
 
-                    updateProperties.put("LastCheck", now);
+                    updateProperties.put("LastCheck", String.valueOf(now));
 
                     try {
                         fos = new FileOutputStream(confFile);
