@@ -70,7 +70,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
     /**
      * REMOTE SESSION
      * 
-     * @param fileList
+     * @param cc control channel
      * @throws Exception
      */
     public FDTWriterSession(ControlChannel cc) throws Exception {
@@ -190,7 +190,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 if (transportProvider != null) {
                     sb.append("\n TotalNetworkBytes: ").append(transportProvider.getUtilBytes());
                     try {
-                        if (!Utils.updateTotalWriteContor(transportProvider.getUtilBytes())) {
+                        if (!Utils.updateTotalReadCounter(transportProvider.getUtilBytes())) {
                             if (logger.isLoggable(Level.FINEST)) {
                                 logger.log(Level.FINEST,
                                         " [ FDTWriterSession ] Unable to update the contor in the update file.");

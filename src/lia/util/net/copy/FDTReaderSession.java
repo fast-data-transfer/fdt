@@ -655,7 +655,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 if (transportProvider != null) {
                     sb.append("\n TotalNetworkBytes: ").append(transportProvider.getUtilBytes());
                     try {
-                        if (!Utils.updateTotalReadContor(transportProvider.getUtilBytes())) {
+                        if (!Utils.updateTotalReadCounter(transportProvider.getUtilBytes())) {
                             if (logger.isLoggable(Level.FINEST)) {
                                 logger.log(Level.FINEST,
                                         " [ FDTReaderSession ] Unable to update the contor in the update file.");
