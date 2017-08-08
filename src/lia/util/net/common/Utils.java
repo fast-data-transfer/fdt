@@ -1176,12 +1176,12 @@ public final class Utils {
                     + " ] but the JVM cannot access it!");
         }
 
-//        if (currentJar.isFile() && currentJar.canWrite()) {
-//            logger.info("\nCurrent fdt.jar path is: " + finalPath);
-//        } else {
-//            throw new IOException("Current fdt.jar path seems to be [ " + finalPath
-//                    + " ] but it does not have write access!");
-//        }
+        if (currentJar.isFile() && currentJar.canWrite()) {
+            logger.info("\nCurrent fdt.jar path is: " + finalPath);
+        } else {
+            throw new IOException("Current fdt.jar path seems to be [ " + finalPath
+                    + " ] but it does not have write access!");
+        }
 
         // Check if it is possible to use a temporary file
         File tmpUpdateFile = null;

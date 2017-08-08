@@ -32,7 +32,7 @@ public class FDT {
     private static String UPDATE_REPO = "fdt";
     public static String UPDATE_URL = "https://api.github.com/repos/" + UPDATE_OWNER + "/" + UPDATE_REPO + "/releases";
 
-    public static final String FDT_FULL_VERSION = "0.24.0-201512041353";
+    public static final String FDT_FULL_VERSION = "0.26.0-201708081850";
 
     /** two weeks between checking for updates */
     public static final long UPDATE_PERIOD = 2 * 24 * 3600 * 1000;
