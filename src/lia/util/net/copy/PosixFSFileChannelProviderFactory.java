@@ -4,11 +4,7 @@
  */
 package lia.util.net.copy;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.channels.FileChannel;
 
 import lia.util.net.common.FileChannelProvider;
@@ -22,11 +18,13 @@ public class PosixFSFileChannelProviderFactory implements FileChannelProviderFac
 
     private final FileChannelProvider readerFileChannelProvider;
     private final FileChannelProvider writerFileChannelProvider;
+    private final FileChannelProvider coordinatorChannelProvider;
     
     
     public PosixFSFileChannelProviderFactory() {
         this.readerFileChannelProvider = new PosixFSReaderFileChannelProvider();
         this.writerFileChannelProvider = new PosixFSWriterFileChannelProvider();
+        this.coordinatorChannelProvider = new PosixFSCoordinatorChannelProvider();
     }
     
     /**
@@ -43,7 +41,14 @@ public class PosixFSFileChannelProviderFactory implements FileChannelProviderFac
         return writerFileChannelProvider;
     }
 
-    private static final class PosixFSReaderFileChannelProvider implements FileChannelProvider {
+//    /**
+//     * @param coordinatorSession
+//     */
+//    public FileChannelProvider newCoordinatorChannelProvider(FDTCoordinatorSession coordinatorSession) {
+//        return coordinatorChannelProvider;
+//    }
+
+    private static final class PosixFSReaderFileChannelProvider implements FileChannelProvider, Serializable {
 
         /**
          * @throws IOException  
@@ -96,6 +101,37 @@ public class PosixFSFileChannelProviderFactory implements FileChannelProviderFac
                 return new RandomAccessFile(file, openMode).getChannel();
             }
             
+            return new FileOutputStream(file).getChannel();
+        }
+
+    }
+
+    private static final class PosixFSCoordinatorChannelProvider implements FileChannelProvider {
+
+        /**
+         * @throws IOException
+         */
+        public File getFile(String fileName) throws IOException {
+            return new File(fileName);
+        }
+
+        /**
+         * @throws IOException
+         */
+        public int getPartitionID(File file) throws IOException {
+            if(file.exists()) {
+                return PartitionMap.getPartitionFromCache(file);
+            }
+
+            return PartitionMap.getPartitionFromCache(file.getParentFile());
+        }
+
+        @SuppressWarnings("resource")
+        public FileChannel getFileChannel(File file, final String openMode) throws IOException {
+            if(openMode != null) {
+                return new RandomAccessFile(file, openMode).getChannel();
+            }
+
             return new FileOutputStream(file).getChannel();
         }
 

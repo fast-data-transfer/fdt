@@ -153,8 +153,8 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
 
             tmpSelector = Selector.open();
 
-            final int bSockConn = config.getBulkSockConnect();
-            final long bSockConnWait = config.getBulkSockConnectWait();
+            final int bSockConn = Config.getBulkSockConnect();
+            final long bSockConnWait = Config.getBulkSockConnectWait();
 
             logger.log(Level.FINER, " bSockConn: " + bSockConn + " bSockConnWait: " + bSockConnWait);
             int cCounter = 0;

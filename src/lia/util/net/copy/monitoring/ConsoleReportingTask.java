@@ -22,7 +22,7 @@ import lia.util.net.copy.transport.TCPTransportProvider;
 
 /**
  * This class is the only class which should report to the stdout
- * 
+ *
  * @author ramiro
  */
 public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
@@ -57,7 +57,7 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
     }
 
     private final boolean reportStatus(final Set<FDTSession> currentSessionSet, final Set<FDTSession> oldSessionSet,
-            final String tag, final StringBuilder sb) {
+                                       final String tag, final StringBuilder sb) {
         boolean shouldReport = false;
 
         if (oldSessionSet.size() > 0) {
@@ -79,7 +79,7 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                         logger.log(Level.WARNING,
                                 " [ ConsoleReportingTask ] The session: " + fdtSession
                                         .sessionID() + " is no longer "
-                                + "available, but canot remove trasport provider from monitoring queue. It's probably a BUG in FDT");
+                                        + "available, but canot remove trasport provider from monitoring queue. It's probably a BUG in FDT");
                         continue;
                     }
                     if (logger.isLoggable(Level.FINE)) {
@@ -161,12 +161,10 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                 || reportStatus(diskReaderManager.getSessions(), oldReaderSessions, "Net Out: ", sb));
 
         if (shouldReport) {
-            if (customLog) {
-                logger.info(sb.toString());
-            } else {
-                System.out.println(sb.toString());
-            }
+            logger.info(sb.toString());
+            System.out.println(sb.toString());
         }
+
     }
 
     @Override

@@ -79,21 +79,8 @@ public class FolderFrame extends JFrame implements ActionListener, FocusListener
 		this.manager = new RemoteSessionManager(props, panel);
 		
 		connect = new ConnectDialog(this);
-//		connect.setVisible(true);
-//		connect.toFront();
-//		if (connect.bDialogOK) {
-//			String host = connect.sHost;
-//			int port = 54321;
-//			try {
-//				port = Integer.valueOf(connect.sPort);
-//			} catch (Throwable t) { }
-//			try {
-//				manager.connect(host, port);
-//			} catch (Throwable t) { }
-//		} else {
-			manager.initiated = true;
-//		}
-		
+		manager.initiated = true;
+
 		panel.setOpaque(false);
 		panel.setLayout(new BorderLayout());
 		JPanel pp = new JPanel();

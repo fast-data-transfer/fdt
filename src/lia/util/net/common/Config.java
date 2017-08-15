@@ -20,7 +20,7 @@ import lia.util.net.copy.PosixFSFileChannelProviderFactory;
 
 /**
  * Configuration params for FDT
- * 
+ *
  * @author ramiro
  * @author Lucian Musat
  */
@@ -33,8 +33,8 @@ public class Config {
     public static final int NETWORK_BUFF_LEN_SIZE;
 
     static {
-        int defaultMSSSize = 1460;
-        int minMTU = 1500;
+        int defaultMSSSize;
+        int minMTU;
         try {
             minMTU = getMinMTU();
             defaultMSSSize = minMTU - 40;
@@ -80,13 +80,15 @@ public class Config {
     public static final int HEADER_SIZE = 56;
     public static final int HEADER_SIZE_v2 = 56;
     public static final boolean TRACK_ALLOCATIONS = true;
+    public static final int KILO = 1024;
     // 1 MByte
-    public static final int DEFAULT_BUFFER_SIZE = 1 * 1024 * 1024; // 1MB
+    public static final int DEFAULT_BUFFER_SIZE = KILO * KILO; // 1MB
     private int byteBufferSize = DEFAULT_BUFFER_SIZE;
     // default will be false
     private final boolean isNagleEnabled;
     // shall I get the data from server? - used only by the client
     private boolean isPullMode = false;
+    private boolean isCoordinatorMode;
     // this should be used for syncronizations at application level ()
     public static final Object BIG_FDTAPP_LOCK = new Object();
     // default is 4
@@ -105,13 +107,15 @@ public class Config {
     private String hostname;
     private String lisaHost;
     private int lisaPort;
-    private final int portNo;
-    private final int portNoGSI;
-    private final int portNoSSH;
+    private int portNo;
+    private int portNoGSI;
+    private int portNoSSH;
     private final boolean isStandAlone;
     private String[] fileList;
     private String[] remappedFileList;
     private String destDir;
+    private String sIP;
+    private String dIP;
     private final String sshKeyPath;
     private final String apMonHosts;
     private boolean bComputeMD5 = false;
@@ -141,11 +145,12 @@ public class Config {
     private final String preFilters;
     private final String postFilters;
     private final String monID;
+    private String logLevel;
     private String massStorageConfig = null;
     private String massStorageType = null;
     private MassStorage storageParams = null;
     private Level statsLevel = null;
-    private final Map<String, Object> configMap;
+    private Map<String, Object> configMap;
     private boolean isNoTmpFlagSet = false;
     private boolean isNoLockFlagSet = false;
     private long consoleReportingTaskDelay = 5;
@@ -300,6 +305,8 @@ public class Config {
         configMap.put("-ka", "" + TimeUnit.NANOSECONDS.toSeconds(this.keepAliveDelayNanos));
 
         portNo = Utils.getIntValue(configMap, "-p", DEFAULT_PORT_NO);
+        List transportPorts = Utils.getTransportPortsValue(configMap, "-tp", DEFAULT_PORT_NO);
+        isCoordinatorMode = Boolean.getBoolean("coordinator");
         portNoGSI = Utils.getIntValue(configMap, "-gsip", DEFAULT_PORT_NO_GSI);
         portNoSSH = Utils.getIntValue(configMap, "-sshp", DEFAULT_PORT_NO_SSH);
         IORetryFactor = Utils.getIntValue(configMap, "-iof", 1);
@@ -331,6 +338,8 @@ public class Config {
         isLisaRestartEnabled = (configMap.get("-enableLisaRestart") != null);
         bCheckUpdate = (configMap.get("-u") != null);
         destDir = Utils.getStringValue(configMap, "-d", null);
+        sIP = Utils.getStringValue(configMap, "-sIP", null);
+        dIP = Utils.getStringValue(configMap, "-dIP", null);
         bComputeMD5 = (configMap.get("-md5") != null);
         sshKeyPath = Utils.getStringValue(configMap, "-sshKey", null);
 
@@ -503,8 +512,7 @@ public class Config {
             fileList = (String[]) files;
         }
 
-        logger.log(Level.INFO, "FDT started in {0} mode", ((hostname == null)
-                && (configMap.get("SCPSyntaxUsed") == null) ? "server" : "client"));
+        logger.log(Level.INFO, "FDT started in {0} mode", getFDTMode(configMap));
         if (hostname != null) {// client mode
             if (logger.isLoggable(Level.FINE)) {
                 StringBuilder sb = new StringBuilder();
@@ -527,7 +535,14 @@ public class Config {
         }
     }
 
-    public int getBulkSockConnect() {
+    private String getFDTMode(Map<String, Object> configMap) {
+        if (configMap.get("-coord") != null) {
+            return "coordinator";
+        }
+        return (hostname == null) && (configMap.get("SCPSyntaxUsed") == null) ? "server" : "client";
+    }
+
+    public static int getBulkSockConnect() {
         return 30;
     }
 
@@ -535,7 +550,7 @@ public class Config {
         return unit.convert(keepAliveDelayNanos, TimeUnit.NANOSECONDS);
     }
 
-    public long getBulkSockConnectWait() {
+    public static long getBulkSockConnectWait() {
         return 1500;
     }
 
@@ -543,11 +558,15 @@ public class Config {
         return configMap;
     }
 
+    public void setConfigMap(Map<String, Object> configMap) {
+        this.configMap = configMap;
+    }
+
     public static final String getUsage() {
         return Utils.getUsage();
     }
 
-    public int getMaxTakePollIter() {
+    public static int getMaxTakePollIter() {
         return 1000;
     }
 
@@ -671,6 +690,21 @@ public class Config {
         return portNoSSH;
     }
 
+    public void setPortNo(int port)
+    {
+        this.portNo = port;
+    }
+
+    public void setGSIPort(int port)
+    {
+        this.portNoGSI = port;
+    }
+
+    public void setSSHPort(int port)
+    {
+        this.portNoSSH = port;
+    }
+
     public boolean isStandAlone() {
         return isStandAlone;
     }
@@ -703,6 +737,28 @@ public class Config {
         return destDir;
     }
 
+    public String getSourceIP() {
+        return sIP;
+    }
+
+    public String getDestinationIP() {
+        return dIP;
+    }
+
+    public void setDestinationIP(String dIP) {
+        this.dIP = dIP;
+    }
+
+    public void setFileList(String[] fileList) {
+        this.fileList = fileList;
+    }
+
+    public void setLisaPort(int lisaPort) {
+        this.lisaPort = lisaPort;
+    }
+
+
+
     // TODO - As param ...
     public int getNumberOfSelectors() {
         return selectorsNo;
@@ -719,7 +775,19 @@ public class Config {
         } else {
             this.configMap.remove("-pull");
         }
+    }
 
+    public void setCoordinatorMode(boolean coordinatorMode) {
+        this.isCoordinatorMode = coordinatorMode;
+        if (coordinatorMode) {
+            this.configMap.put("-coord", true);
+        } else {
+            this.configMap.remove("-coord");
+        }
+    }
+
+    public boolean isCoordinatorMode() {
+        return isCoordinatorMode;
     }
 
     public boolean isPullMode() {
@@ -870,6 +938,14 @@ public class Config {
 
     public boolean isGenTest() {
         return isGenTest;
+    }
+
+    public void setLogLevel(String logLevel) {
+        this.logLevel = logLevel;
+    }
+
+    public String getLogLevel() {
+        return logLevel;
     }
 
     public FileChannelProviderFactory getFileChannelProviderFactory() {

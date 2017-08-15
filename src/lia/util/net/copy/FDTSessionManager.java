@@ -3,6 +3,11 @@
  */
 package lia.util.net.copy;
 
+import lia.util.net.common.AbstractFDTCloseable;
+import lia.util.net.common.Config;
+import lia.util.net.common.Utils;
+import lia.util.net.copy.transport.*;
+
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.Map;
@@ -16,15 +21,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.AbstractFDTCloseable;
-import lia.util.net.common.Config;
-import lia.util.net.common.Utils;
-import lia.util.net.copy.transport.ControlChannel;
-import lia.util.net.copy.transport.ControlChannelNotifier;
-import lia.util.net.copy.transport.FDTProcolException;
-
 /**
- *
  * This class is the placeholder for all the alve FDTSessions instantiated
  * in the entire FDT app
  *
@@ -50,14 +47,14 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
     private volatile String lastDownMsg;
     private volatile Throwable lastDownCause;
 
-    public static final FDTSessionManager getInstance() {
+    public static FDTSessionManager getInstance() {
         return _thisInstanceManager;
     }
 
     private FDTSessionManager() {
         lock = new ReentrantLock();
         isSessionMapEmpty = lock.newCondition();
-        fdtSessionMap = new ConcurrentHashMap<UUID, FDTSession>();
+        fdtSessionMap = new ConcurrentHashMap<>();
         inited = new AtomicBoolean(false);
     }
 
@@ -103,14 +100,13 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
         FDTSession fdtSession = null;
 
         try {
-
-            if (config.isPullMode()) {
-                //-> Start a writer and connect to the server
-                fdtSession = new FDTWriterSession();
-            } else {
-                //-> Start a reader and connect to the server
-                fdtSession = new FDTReaderSession();
-            }
+                if (config.isPullMode()) {
+                    //-> Start a writer and connect to the server
+                    fdtSession = new FDTWriterSession();
+                } else {
+                    //-> Start a reader and connect to the server
+                    fdtSession = new FDTReaderSession();
+                }
 
             fdtSessionMap.put(fdtSession.sessionID(), fdtSession);
             inited.set(true);

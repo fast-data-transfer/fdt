@@ -17,8 +17,6 @@ import lia.util.net.copy.transport.internal.FDTSelectionKey;
  * 
  */
 public abstract class SocketTask extends AbstractFDTIOEntity implements Runnable {
-//    protected final static DirectByteBufferPool payloadPool = DirectByteBufferPool.getInstance();
-//    protected final static HeaderBufferPool headersPool = HeaderBufferPool.getInstance();
     protected static final boolean isBlocking =  Config.getInstance().isBlocking();
 
     protected final BlockingQueue<FDTSelectionKey> readyChannelsQueue;

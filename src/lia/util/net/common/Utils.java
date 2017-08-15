@@ -1,6 +1,7 @@
 package lia.util.net.common;
 
 import apmon.ApMon;
+import com.sun.istack.internal.NotNull;
 import lia.util.net.copy.FDT;
 import lia.util.net.copy.FileBlock;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
@@ -23,6 +24,7 @@ import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 /**
@@ -923,8 +925,8 @@ public final class Utils {
                     rstContor++;
                 }
 
-                updateProperties.put(property, lastContor);
-                updateProperties.put(property + "_rst", rstContor);
+                updateProperties.put(property, String.valueOf(lastContor));
+                updateProperties.put(property + "_rst", String.valueOf(rstContor));
 
                 if (logger.isLoggable(Level.FINEST)) {
                     logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] store new properties: {0}",
@@ -1526,7 +1528,7 @@ public final class Utils {
      *
      * @param closeable to be closed
      */
-    public static void closeIgnoringExceptions(FDTCloseable closeable, String downMessage, Throwable downCause) {
+    public static void closeIgnoringExceptions(FDTCloseable closeable, @NotNull String downMessage, Throwable downCause) {
         if (closeable != null) {
             try {
                 closeable.close(downMessage, downCause);
@@ -1734,5 +1736,124 @@ public final class Utils {
         }
 
         return localhost;
+    }
+
+    public static List<Integer> getTransportPortsValue(Map<String, Object> configMap, String key, int defaultPortNo) {
+        List transportPorts = new ArrayList();
+        int i=0;
+        Object obj = configMap.get(key);
+        if (obj == null || obj.toString().isEmpty())
+        {
+            transportPorts.add(defaultPortNo);
+            return transportPorts;
+        }
+        String tp = obj.toString();
+        if (tp.isEmpty() || tp.replace(",","").isEmpty())
+        {
+            transportPorts.add(defaultPortNo);
+            return transportPorts;
+        }
+        else
+        {
+
+
+
+
+        int n[]=new int[10];//for integer array of numbers
+
+        StringTokenizer stk=new StringTokenizer(tp,",");
+        String s[]=new String[10];//for String array of numbers
+        while(stk.hasMoreTokens())
+        {
+            s[i]=stk.nextToken();
+            transportPorts.add(Integer.parseInt(s[i]));//Converting into Integer
+            i++;
+        }
+        }
+        for(i=0;i<transportPorts.size();i++)
+            System.out.println("number["+i+"]=" + transportPorts.get(i));
+
+        return transportPorts;
+    }
+
+    private static void initLocalProps(String level, Properties localProps) {
+
+        FileInputStream fis = null;
+        File confFile = null;
+        try {
+            confFile = new File(
+                    System.getProperty("user.home") + File.separator + ".fdt" + File.separator + "fdt.properties");
+            if (level.contains("FINE")) {
+                logger.info("Using local properties file: " + confFile);
+            }
+            if (confFile.exists() && confFile.canRead()) {
+                fis = new FileInputStream(confFile);
+                localProps.load(fis);
+            }
+        } catch (Throwable t) {
+            if (confFile != null) {
+                if (level.contains("FINE")) {
+                    System.err.println("Unable to read local configuration file " + confFile);
+                    t.printStackTrace();
+                }
+            }
+        } finally {
+            Utils.closeIgnoringExceptions(fis);
+        }
+
+        if (level.contains("FINE")) {
+            if (localProps.size() > 0) {
+                if (level.contains("FINER")) {
+                    logger.info(" LocalProperties loaded: " + localProps);
+                }
+            } else {
+                logger.info("No local properties defined");
+            }
+        }
+    }
+
+    public static void initLogger(String level, File logFile, Properties localProps) {
+        initLocalProps(level, localProps);
+        Properties loggingProps = new Properties();
+        loggingProps.putAll(localProps);
+
+        try {
+            if (!loggingProps.containsKey("handlers")) {
+                loggingProps.put("handlers", "java.util.logging.ConsoleHandler");
+                loggingProps.put("java.util.logging.ConsoleHandler.level", "FINEST");
+                loggingProps.put("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
+            }
+
+            if (logFile != null) {
+                if (loggingProps.contains("handlers")) {
+                    loggingProps.remove("handlers");
+                }
+
+                loggingProps.put("handlers", "java.util.logging.FileHandler");
+                loggingProps.put("java.util.logging.FileHandler.level", "FINEST");
+                loggingProps.put("java.util.logging.FileHandler.formatter", "java.util.logging.SimpleFormatter");
+                loggingProps.put("java.util.logging.FileHandler.pattern", "" + logFile);
+                loggingProps.put("java.util.logging.FileHandler.append", "true");
+
+                System.setProperty("CustomLog", "true");
+            }
+
+            if (!loggingProps.containsKey(".level")) {
+                loggingProps.put(".level", level);
+            }
+
+            if (level.contains("FINER")) {
+                logger.info("\n Logging props: " + loggingProps);
+            }
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            loggingProps.store(baos, null);
+            LogManager.getLogManager().reset();
+            LogManager.getLogManager().readConfiguration(new ByteArrayInputStream(baos.toByteArray()));
+
+        } catch (Throwable t) {
+            System.err.println(" Got exception setting the logging level ");
+            t.printStackTrace();
+        }
     }
 }

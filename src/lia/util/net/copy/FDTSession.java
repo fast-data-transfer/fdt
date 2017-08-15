@@ -3,14 +3,9 @@
  */
 package lia.util.net.copy;
 
+import java.io.File;
 import java.net.InetAddress;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -24,15 +19,11 @@ import lia.util.net.common.Config;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.monitoring.FDTSessionMonitoringTask;
 import lia.util.net.copy.monitoring.lisa.LisaCtrlNotifier;
-import lia.util.net.copy.transport.ControlChannel;
-import lia.util.net.copy.transport.ControlChannelNotifier;
-import lia.util.net.copy.transport.CtrlMsg;
-import lia.util.net.copy.transport.FDTProcolException;
-import lia.util.net.copy.transport.TCPTransportProvider;
+import lia.util.net.copy.transport.*;
 
 /**
  * Base class for both FDT Reader/Writer sessions
- * 
+ *
  * @author ramiro
  */
 public abstract class FDTSession extends IOSession implements ControlChannelNotifier, Comparable<FDTSession>,
@@ -48,6 +39,8 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     public static final short SERVER = 0;
 
     public static final short CLIENT = 1;
+
+    public static final short COORDINATOR = 2;
 
     public static final int UNINITIALIZED = 0; // I think only OOM can do this
 
@@ -70,6 +63,8 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     public static final int END_SENT = 1 << 8;
 
     public static final int END_RCV = 1 << 8;
+
+    public static final int COORDINATOR_MSG_RCVD = 1 << 9;
 
     protected AtomicLong totalProcessedBytes;
 
@@ -148,6 +143,8 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
     public FDTSession(short role) throws Exception {
         super();
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+ (role == CLIENT ? "CLIENT" : "SERVER")+ "-" + sessionID + ".log"), new Properties());
+
         customLog = Utils.isCustomLog();
 
         currentStatus = 0;
@@ -156,7 +153,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
         setCurrentState(STARTED);
         this.role = role;
-        if (this.role == CLIENT) {
+        if (this.role == CLIENT || this.role == COORDINATOR) {
             this.controlChannel = new ControlChannel(config.getHostName(), config.getPort(), sessionID(), this);
         }
 
@@ -385,32 +382,37 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
                 synchronized (protocolLock) {
                     switch (ctrlMsg.tag) {
 
-                    case CtrlMsg.INIT_FDTSESSION_CONF: {
-                        setCurrentState(INIT_CONF_RCV);
-                        handleInitFDTSessionConf(ctrlMsg);
-                        break;
-                    }
-                    case CtrlMsg.FINAL_FDTSESSION_CONF: {
-                        setCurrentState(FINAL_CONF_RCV);
-                        handleFinalFDTSessionConf(ctrlMsg);
-                        break;
-                    }
-                    case CtrlMsg.START_SESSION: {
-                        setCurrentState(START_RCV);
-                        handleStartFDTSession(ctrlMsg);
-                        break;
-                    }
-                    case CtrlMsg.END_SESSION: {
-                        setCurrentState(END_RCV);
-                        handleEndFDTSession(ctrlMsg);
-                        break;
-                    }
-                    default: {
-                        FDTProcolException fpe = new FDTProcolException("Illegal CtrlMsg tag [ " + ctrlMsg.tag + " ]");
-                        fpe.fillInStackTrace();
-                        close("FileProtocolException", fpe);
-                        throw fpe;
-                    }
+                        case CtrlMsg.INIT_FDTSESSION_CONF: {
+                            setCurrentState(INIT_CONF_RCV);
+                            handleInitFDTSessionConf(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.FINAL_FDTSESSION_CONF: {
+                            setCurrentState(FINAL_CONF_RCV);
+                            handleFinalFDTSessionConf(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.START_SESSION: {
+                            setCurrentState(START_RCV);
+                            handleStartFDTSession(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.END_SESSION: {
+                            setCurrentState(END_RCV);
+                            handleEndFDTSession(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.THIRD_PARTY_COPY: {
+                            setCurrentState(COORDINATOR_MSG_RCVD);
+                            handleCoordinatorMessage(ctrlMsg);
+                            break;
+                        }
+                        default: {
+                            FDTProcolException fpe = new FDTProcolException("Illegal CtrlMsg tag [ " + ctrlMsg.tag + " ]");
+                            fpe.fillInStackTrace();
+                            close("FileProtocolException", fpe);
+                            throw fpe;
+                        }
                     }
                 }
             } else {
@@ -418,6 +420,32 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             }
         } catch (Throwable t) {
             close("Got exception trying to process", t);
+        }
+    }
+
+    private void handleCoordinatorMessage(CtrlMsg ctrlMsg) {
+
+        logger.log(Level.INFO, "[ FDTSession ] [ handleCoordinatorMessage ( " + ctrlMsg.message.toString() + " )");
+        Map<String, Object> oldConfig = config.getConfigMap();
+        try {
+            FDTSessionConfigMsg sessionConfig = (FDTSessionConfigMsg) ctrlMsg.message;
+            config.setDestinationDir(sessionConfig.destinationDir);
+            config.setCoordinatorMode(false);
+            config.setDestinationIP(sessionConfig.destinationIP);
+            config.setFileList(sessionConfig.fileLists);
+            config.setPortNo(54321);
+            final ControlChannel ctrlChann = this.controlChannel;
+            FDTSession session = FDTSessionManager.getInstance().addFDTClientSession();
+            ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, session.controlChannel.fdtSessionID()));
+        }
+        catch (Exception ex)
+        {
+            logger.log(Level.WARNING, "Exception while handling coordinator message", ex);
+        }
+        finally {
+            //Restore old config.
+            this.setClosed(true);
+            config.setConfigMap(oldConfig);
         }
     }
 

@@ -3,6 +3,8 @@
  */
 package lia.util.net.copy.transport;
 
+import lia.util.net.common.Config;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.UUID;
@@ -17,10 +19,13 @@ public class FDTSessionConfigMsg implements Serializable {
     
     
     public String   destinationDir;
+    public String   destinationIP;
     public boolean  recursive;
     
     //future? use
     public String dirOffset;
+
+    public String sourceIP;
     
     public UUID[]   fileIDs;
     public String[] fileLists;
@@ -30,6 +35,13 @@ public class FDTSessionConfigMsg implements Serializable {
     
     public FDTSessionConfigMsg() {
 
+    }
+
+    public FDTSessionConfigMsg(Config config) {
+        this.destinationIP = config.getDestinationIP();
+        this.destinationDir = config.getDestinationDir();
+        this.sourceIP = config.getSourceIP();
+        this.fileLists = config.getFileList();
     }
 
     @Override

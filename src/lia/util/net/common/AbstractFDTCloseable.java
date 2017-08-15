@@ -28,6 +28,7 @@ public abstract class AbstractFDTCloseable implements FDTCloseable {
      * internalClose is called with this lock taken
      */
     protected final Object closeLock = new Object();
+
     protected volatile boolean closed;
     private volatile String downMessage;
     private volatile Throwable downCause;
@@ -63,7 +64,7 @@ public abstract class AbstractFDTCloseable implements FDTCloseable {
         BlockingQueue<AbstractFDTCloseable> workingQueue;
 
         private AsynchronousCloseThread() {
-            workingQueue = new LinkedBlockingQueue<AbstractFDTCloseable>();
+            workingQueue = new LinkedBlockingQueue<>();
             this.setDaemon(true);
             this.setName(" AsyncCloseThread [ " + workingQueue.size() + " ]");
         }
@@ -105,9 +106,9 @@ public abstract class AbstractFDTCloseable implements FDTCloseable {
     public boolean close(final String downMessage, final Throwable downCause) {
 
         synchronized (closeLock) {
-            if (!closed) {
+            if (!isClosed()) {
 
-                closed = true;
+                setClosed(true);
 
                 this.downMessage = downMessage;
                 this.downCause = downCause;
@@ -117,13 +118,17 @@ public abstract class AbstractFDTCloseable implements FDTCloseable {
 
                 return true;
             }
-        }//end sync
+        }
 
         return false;
     }
 
     public boolean isClosed() {
         return closed;
+    }
+
+    public void setClosed(boolean closed) {
+        this.closed = closed;
     }
 
     public String downMessage() {

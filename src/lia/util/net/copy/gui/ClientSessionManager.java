@@ -73,14 +73,12 @@ public class ClientSessionManager {
 	
 	public void cancelTransfer() {
 		if (currentSession == null) return;
-//        currentSession.finishFileSession(currentSession.sessionID(), new Exception("User pressed cancel"));
         currentSession.close("User pressed cancel", new Exception("User pressed cancel"));
 		currentSession = null;
 		fdtSessionMTask = null;
 	}
 	
 	public void end() {
-//		System.out.println("Ended called "+Utils.getMonitoringExecService().getQueue().size());
 		if (fdtInternalMonitoringTask != null) {
 			Utils.getMonitoringExecService().remove(fdtInternalMonitoringTask);
 			fdtInternalMonitoringTask = null;
@@ -104,7 +102,6 @@ public class ClientSessionManager {
 		
         TCPTransportProvider tcpTransportProvider = currentSession.getTransportProvider();
         if (tcpTransportProvider == null) {
-//            logger.warning("NULL Transport is closed");
             return 0.0;
         }
         
@@ -117,16 +114,12 @@ public class ClientSessionManager {
         final long tcpSize = tcpTransportProvider.getUtilBytes();
         final double cSize = (tcpSize <= 0L) ? 0D : tcpSize;
         
-//        final double cSize = currentSession.getTotalBytes();
         double percent = 100.0;
         try {
         	percent = Math.min((cSize*100.0)/(double)tSize, 100.0);
         } catch (Exception e) { }
         if (!Double.isNaN(percent) && !Double.isInfinite(percent) && percent >= 100.0) {
         	try {
-//        		Method m = FDTSession.class.getDeclaredMethod("currentState", new Class[0]);
-//        		m.setAccessible(true);
-//                int state = (Integer)m.invoke(currentSession, new Object[0]);
                 int state = currentSession.currentState();
         		boolean endRcv = ((state & FDTSession.END_RCV) == FDTSession.END_RCV);
         		boolean endSnt = ((state & FDTSession.END_SENT) == FDTSession.END_SENT);
@@ -188,11 +181,6 @@ public class ClientSessionManager {
 			final String[] fileList, final String destDir, final FDTPropsDialog d, final boolean isRecursive) {
 		// first set the initialized flag on false....
 		Class c = Config.class;
-//		try {
-//			Field f = c.getDeclaredField("initialized");
-//			f.setAccessible(true);
-//			f.set(null, false);
-//		} catch (Throwable t) { }
 		// construct the hashmap
 		try {
 			Config.initInstance(new HashMap<String, Object>());
@@ -203,9 +191,6 @@ public class ClientSessionManager {
 	    // shall I get the data from server? - used only by the client
 		try {
 		    conf.setHostName(host);
-//			Field f = c.getDeclaredField("hostname");
-//			f.setAccessible(true);
-//			f.set(conf, host);
 		} catch (Throwable t) { }
 		try {
 			Field f = c.getDeclaredField("portNo");
@@ -214,10 +199,7 @@ public class ClientSessionManager {
 		} catch (Throwable t) { }
 		try {
 		    conf.setPullMode(isPullMode);
-//			Field f = c.getDeclaredField("isPullMode");
-//			f.setAccessible(true);
-//			f.set(conf, isPullMode);
-		} catch (Throwable t) { 
+		} catch (Throwable t) {
 			t.printStackTrace();
 		}
 		try {

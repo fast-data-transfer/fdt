@@ -33,13 +33,13 @@ public class TCPSessionWriter extends TCPTransportProvider {
     public TCPSessionWriter(FDTReaderSession fdtSession) throws Exception {
         super(fdtSession, new PriorityBlockingQueue<FDTSelectionKey>(10, new FDTWriterKeyAttachementComparator()));
     }
-    
+
     public TCPSessionWriter(FDTReaderSession fdtSession,
             InetAddress endPointAddress, int port,
             int numberOfStreams) throws Exception {
         super(fdtSession, endPointAddress, port, numberOfStreams, new PriorityBlockingQueue<FDTSelectionKey>(10, new FDTWriterKeyAttachementComparator()));
     }
-    
+
     public void notifyAvailableBytes(final long available) {
         speedLimitLock.lock();
         try {
@@ -152,12 +152,10 @@ public class TCPSessionWriter extends TCPTransportProvider {
     public void workerDown(FDTSelectionKey fdtSelectionKey, Throwable downCause) {
         //smth gone wrong ... or maybe the session finished already
         //I do not know if it should take other action ... for the moment the session will go down
-        
-//        if(downCause != null) {
-//            logger.log(Level.WARNING, " [ TCPSessionReader ] for fdtSession [ " + fdtSession + " ] got an error on a worker", downCause);
-//        }
-//
-        
+        if(downCause != null) {
+            logger.log(Level.WARNING, " [ TCPSessionReader ] for fdtSession [ " + fdtSession + " ] got an error on a worker", downCause);
+        }
+
         close("Worker down", downCause);
         
         if(fdtSession != null) {

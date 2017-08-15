@@ -3,41 +3,29 @@
  */
 package lia.util.net.copy.transport;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import lia.gsi.GSIServer;
+import lia.gsi.net.GSIGssSocketFactory;
+import lia.util.net.common.*;
+
+import javax.security.auth.Subject;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.security.auth.Subject;
-
-import lia.gsi.GSIServer;
-import lia.gsi.net.GSIGssSocketFactory;
-import lia.util.net.common.AbstractFDTCloseable;
-import lia.util.net.common.Config;
-import lia.util.net.common.DirectByteBufferPool;
-import lia.util.net.common.FDTVersion;
-import lia.util.net.common.Utils;
-
 /**
  * Encapsulates the control socket ( channel ) between two peer FDTSessios When the constructor returns the
  * communication can begin ...
- * 
+ *
  * @author ramiro
  */
 public class ControlChannel extends AbstractFDTCloseable implements Runnable {
@@ -52,6 +40,8 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     public static final int CONNECT_TIMEOUT = 20 * 1000;
 
     public static final int SOCKET_TIMEOUT = 60 * 1000;
+
+    public static final int MAX_RETRIES = 3;
 
     private final Socket controlSocket;
 
@@ -115,7 +105,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
     /**
      * Try to connect to a remote FDT instance
-     * 
+     *
      * @param address
      * @param port
      * @param sessionID
@@ -128,7 +118,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
     /**
      * Try to connect to a remote FDT instance
-     * 
+     *
      * @param inetAddress
      * @param port
      * @param fdtSessionID
@@ -156,9 +146,9 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
             controlSocket.setTcpNoDelay(true);
 
-            // only the first octet will be interpreted by the AcceptTask at the other end
+            // only the first socket will be interpreted by the AcceptTask at the other end
             if (!config.isGSIModeEnabled()) {
-                controlSocket.getOutputStream().write(new byte[] { 0 });
+                controlSocket.getOutputStream().write(new byte[]{0});
             }
 
             // from now on only CtrlMsg will be sent
@@ -178,11 +168,9 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
     /**
      * A remote peer connected to FDT
-     * 
-     * @param s
-     *            - the socket
-     * @throws Exception
-     *             - if anything goes wrong in intialization
+     *
+     * @param s - the socket
+     * @throws Exception - if anything goes wrong in intialization
      */
     public ControlChannel(Socket s, ControlChannelNotifier notifier) throws Exception {
         try {
@@ -204,8 +192,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     }
 
     /**
-     * @param parent 
-     * 
+     * @param parent
      */
     public ControlChannel(GSIServer parent, Socket s, Subject peerSubject, ControlChannelNotifier notifier)
             throws Exception {
@@ -247,16 +234,12 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
         try {
             BufferedInputStream bis = new BufferedInputStream(controlSocket.getInputStream());
-            if (bis.available() == 1)
-            {
+            if (bis.available() == 1) {
                 throw new IllegalStateException("Could not initialise stream to server, client did not use GSI");
-            }
-            else {
+            } else {
                 ois = new ObjectInputStream(new BufferedInputStream(controlSocket.getInputStream()));
             }
-        }
-        catch (IOException ex)
-        {
+        } catch (IOException ex) {
             logger.log(Level.WARNING, "Could not initialise stream to server, check if server is running or certificates present" + ex);
             throw ex;
         }
@@ -284,7 +267,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         try {
 
             if (DirectByteBufferPool.initInstance(Integer.parseInt((String) remoteConf.get("-bs")),
-                    config.getMaxTakePollIter())) {
+                    Config.getMaxTakePollIter())) {
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER, "The buffer pool has been initialized");
                 }
@@ -311,6 +294,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
             sendMsgImpl(new CtrlMsg(CtrlMsg.SESSION_ID, fdtSessionID));
         }
+        Utils.initLogger(config.getLogLevel(), null, new Properties());
         myName = " ControlThread for ( " + fdtSessionID + " ) " + controlSocket.getInetAddress() + ":"
                 + controlSocket.getPort();
         logger.log(Level.INFO, "NEW CONTROL stream for " + fdtSessionID + " initialized ");
@@ -363,12 +347,11 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         }
     }
 
-    public void sendCtrlMessage(final Object ctrlMsg) {
+    public void sendCtrlMessage(final CtrlMsg ctrlMsg) {
 
         if (ctrlMsg == null) {
             throw new NullPointerException("Control message cannot be null over the ControlChannel");
         }
-
         if (logger.isLoggable(Level.FINER)) {
             logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
             if (logger.isLoggable(Level.FINEST)) {
@@ -376,13 +359,71 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
                 Thread.dumpStack();
             }
         }
-
         qToSend.add(ctrlMsg);
+    }
+
+    public void sendSessionIDToCoordinator(CtrlMsg ctrlMsg) {
+        logger.log(Level.INFO, "[ ControlChannel ] [ sendSessionIDToCoordinator ( " + ctrlMsg.message.toString() + " )");
+        if (logger.isLoggable(Level.FINER)) {
+            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+            if (logger.isLoggable(Level.FINEST)) {
+                Thread.dumpStack();
+            }
+        }
+
+        try {
+            sendMsgImpl(ctrlMsg);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
     }
 
+    public UUID sendCoordinatorMessage(CtrlMsg ctrlMsg) throws IOException {
+
+        logger.log(Level.INFO, "[ ControlChannel ] [ sendCoordinatorMessage ]");
+        if (logger.isLoggable(Level.FINER)) {
+            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+            if (logger.isLoggable(Level.FINEST)) {
+                Thread.dumpStack();
+            }
+        }
+
+        try {
+            sendMsgImpl(ctrlMsg);
+
+            CtrlMsg newCtrlMsg = getRemoteJobSessionID();
+            logger.info("Remote job session ID: " + newCtrlMsg.message.toString());
+            return (UUID) newCtrlMsg.message;
+
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to retrieve response from server", e);
+        }
+        cleanup();
+        return null;
+    }
+
+    private CtrlMsg getRemoteJobSessionID() throws Exception {
+        Exception t = null;
+        CtrlMsg newCtrlMsg = null;
+        for (int i = 1; i <= MAX_RETRIES; i++) {
+            try {
+                newCtrlMsg = (CtrlMsg) ois.readObject();
+                return newCtrlMsg;
+            } catch (Exception e) {
+                t = e;
+                Thread.sleep(i * CONNECT_TIMEOUT/2);
+            } finally {
+                if (newCtrlMsg == null && i == MAX_RETRIES) {
+                    throw t;
+                }
+            }
+        }
+        return null;
+    }
+
     private void sendAllMsgs() throws Exception {
-        for (;;) {
+        for (; ; ) {
             final Object ctrlMsg = qToSend.poll();
             if (ctrlMsg == null) {
                 break;

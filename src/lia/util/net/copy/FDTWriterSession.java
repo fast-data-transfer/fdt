@@ -5,13 +5,7 @@ package lia.util.net.copy;
 
 import java.io.File;
 import java.net.InetAddress;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -62,6 +56,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
     public FDTWriterSession() throws Exception {
         super(FDTSession.CLIENT);
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"W-"+ "CLIENT" + "-" + sessionID + ".log"), new Properties());
         dwm.addSession(this);
         sendInitConf();
         this.monID = config.getMonID();
@@ -75,6 +70,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
      */
     public FDTWriterSession(ControlChannel cc) throws Exception {
         super(cc, FDTSession.SERVER);
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"W-"+ "SERVER" + "-" + sessionID + ".log"), new Properties());
         dwm.addSession(this);
         this.monID = (String) cc.remoteConf.get("-monID");
     }
@@ -163,7 +159,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             }
             nlrec.setType("STOR");
 
-            System.out.println(nlrec.toULMString());
+            logger.info(nlrec.toULMString());
 
             try {
                 notifySessionFinished();

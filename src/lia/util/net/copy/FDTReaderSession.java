@@ -6,17 +6,8 @@ package lia.util.net.copy;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.TreeMap;
-import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -43,7 +34,7 @@ import lia.util.net.copy.transport.TCPSessionWriter;
 
 /**
  * The "reader" session; it will send data over the wire
- * 
+ *
  * @author ramiro
  */
 public class FDTReaderSession extends FDTSession implements FileBlockProducer {
@@ -73,7 +64,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
     private int readersCount = 1;
 
-    private static final int MAX_TAKE_POLL_ITER = config.getMaxTakePollIter();
+    private static final int MAX_TAKE_POLL_ITER = Config.getMaxTakePollIter();
 
     private final AtomicBoolean finalCleaupExecuted = new AtomicBoolean(false);
 
@@ -83,11 +74,12 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
     /**
      * LOCAL SESSION - look in the Config
-     * 
+     *
      * @throws Exception
      */
     public FDTReaderSession() throws Exception {
         super(FDTSession.CLIENT);
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"R-"+ "CLIENT-" + sessionID + ".log"), new Properties());
         final int rMul = Integer.getInteger("fdt.rQueueM", 2).intValue();
         final int avProcProp = Integer.getInteger("fdt.avProc", 1).intValue();
         final int avProcMax = Math.max(avProcProp, Utils.availableProcessors());
@@ -113,12 +105,13 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
     /**
      * REMOTE SESSION - wait for init()
-     * 
+     *
      * @param ctrlChannel
      * @throws Exception
      */
     public FDTReaderSession(ControlChannel ctrlChannel) throws Exception {
         super(ctrlChannel, FDTSession.SERVER);
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"R-"+ "SERVER-" + sessionID + ".log"), new Properties());
         fileBlockQueue = new ArrayBlockingQueue<FileBlock>(Utils.availableProcessors() * 2);
         readersMap = new TreeMap<Integer, ArrayList<DiskReaderTask>>();
 
@@ -637,7 +630,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             }
             nlrec.setType("RETR");
 
-            System.out.println(nlrec.toULMString());
+            logger.info(nlrec.toULMString());
 
             // log final statistics
             try {
@@ -676,11 +669,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 sb.append("\n Exit Status: ")
                         .append(((downCause() == null) && (downMessage() == null)) ? "OK" : "Not OK");
                 sb.append("\n");
-                if (customLog) {
-                    logger.info(sb.toString());
-                } else {
-                    System.out.println(sb.toString());
-                }
+                logger.info(sb.toString());
+                System.out.println(sb.toString());
             } catch (Throwable t) {
                 logger.log(Level.WARNING,
                         "[ FDTReaderSession ] [ finalCleanup ] [ HANDLED ] Exception getting final statistics. Smth went dreadfully wrong!",
@@ -868,7 +858,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     }
 
     /**
-     * @param ctrlMsg  
+     * @param ctrlMsg
      */
     @Override
     public void handleStartFDTSession(CtrlMsg ctrlMsg) throws Exception {
