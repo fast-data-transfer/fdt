@@ -89,6 +89,7 @@ public class Config {
     // shall I get the data from server? - used only by the client
     private boolean isPullMode = false;
     private boolean isCoordinatorMode;
+    private boolean isRetrievingLogFile;
     // this should be used for syncronizations at application level ()
     public static final Object BIG_FDTAPP_LOCK = new Object();
     // default is 4
@@ -228,14 +229,15 @@ public class Config {
         }
 
         isStandAlone = (configMap.get("-S") == null);
+        setRetrievingLogFile(configMap.get("-sID"));
         byteBufferSize = Utils.getIntValue(configMap, "-bs", DEFAULT_BUFFER_SIZE);
-        configMap.put("-bs", "" + byteBufferSize);
+        configMap.put("-bs", String.valueOf(byteBufferSize));
 
         sockNum = Utils.getIntValue(configMap, "-P", DEFAULT_SOCKET_NO);
-        configMap.put("-P", "" + sockNum);
+        configMap.put("-P", String.valueOf(sockNum));
 
         sockBufSize = Utils.getIntValue(configMap, "-ss", -1);
-        configMap.put("-ss", "" + sockBufSize);
+        configMap.put("-ss", String.valueOf(sockBufSize));
 
         rateLimit = Utils.getLongValue(configMap, "-limit", -1);
         if ((rateLimit > 0) && (rateLimit < NETWORK_BUFF_LEN_SIZE)) {
@@ -243,9 +245,9 @@ public class Config {
             logger.log(Level.WARNING, " The rate limit (-limit) is too small. It will be set to " + rateLimit
                     + " Bytes/s");
         }
-        configMap.put("-limit", "" + rateLimit);
+        configMap.put("-limit", String.valueOf(rateLimit));
         rateLimitDelayMillis = Utils.getLongValue(configMap, "-limitDelay", 300L);
-        configMap.put("-limitDelay", "" + rateLimitDelayMillis);
+        configMap.put("-limitDelay", String.valueOf(rateLimitDelayMillis));
 
         preFilters = Utils.getStringValue(configMap, "-preFilters", null);
         postFilters = Utils.getStringValue(configMap, "-postFilters", null);
@@ -297,12 +299,13 @@ public class Config {
         if ((hostname != null) && (hostname.length() == 0)) {
             hostname = null;
         } else {
-            isPullMode = (configMap.get("-pull") != null);
+            isPullMode = (configMap.get("-pull") != null) || (configMap.get("-sID") != null);
+            configMap.put("-pull", "");
         }
 
         final long ka = Utils.getLongValue(configMap, "-ka", TimeUnit.NANOSECONDS.toSeconds(DEFAULT_KEEP_ALIVE_NANOS));
         this.keepAliveDelayNanos = (ka < 0) ? DEFAULT_KEEP_ALIVE_NANOS : TimeUnit.SECONDS.toNanos(ka);
-        configMap.put("-ka", "" + TimeUnit.NANOSECONDS.toSeconds(this.keepAliveDelayNanos));
+        configMap.put("-ka", String.valueOf(TimeUnit.NANOSECONDS.toSeconds(this.keepAliveDelayNanos)));
 
         portNo = Utils.getIntValue(configMap, "-p", DEFAULT_PORT_NO);
         List transportPorts = Utils.getTransportPortsValue(configMap, "-tp", DEFAULT_PORT_NO);
@@ -500,6 +503,13 @@ public class Config {
                     Utils.closeIgnoringExceptions(br);
                 }
             }
+            else if (configMap.get("-sID") != null)
+            {
+                String sessionID = (String)configMap.get("-sID");
+                String[] logFiles = getLogFiles(sessionID);
+                remappedFileList = logFiles;
+                        fileList = logFiles;
+            }
         } else {
             configMap.remove("-fl");
             fileList = lastParams.toArray(new String[lastParams.size()]);
@@ -533,6 +543,10 @@ public class Config {
                 logger.log(Level.INFO, "Local server will try to bind on port:{0}", portNo);
             }
         }
+    }
+
+    private String[] getLogFiles(String sessionID) {
+        return new String[] {"/tmp/"+sessionID+".log"};
     }
 
     private String getFDTMode(Map<String, Object> configMap) {
@@ -786,9 +800,23 @@ public class Config {
         }
     }
 
+    public void setRetrievingLogFile(Object sessionID) {
+        this.isRetrievingLogFile = sessionID != null;
+        if (isRetrievingLogFile) {
+            this.configMap.put("-sID", (String)sessionID);
+        } else {
+            this.configMap.remove("-sID");
+        }
+    }
+
     public boolean isCoordinatorMode() {
         return isCoordinatorMode;
     }
+
+    public boolean isRetrievingLogFile() {
+        return isRetrievingLogFile || configMap.containsKey("-sID");
+    }
+
 
     public boolean isPullMode() {
         return isPullMode;

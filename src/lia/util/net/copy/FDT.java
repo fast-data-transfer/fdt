@@ -455,7 +455,7 @@ public class FDT {
 
         initConfig(argsMap, logLevel);
 
-        if (!config.isCoordinatorMode()) {
+        if (!config.isCoordinatorMode() || !config.isRetrievingLogFile()) {
             logger.info("FDT uses" + ((!config.isBlocking()) ? " *non-" : " *") + "blocking* I/O mode.");
         }
 
@@ -594,8 +594,8 @@ public class FDT {
 
             @SuppressWarnings("unchecked") final List<String> lParams = (List<String>) argsMap.get("LastParams");
 
-            if (argsMap.get("-nettest") == null && argsMap.get("-fl") == null
-                    && (lParams == null || lParams.size() == 0) && argsMap.get("Files") == null) {
+            if ((argsMap.get("-nettest") == null && argsMap.get("-fl") == null
+                    && (lParams == null || lParams.size() == 0) && argsMap.get("Files") == null) && argsMap.get("-sID") == null) {
                 throw new IllegalArgumentException("No source specified");
             }
         }

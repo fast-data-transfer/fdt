@@ -143,7 +143,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
     public FDTSession(short role) throws Exception {
         super();
-        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+ (role == CLIENT ? "CLIENT" : "SERVER")+ "-" + sessionID + ".log"), new Properties());
+//        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+ (role == CLIENT ? "CLIENT" : "SERVER")+ "-" + sessionID + ".log"), new Properties());
 
         customLog = Utils.isCustomLog();
 
