@@ -81,7 +81,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
      */
     public FDTReaderSession(int transferPort) throws Exception {
         super(FDTSession.CLIENT, transferPort);
-        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"R-"+ "CLIENT-" + sessionID + ".log"), new Properties());
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
         final int rMul = Integer.getInteger("fdt.rQueueM", 2).intValue();
         final int avProcProp = Integer.getInteger("fdt.avProc", 1).intValue();
         final int avProcMax = Math.max(avProcProp, Utils.availableProcessors());
@@ -113,7 +113,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
      */
     public FDTReaderSession(ControlChannel ctrlChannel) throws Exception {
         super(ctrlChannel, FDTSession.SERVER);
-        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"R-"+ "SERVER-" + sessionID + ".log"), new Properties());
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
         fileBlockQueue = new ArrayBlockingQueue<FileBlock>(Utils.availableProcessors() * 2);
         readersMap = new TreeMap<Integer, ArrayList<DiskReaderTask>>();
 

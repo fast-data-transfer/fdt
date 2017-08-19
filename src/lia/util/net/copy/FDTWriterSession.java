@@ -63,7 +63,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
      */
     public FDTWriterSession(ControlChannel cc) throws Exception {
         super(cc, FDTSession.SERVER);
-        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"W-"+ "SERVER" + "-" + sessionID + ".log"), new Properties());
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
         dwm.addSession(this);
         this.monID = (String) cc.remoteConf.get("-monID");
     }

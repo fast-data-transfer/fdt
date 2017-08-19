@@ -170,7 +170,6 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     public FDTSession(short role, int transferPort) throws Exception {
         super();
         this.transferPort = transferPort;
-//        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+ (role == CLIENT ? "CLIENT" : "SERVER")+ "-" + sessionID + ".log"), new Properties());
 
         customLog = Utils.isCustomLog();
 
@@ -491,7 +490,6 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     }
 
     public int getFDTTransferPort(int destinationMsgPort) throws Exception {
-//        openSocketForTransferPort(destinationMsgPort);
         ControlChannel cc = new ControlChannel(config.getHostName(), destinationMsgPort, UUID.randomUUID(), FDTSessionManager.getInstance());
         int transferPort = cc.sendTransferPortMessage(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, "rtp"));
         // wait for remote config
