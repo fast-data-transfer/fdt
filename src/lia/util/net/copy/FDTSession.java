@@ -3,8 +3,18 @@
  */
 package lia.util.net.copy;
 
+import lia.util.net.common.Config;
+import lia.util.net.common.Utils;
+import lia.util.net.copy.monitoring.FDTSessionMonitoringTask;
+import lia.util.net.copy.monitoring.lisa.LisaCtrlNotifier;
+import lia.util.net.copy.transport.*;
+
 import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.attribute.PosixFileAttributes;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -15,12 +25,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.Config;
-import lia.util.net.common.Utils;
-import lia.util.net.copy.monitoring.FDTSessionMonitoringTask;
-import lia.util.net.copy.monitoring.lisa.LisaCtrlNotifier;
-import lia.util.net.copy.transport.*;
-
 /**
  * Base class for both FDT Reader/Writer sessions
  *
@@ -29,7 +33,9 @@ import lia.util.net.copy.transport.*;
 public abstract class FDTSession extends IOSession implements ControlChannelNotifier, Comparable<FDTSession>,
         Accountable, LisaCtrlNotifier {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final Logger logger = Logger.getLogger(FDTSession.class.getName());
 
     private static final String LISA_RATE_LIMIT_CMD = "limit";
@@ -66,6 +72,8 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
     public static final int COORDINATOR_MSG_RCVD = 1 << 9;
 
+    public static final int LIST_FILES_MSG_RCVD = 1 << 10;
+
     protected AtomicLong totalProcessedBytes;
 
     protected AtomicLong totalUtilBytes;
@@ -75,9 +83,9 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     // should be 0 in case everything works fine and !=0 in case of an error
     protected short currentStatus;
 
-    protected static final String[] FDT_SESION_STATES = { "UNINITIALIZED", "STARTED", "INIT_CONF_SENT",
+    protected static final String[] FDT_SESION_STATES = {"UNINITIALIZED", "STARTED", "INIT_CONF_SENT",
             "INIT_CONF_RCV", "FINAL_CONF_SENT", "FINAL_CONF_RCV", "START_SENT", "START_RCV", "TRANSFERING", "END_SENT",
-            "END_RCV" };
+            "END_RCV"};
 
     protected Map<Integer, LinkedList<FileSession>> partitionsMap;
 
@@ -407,6 +415,11 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
                             handleCoordinatorMessage(ctrlMsg);
                             break;
                         }
+                        case CtrlMsg.LIST_FILES: {
+                            setCurrentState(LIST_FILES_MSG_RCVD);
+                            handleListFilesMessage(ctrlMsg);
+                            break;
+                        }
                         default: {
                             FDTProcolException fpe = new FDTProcolException("Illegal CtrlMsg tag [ " + ctrlMsg.tag + " ]");
                             fpe.fillInStackTrace();
@@ -437,15 +450,28 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             final ControlChannel ctrlChann = this.controlChannel;
             FDTSession session = FDTSessionManager.getInstance().addFDTClientSession();
             ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, session.controlChannel.fdtSessionID()));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger.log(Level.WARNING, "Exception while handling coordinator message", ex);
-        }
-        finally {
+        } finally {
             //Restore old config.
             this.setClosed(true);
             config.setConfigMap(oldConfig);
+        }
+    }
+
+    private void handleListFilesMessage(CtrlMsg ctrlMsg) {
+
+        logger.log(Level.INFO, "[ FDTSession ] [ handleListFilesMessage ( " + ctrlMsg.message.toString() + " )");
+        try {
+            FDTListFilesMsg lsMsg = (FDTListFilesMsg) ctrlMsg.message;
+            config.setListFilesFrom(lsMsg.listFilesFrom);
+            final ControlChannel ctrlChann = this.controlChannel;
+            lsMsg.filesInDir = getListOfFiles();
+            ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.LIST_FILES, lsMsg));
+        } catch (Exception ex) {
+            logger.log(Level.WARNING, "Exception while handling 'list files in dir' message", ex);
+        } finally {
+            this.setClosed(true);
         }
     }
 
@@ -637,6 +663,46 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
     public boolean isNetTest() {
         return isNetTest;
+    }
+
+    public static List<String> getListOfFiles() {
+        File[] filesList = new File(config.getListFilesFrom()).listFiles();
+        List<String> listOfFiles = new ArrayList<>();
+
+        if (filesList != null) {
+            for (File fileInDir : filesList) {
+                if (fileInDir.canRead()) {
+                    listOfFiles.add(getFileListEntry(fileInDir));
+                }
+            }
+        }
+        return listOfFiles;
+    }
+
+    private static String getFileListEntry(File fileInDir) {
+
+        StringBuilder sb = new StringBuilder();
+        try {
+            PosixFileAttributes fa = Files.readAttributes(fileInDir.toPath(), PosixFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            sb.append(fa.isDirectory() ? "d" : fa.isSymbolicLink() ? "l" : fa.isRegularFile() ? "f" : "-");
+            sb.append(fileInDir.canRead() ? "r" : "-");
+            sb.append(fileInDir.canWrite() ? "w" : "-");
+            sb.append(fileInDir.canExecute() ? "x" : "-");
+            sb.append("\t");
+            sb.append(fa.owner());
+            sb.append(fa.owner().getName().length() < 4 ? "\t\t" : "\t");
+            sb.append(fa.group());
+            sb.append(fa.group().getName().length() < 4 ? "\t\t" : "\t");
+            sb.append(fa.size());
+            sb.append(String.valueOf(fa.size()).length() < 4 ? "\t\t" : "\t");
+            sb.append(fa.lastModifiedTime().toString());
+            sb.append("\t");
+            sb.append(fa.isDirectory() ? fileInDir.getName() + "/" : fileInDir.getName());
+        } catch (IOException e) {
+            logger.log(Level.WARNING, "Failed to get file attributes", e);
+        }
+        logger.info(sb.toString());
+        return sb.toString();
     }
 
 }

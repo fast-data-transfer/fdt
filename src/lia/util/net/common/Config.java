@@ -3,6 +3,8 @@
  */
 package lia.util.net.common;
 
+import lia.util.net.copy.PosixFSFileChannelProviderFactory;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.net.NetworkInterface;
@@ -15,8 +17,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-
-import lia.util.net.copy.PosixFSFileChannelProviderFactory;
 
 /**
  * Configuration params for FDT
@@ -115,6 +115,7 @@ public class Config {
     private String[] fileList;
     private String[] remappedFileList;
     private String destDir;
+    private String listFilesFrom;
     private String sIP;
     private String dIP;
     private final String sshKeyPath;
@@ -343,6 +344,7 @@ public class Config {
         destDir = Utils.getStringValue(configMap, "-d", null);
         sIP = Utils.getStringValue(configMap, "-sIP", null);
         dIP = Utils.getStringValue(configMap, "-dIP", null);
+        listFilesFrom = Utils.getStringValue(configMap, "-ls", null);
         bComputeMD5 = (configMap.get("-md5") != null);
         sshKeyPath = Utils.getStringValue(configMap, "-sshKey", null);
 
@@ -353,7 +355,7 @@ public class Config {
             lastParams.add("/dev/zero");
         }
 
-        if ((hostname != null) && ((destDir == null) || (destDir.length() == 0))) {
+        if ((hostname != null) && (((destDir == null) || (destDir.length() == 0)) && listFilesFrom == null)) {
             throw new IllegalArgumentException("No destination specified");
         }
 
@@ -549,9 +551,20 @@ public class Config {
         return new String[] {"/tmp/"+sessionID+".log"};
     }
 
+    public String getListFilesFrom() {
+        return listFilesFrom;
+    }
+
+    public void setListFilesFrom(String listFilesFrom) {
+        this.listFilesFrom = listFilesFrom;
+    }
+
     private String getFDTMode(Map<String, Object> configMap) {
         if (configMap.get("-coord") != null) {
             return "coordinator";
+        }
+        else if (configMap.get("-ls") != null) {
+            return "list files";
         }
         return (hostname == null) && (configMap.get("SCPSyntaxUsed") == null) ? "server" : "client";
     }
@@ -811,6 +824,10 @@ public class Config {
 
     public boolean isCoordinatorMode() {
         return isCoordinatorMode;
+    }
+
+    public boolean isListFilesMode() {
+        return listFilesFrom != null && configMap.get("-ls") != null;
     }
 
     public boolean isRetrievingLogFile() {

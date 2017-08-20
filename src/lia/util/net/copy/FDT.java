@@ -6,10 +6,7 @@ import lia.util.net.copy.monitoring.ApMonReportingTask;
 import lia.util.net.copy.monitoring.ConsoleReportingTask;
 import lia.util.net.copy.monitoring.FDTInternalMonitoringTask;
 import lia.util.net.copy.monitoring.lisa.LISAReportingTask;
-import lia.util.net.copy.transport.ControlChannel;
-import lia.util.net.copy.transport.CtrlMsg;
-import lia.util.net.copy.transport.FDTProcolException;
-import lia.util.net.copy.transport.FDTSessionConfigMsg;
+import lia.util.net.copy.transport.*;
 import lia.util.net.copy.transport.internal.SelectionManager;
 
 import java.io.File;
@@ -161,8 +158,16 @@ public class FDT {
             ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
             UUID sessionID = cc.sendCoordinatorMessage(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, new FDTSessionConfigMsg(config)));
             // wait for remote config
-            logger.log(Level.INFO,"Message sent to: " + config.getHostName() +":"+ config.getPort() + " Remote Job Session ID: " + sessionID);
+            logger.log(Level.INFO, "Message sent to: " + config.getHostName() + ":" + config.getPort() + " Remote Job Session ID: " + sessionID);
             System.exit(0);
+        } else if (config.isListFilesMode()) {
+            ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
+            List<String> filesInDir = cc.sendListFilesMessage(new CtrlMsg(CtrlMsg.LIST_FILES, new FDTListFilesMsg(config.getListFilesFrom())));
+            // wait for remote config
+            logger.log(Level.INFO, "Message sent to: " + config.getHostName() + ":" + config.getPort());
+            printOutResults(filesInDir);
+            System.exit(0);
+
         } else {
             if (config.getHostName() != null) { // role == client
                 // the session manager will check the "pull/push" mode and start the FDTSession
@@ -177,6 +182,17 @@ public class FDT {
                 theServer.doWork();
             }
         }
+    }
+
+    private static void printOutResults(List<String> filesInDir) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("\r\n");
+        for (String entry : filesInDir) {
+            sb.append(entry);
+            sb.append("\r\n");
+        }
+        String files = sb.toString();
+        logger.info(files);
     }
 
     private static void printHelp() {
@@ -220,8 +236,7 @@ public class FDT {
                     logger.log(Level.WARNING, "FDT Got exception in main loop", t);
                 }
             }
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             e = ex;
         } finally {
             try {
@@ -515,10 +530,10 @@ public class FDT {
         try {
             Config.initInstance(argsMap);
         } catch (InvalidFDTParameterException e) {
-            logger.log(Level.WARNING,"Invalid parameters supplied: " + e.getMessage(), e);
+            logger.log(Level.WARNING, "Invalid parameters supplied: " + e.getMessage(), e);
             System.exit(1);
         } catch (Throwable t1) {
-            logger.log(Level.WARNING,"got exception parsing command args", t1);
+            logger.log(Level.WARNING, "got exception parsing command args", t1);
             System.exit(1);
         }
         config = Config.getInstance();
@@ -588,14 +603,15 @@ public class FDT {
 
     private static void checkMainParams(Map<String, Object> argsMap) {
         if (argsMap.get("-c") != null) {
-            if (argsMap.get("-d") == null && argsMap.get("-nettest") == null) {
+            if (argsMap.get("-d") == null && argsMap.get("-nettest") == null && argsMap.get("-ls") == null) {
                 throw new IllegalArgumentException("No destination specified");
             }
 
             @SuppressWarnings("unchecked") final List<String> lParams = (List<String>) argsMap.get("LastParams");
 
             if ((argsMap.get("-nettest") == null && argsMap.get("-fl") == null
-                    && (lParams == null || lParams.size() == 0) && argsMap.get("Files") == null) && argsMap.get("-sID") == null) {
+                    && (lParams == null || lParams.size() == 0) && argsMap.get("Files") == null)
+                    && argsMap.get("-sID") == null && argsMap.get("-ls") == null) {
                 throw new IllegalArgumentException("No source specified");
             }
         }

@@ -65,11 +65,14 @@ public class CtrlMsg implements Serializable {
 
     /** message types designated for third party copy feature */
     public static final int THIRD_PARTY_COPY				= 13;
+
+    /** message types designated for list files feature */
+    public static final int LIST_FILES				= 14;
     
     private static final String[] CTRL_MSG_TAGS = new String[] {
         "KEEP_ALIVE_MSG", "PROTOCOL_VERSION", "SESSION_ID", "SESSION_TYPE", "INIT_FDT_CONF", "PING_SESSION", 
         "INIT_FDTSESSION_CONF", "FINAL_FDTSESSION_CONF", "FINISHED_FILE_SESSIONS", "START_SESSION", "END_SESSION",
-        "GUI_MSG", "END_SESSION_FIN2", "THIRD_PARTY_COPY"
+        "GUI_MSG", "END_SESSION_FIN2", "THIRD_PARTY_COPY", "LIST_FILES"
         };
     
     /**

@@ -13,10 +13,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -379,6 +376,30 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
     }
 
+    public List<String> sendListFilesMessage(CtrlMsg ctrlMsg) throws IOException {
+
+        logger.log(Level.INFO, "[ ControlChannel ] [ sendListFilesMessage ]");
+        if (logger.isLoggable(Level.FINER)) {
+            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+            if (logger.isLoggable(Level.FINEST)) {
+                Thread.dumpStack();
+            }
+        }
+        try {
+            sendMsgImpl(ctrlMsg);
+            CtrlMsg newCtrlMsg = getResponse();
+            if (logger.isLoggable(Level.FINER)) {
+                logger.log(Level.FINER, "[ CtrlChannel ] [ sendListFilesMessage ] listing files on remote machine: " + newCtrlMsg.message.toString());
+            }
+            FDTListFilesMsg msg = (FDTListFilesMsg) newCtrlMsg.message;
+            return msg.filesInDir;
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to retrieve response from server", e);
+        }
+        cleanup();
+        return null;
+    }
+
     public UUID sendCoordinatorMessage(CtrlMsg ctrlMsg) throws IOException {
 
         logger.log(Level.INFO, "[ ControlChannel ] [ sendCoordinatorMessage ]");
@@ -388,11 +409,9 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
                 Thread.dumpStack();
             }
         }
-
         try {
             sendMsgImpl(ctrlMsg);
-
-            CtrlMsg newCtrlMsg = getRemoteJobSessionID();
+            CtrlMsg newCtrlMsg = getResponse();
             logger.info("Remote job session ID: " + newCtrlMsg.message.toString());
             return (UUID) newCtrlMsg.message;
 
@@ -403,7 +422,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         return null;
     }
 
-    private CtrlMsg getRemoteJobSessionID() throws Exception {
+    private CtrlMsg getResponse() throws Exception {
         Exception t = null;
         CtrlMsg newCtrlMsg = null;
         for (int i = 1; i <= MAX_RETRIES; i++) {
@@ -412,7 +431,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
                 return newCtrlMsg;
             } catch (Exception e) {
                 t = e;
-                Thread.sleep(i * CONNECT_TIMEOUT/2);
+                Thread.sleep(i * CONNECT_TIMEOUT / 2);
             } finally {
                 if (newCtrlMsg == null && i == MAX_RETRIES) {
                     throw t;
