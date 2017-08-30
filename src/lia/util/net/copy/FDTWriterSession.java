@@ -3,6 +3,14 @@
  */
 package lia.util.net.copy;
 
+import lia.util.net.common.*;
+import lia.util.net.copy.disk.DiskWriterManager;
+import lia.util.net.copy.disk.ResumeManager;
+import lia.util.net.copy.filters.Postprocessor;
+import lia.util.net.copy.filters.Preprocessor;
+import lia.util.net.copy.filters.ProcessorInfo;
+import lia.util.net.copy.transport.*;
+
 import java.io.File;
 import java.net.InetAddress;
 import java.util.*;
@@ -11,31 +19,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.Config;
-import lia.util.net.common.DirectByteBufferPool;
-import lia.util.net.common.FileChannelProvider;
-import lia.util.net.common.NetloggerRecord;
-import lia.util.net.common.StoragePathDecoder;
-import lia.util.net.common.Utils;
-import lia.util.net.copy.disk.DiskWriterManager;
-import lia.util.net.copy.disk.ResumeManager;
-import lia.util.net.copy.filters.Postprocessor;
-import lia.util.net.copy.filters.Preprocessor;
-import lia.util.net.copy.filters.ProcessorInfo;
-import lia.util.net.copy.transport.ControlChannel;
-import lia.util.net.copy.transport.CtrlMsg;
-import lia.util.net.copy.transport.FDTProcolException;
-import lia.util.net.copy.transport.FDTSessionConfigMsg;
-import lia.util.net.copy.transport.TCPSessionReader;
-
 /**
  * The Writer session ...
- * 
+ *
  * @author ramiro
  */
 public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final Logger logger = Logger.getLogger(FDTWriterSession.class.getName());
 
     private static final ResumeManager resumeManager = ResumeManager.getInstance();
@@ -54,9 +47,9 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
     private final AtomicBoolean finishNotifiedExecuted = new AtomicBoolean(false);
 
-    public FDTWriterSession() throws Exception {
-        super(FDTSession.CLIENT);
-        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
+    public FDTWriterSession(int transferPort) throws Exception {
+        super(FDTSession.CLIENT, transferPort);
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"W-"+ "CLIENT" + "-" + sessionID + ".log"), new Properties());
         dwm.addSession(this);
         sendInitConf();
         this.monID = config.getMonID();
@@ -64,13 +57,13 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
     /**
      * REMOTE SESSION
-     * 
+     *
      * @param cc control channel
      * @throws Exception
      */
     public FDTWriterSession(ControlChannel cc) throws Exception {
         super(cc, FDTSession.SERVER);
-        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"W-"+ "SERVER" + "-" + sessionID + ".log"), new Properties());
         dwm.addSession(this);
         this.monID = (String) cc.remoteConf.get("-monID");
     }
@@ -284,7 +277,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                             ignCtrl);
                 }
             }
-
+            setClosed(true);
             try {
                 FDTSessionManager.getInstance().finishSession(sessionID, downMessage(), downCause());
             } catch (Throwable ignore) {
@@ -359,7 +352,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
     @Override
     public void handleFinalFDTSessionConf(CtrlMsg ctrlMsg) throws Exception {
         final boolean isFiner = logger.isLoggable(Level.FINER);
-
+        config.registerTransferPortForSession(controlChannel.localPort, sessionID().toString());
         FDTSessionConfigMsg sccm = (FDTSessionConfigMsg) ctrlMsg.message;
 
         this.destinationDir = sccm.destinationDir;
@@ -485,11 +478,12 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             }
         } else if (role == CLIENT) {
             transportProvider = new TCPSessionReader(this, this, InetAddress.getByName(config.getHostName()),
-                    config.getPort(), config.getSockNum());
+                    transferPort, config.getSockNum());
         }
 
         // Notify the reader that he can start to send the data
-        controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.START_SESSION, null));
+        logger.log(Level.FINER, "FWS handleFinalFDTSessionConf starting session on port: " + transferPort);
+        controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.START_SESSION, transferPort));
 
         setCurrentState(START_SENT);
 
@@ -508,7 +502,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
         if (role == CLIENT) {
             if (transportProvider == null) {
                 transportProvider = new TCPSessionReader(this, this, InetAddress.getByName(config.getHostName()),
-                        config.getPort(), config.getSockNum());
+                        transferPort, config.getSockNum());
             }
         }
 
@@ -554,7 +548,6 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             logger.log(Level.INFO, "[ FDTWriterSession ] Remote FDTReaderSession for session [ " + sessionID
                     + " ] finished ok. Waiting for our side to finish.");
         }
-
     }
 
     private boolean doPreprocess(String[] preProcessFilters, Map<String, FileSession> preProcMap) throws Exception {

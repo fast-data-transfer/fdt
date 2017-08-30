@@ -39,7 +39,9 @@ import lia.util.net.copy.transport.TCPSessionWriter;
  */
 public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final Logger logger = Logger.getLogger(FDTReaderSession.class.getName());
 
     private static final DiskReaderManager diskManager = DiskReaderManager.getInstance();
@@ -77,9 +79,9 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
      *
      * @throws Exception
      */
-    public FDTReaderSession() throws Exception {
-        super(FDTSession.CLIENT);
-        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
+    public FDTReaderSession(int transferPort) throws Exception {
+        super(FDTSession.CLIENT, transferPort);
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"R-"+ "CLIENT-" + sessionID + ".log"), new Properties());
         final int rMul = Integer.getInteger("fdt.rQueueM", 2).intValue();
         final int avProcProp = Integer.getInteger("fdt.avProc", 1).intValue();
         final int avProcMax = Math.max(avProcProp, Utils.availableProcessors());
@@ -111,7 +113,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
      */
     public FDTReaderSession(ControlChannel ctrlChannel) throws Exception {
         super(ctrlChannel, FDTSession.SERVER);
-        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"R-"+ "SERVER-" + sessionID + ".log"), new Properties());
         fileBlockQueue = new ArrayBlockingQueue<FileBlock>(Utils.availableProcessors() * 2);
         readersMap = new TreeMap<Integer, ArrayList<DiskReaderTask>>();
 
@@ -265,8 +267,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 .newReaderFileChannelProvider(this);
 
         for (final String fName : newFileList) {
-            if (!new File(fName).exists())
-            {
+            if (!new File(fName).exists()) {
                 logger.warning("File listed in file list does not exist! " + fName);
                 throw new IOException("File does not exist! " + fName);
             }
@@ -743,6 +744,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                         "\n\n [ FDTReaderSession ] [ HANDLED ] exception returning buffers to pool \n\n ", t);
             }
 
+            setClosed(true);
             try {
                 FDTSessionManager.getInstance().finishSession(sessionID, downMessage(), downCause());
             } catch (Throwable ignore) {
@@ -761,7 +763,8 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             logger.log(Level.FINER, " [ FDTReaderSession ] enters internalClose downMsg: " + downMessage()
                     + " ,  downCause: " + downCause());
         }
-
+        FDTSession session = FDTSessionManager.getInstance().getSession(sessionID);
+        session.setClosed(true);
         try {
             super.internalClose();
         } catch (Throwable t) {
@@ -868,12 +871,12 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         if (role == CLIENT) {
             sendCookie = false;
             transportProvider = new TCPSessionWriter(this, InetAddress.getByName(config.getHostName()),
-                    config.getPort(), config.getSockNum());
+                    transferPort, config.getSockNum());
         } else {
             transportProvider = new TCPSessionWriter(this);
         }
-
-        controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.START_SESSION, null));
+        config.registerTransferPortForSession(transferPort, sessionID.toString());
+        controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.START_SESSION, transferPort));
         // I'm still in sync ... if smth goes wrong the state will not be set
         setCurrentState(START_SENT);
 

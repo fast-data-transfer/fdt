@@ -7,12 +7,15 @@ import lia.util.net.copy.PosixFSFileChannelProviderFactory;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.IOException;
 import java.net.NetworkInterface;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketException;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Map;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -26,7 +29,9 @@ import java.util.regex.Pattern;
  */
 public class Config {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final Logger logger = Logger.getLogger("lia.util.net.common.Config");
     // The size of the buffer which is sent over the wire!
     // TODO make this a parameter
@@ -48,18 +53,19 @@ public class Config {
 
         NETWORK_BUFF_LEN_SIZE = defaultMSSSize;
     }
+
     // env props which will be sent to remote peer
-    private final static String[] exportedSysProps = { "user.name", "user.home", "user.dir", "file.separator",
-            "file.encoding", "path.separator" };
+    private final static String[] exportedSysProps = {"user.name", "user.home", "user.dir", "file.separator",
+            "file.encoding", "path.separator"};
     // public static final String SINGLE_CMDLINE_ARGS[] = { "-S", "-pull", "-N", "-gsi", "-bio", "-r", "-fbs", "-ll",
     // "-loop", "-enableLisaRestart", "-md5", "-printStats", "-gsissh", "-noupdates", "-silent"};
-    public static final String[] SINGLE_CMDLINE_ARGS = { "-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats",
-            "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb" };
-    public static final String[] VALUE_CMDLINE_ARGS = { "-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters",
+    public static final String[] SINGLE_CMDLINE_ARGS = {"-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats",
+            "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb"};
+    public static final String[] VALUE_CMDLINE_ARGS = {"-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters",
             "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d",
-            "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka" };
-    public static final String POSSIBLE_VALUE_CMDLINE_ARGS[] = { "-enable_apmon", "-lisafdtclient", "-lisafdtserver",
-            "-f", "-F", "-h", "-H", "--help", "-help," + "-u", "-U", "--update", "-update" };
+            "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka"};
+    public static final String POSSIBLE_VALUE_CMDLINE_ARGS[] = {"-enable_apmon", "-lisafdtclient", "-lisafdtserver",
+            "-f", "-F", "-h", "-H", "--help", "-help," + "-u", "-U", "--update", "-update"};
 
     /**
      * used in conjuction with -fl to delimit the eventual destination file name
@@ -90,6 +96,7 @@ public class Config {
     private boolean isPullMode = false;
     private boolean isCoordinatorMode;
     private boolean isRetrievingLogFile;
+    private boolean isThirdPartyCopyAgent;
     // this should be used for syncronizations at application level ()
     public static final Object BIG_FDTAPP_LOCK = new Object();
     // default is 4
@@ -111,6 +118,9 @@ public class Config {
     private int portNo;
     private int portNoGSI;
     private int portNoSSH;
+    private int destPort;
+    private int remoteTransferPort;
+    private ArrayBlockingQueue<Integer> transportPorts;
     private final boolean isStandAlone;
     private String[] fileList;
     private String[] remappedFileList;
@@ -160,6 +170,8 @@ public class Config {
     private final boolean isGenTest;
     private final long keepAliveDelayNanos;
     private final FileChannelProviderFactory fileChannelProviderFactory;
+    private Map<String, Integer> sessionPortMap = new HashMap<>();
+    private Map<Integer, List<Object>> sessionSocketMap = new HashMap<>();
 
     private static final int getMinMTU() {
         int retMTU = 1500;
@@ -216,8 +228,7 @@ public class Config {
 
     /**
      * @param configMap
-     * @throws InvalidFDTParameterException
-     *             if incorrect values are supplied for parameters
+     * @throws InvalidFDTParameterException if incorrect values are supplied for parameters
      */
     private Config(final Map<String, Object> configMap) throws InvalidFDTParameterException {
         this.configMap = configMap;
@@ -301,7 +312,9 @@ public class Config {
             hostname = null;
         } else {
             isPullMode = (configMap.get("-pull") != null) || (configMap.get("-sID") != null);
-            configMap.put("-pull", "");
+            if (isPullMode) {
+                configMap.put("-pull", "");
+            }
         }
 
         final long ka = Utils.getLongValue(configMap, "-ka", TimeUnit.NANOSECONDS.toSeconds(DEFAULT_KEEP_ALIVE_NANOS));
@@ -309,8 +322,10 @@ public class Config {
         configMap.put("-ka", String.valueOf(TimeUnit.NANOSECONDS.toSeconds(this.keepAliveDelayNanos)));
 
         portNo = Utils.getIntValue(configMap, "-p", DEFAULT_PORT_NO);
-        List transportPorts = Utils.getTransportPortsValue(configMap, "-tp", DEFAULT_PORT_NO);
+        transportPorts = Utils.getTransportPortsValue(configMap, "-tp", DEFAULT_PORT_NO);
         isCoordinatorMode = Boolean.getBoolean("coordinator");
+        isThirdPartyCopyAgent = (configMap.get("-agent") != null);
+
         portNoGSI = Utils.getIntValue(configMap, "-gsip", DEFAULT_PORT_NO_GSI);
         portNoSSH = Utils.getIntValue(configMap, "-sshp", DEFAULT_PORT_NO_SSH);
         IORetryFactor = Utils.getIntValue(configMap, "-iof", 1);
@@ -344,6 +359,8 @@ public class Config {
         destDir = Utils.getStringValue(configMap, "-d", null);
         sIP = Utils.getStringValue(configMap, "-sIP", null);
         dIP = Utils.getStringValue(configMap, "-dIP", null);
+        destPort = Utils.getIntValue(configMap, "-dp", -1);
+        remoteTransferPort = -1;
         listFilesFrom = Utils.getStringValue(configMap, "-ls", null);
         bComputeMD5 = (configMap.get("-md5") != null);
         sshKeyPath = Utils.getStringValue(configMap, "-sshKey", null);
@@ -504,13 +521,11 @@ public class Config {
                     Utils.closeIgnoringExceptions(fr);
                     Utils.closeIgnoringExceptions(br);
                 }
-            }
-            else if (configMap.get("-sID") != null)
-            {
-                String sessionID = (String)configMap.get("-sID");
+            } else if (configMap.get("-sID") != null) {
+                String sessionID = (String) configMap.get("-sID");
                 String[] logFiles = getLogFiles(sessionID);
                 remappedFileList = logFiles;
-                        fileList = logFiles;
+                fileList = logFiles;
             }
         } else {
             configMap.remove("-fl");
@@ -537,8 +552,8 @@ public class Config {
                                     + fileList[i] : " remapped to: " + remappedFileList[i]).append("\n");
                 }
                 logger.log(Level.FINE, sb.toString());
-                logger.log(Level.FINE, "Remote destination directory: {0}\nRemote host: {1} port: {2}", new Object[] {
-                        destDir, hostname, portNo });
+                logger.log(Level.FINE, "Remote destination directory: {0}\nRemote host: {1} port: {2}", new Object[]{
+                        destDir, hostname, portNo});
             }
         } else {// server mode
             if (logger.isLoggable(Level.FINE)) {
@@ -548,7 +563,7 @@ public class Config {
     }
 
     private String[] getLogFiles(String sessionID) {
-        return new String[] {"/tmp/"+sessionID+".log"};
+        return new String[]{"/tmp/" + sessionID + ".log"};
     }
 
     public String getListFilesFrom() {
@@ -562,9 +577,10 @@ public class Config {
     private String getFDTMode(Map<String, Object> configMap) {
         if (configMap.get("-coord") != null) {
             return "coordinator";
-        }
-        else if (configMap.get("-ls") != null) {
+        } else if (configMap.get("-ls") != null) {
             return "list files";
+        } else if (configMap.get("-agent") != null) {
+            return "agent worker";
         }
         return (hostname == null) && (configMap.get("SCPSyntaxUsed") == null) ? "server" : "client";
     }
@@ -717,18 +733,15 @@ public class Config {
         return portNoSSH;
     }
 
-    public void setPortNo(int port)
-    {
+    public void setPortNo(int port) {
         this.portNo = port;
     }
 
-    public void setGSIPort(int port)
-    {
+    public void setGSIPort(int port) {
         this.portNoGSI = port;
     }
 
-    public void setSSHPort(int port)
-    {
+    public void setSSHPort(int port) {
         this.portNoSSH = port;
     }
 
@@ -764,6 +777,103 @@ public class Config {
         return destDir;
     }
 
+    public void setDestinationPort(int destPort) {
+        this.destPort = destPort;
+    }
+
+    public int getDestinationPort() {
+        return destPort;
+    }
+
+    public void setRemoteTransferPort(int remoteTransferPort) {
+        this.remoteTransferPort = remoteTransferPort;
+    }
+
+    public void registerTransferPortForSession(int newTransferPort, String sessionID) {
+        this.sessionPortMap.put(sessionID, newTransferPort);
+    }
+
+    public int getNewRemoteTransferPort() {
+        try {
+            if (!transportPorts.isEmpty()) {
+                int rtp = this.transportPorts.poll(20, TimeUnit.SECONDS);
+                System.out.println("Took new remote transfer port " + rtp);
+                return rtp;
+            }
+        } catch (Exception e) {
+            if (transportPorts.size() == 0) {
+                logger.log(Level.WARNING, "No transfer ports defined or no free transfer ports left...", e);
+            } else {
+                logger.log(Level.WARNING, "Failed to retrieve remote transfer port", e);
+            }
+        }
+        return -1;
+    }
+
+    public void setSessionSocket(ServerSocketChannel ssc, ServerSocket ss, SocketChannel sc, Socket s, int port) {
+        List<Object> socks = new ArrayList<>();
+        socks.add(ssc);
+        socks.add(ss);
+        socks.add(sc);
+        socks.add(s);
+        sessionSocketMap.put(port, socks);
+    }
+
+    public void releaseRemoteTransferPort(String sessionID) {
+        if (sessionPortMap.keySet().contains(sessionID)) {
+            logger.log(Level.FINER, "Trying to release transfer port from session " + sessionID);
+            int sessionPort = sessionPortMap.get(sessionID);
+            if (sessionPort > 0) {
+                try {
+                    transportPorts.put(sessionPort);
+                    sessionPortMap.remove(sessionID);
+                    closeSessionRelatedSocks(sessionSocketMap.get(sessionPort));
+                } catch (InterruptedException e) {
+                    logger.log(Level.WARNING, "Failed to release remote transfer port: " + remoteTransferPort, e);
+                }
+            }
+        }
+    }
+
+    private static void closeSessionRelatedSocks(List<Object> socks) {
+        if (socks != null) {
+            for (Object o : socks) {
+                if (o instanceof ServerSocketChannel) {
+                    try {
+                        ((ServerSocketChannel) o).close();
+                    } catch (IOException e) {
+                        logger.log(Level.WARNING, "Failed to close ServerSocketChannel", e);
+                    }
+                }
+                if (o instanceof ServerSocket) {
+                    try {
+                        ((ServerSocket) o).close();
+                    } catch (IOException e) {
+                        logger.log(Level.WARNING, "Failed to close ServerSocket", e);
+                    }
+                }
+                if (o instanceof SocketChannel) {
+                    try {
+                        ((SocketChannel) o).close();
+                    } catch (IOException e) {
+                        logger.log(Level.WARNING, "Failed to close SocketChannel", e);
+                    }
+                }
+                if (o instanceof Socket) {
+                    try {
+                        ((Socket) o).close();
+                    } catch (IOException e) {
+                        logger.log(Level.WARNING, "Failed to close Socket", e);
+                    }
+                }
+            }
+        }
+    }
+
+    public int getRemoteTransferPort() {
+        return remoteTransferPort;
+    }
+
     public String getSourceIP() {
         return sIP;
     }
@@ -783,7 +893,6 @@ public class Config {
     public void setLisaPort(int lisaPort) {
         this.lisaPort = lisaPort;
     }
-
 
 
     // TODO - As param ...
@@ -813,10 +922,19 @@ public class Config {
         }
     }
 
+    public void setThirdPartyCopyAgent(boolean isThirdPartyCopyAgent) {
+        this.isThirdPartyCopyAgent = isThirdPartyCopyAgent;
+        if (isThirdPartyCopyAgent) {
+            this.configMap.put("-agent", true);
+        } else {
+            this.configMap.remove("-agent");
+        }
+    }
+
     public void setRetrievingLogFile(Object sessionID) {
         this.isRetrievingLogFile = sessionID != null;
         if (isRetrievingLogFile) {
-            this.configMap.put("-sID", (String)sessionID);
+            this.configMap.put("-sID", (String) sessionID);
         } else {
             this.configMap.remove("-sID");
         }
@@ -995,5 +1113,9 @@ public class Config {
 
     public FileChannelProviderFactory getFileChannelProviderFactory() {
         return this.fileChannelProviderFactory;
+    }
+
+    public boolean isThirdPartyCopyAgent() {
+        return this.isThirdPartyCopyAgent;
     }
 }

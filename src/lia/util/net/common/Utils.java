@@ -3,7 +3,11 @@ package lia.util.net.common;
 import apmon.ApMon;
 import com.sun.istack.internal.NotNull;
 import lia.util.net.copy.FDT;
+import lia.util.net.copy.FDTServer;
+import lia.util.net.copy.FDTSessionManager;
 import lia.util.net.copy.FileBlock;
+import lia.util.net.copy.transport.ControlChannel;
+import lia.util.net.copy.transport.CtrlMsg;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -12,10 +16,7 @@ import org.json.JSONObject;
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
+import java.nio.channels.*;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.*;
@@ -1738,8 +1739,8 @@ public final class Utils {
         return localhost;
     }
 
-    public static List<Integer> getTransportPortsValue(Map<String, Object> configMap, String key, int defaultPortNo) {
-        List transportPorts = new ArrayList();
+    public static ArrayBlockingQueue<Integer> getTransportPortsValue(Map<String, Object> configMap, String key, int defaultPortNo) {
+        ArrayBlockingQueue<Integer> transportPorts = new ArrayBlockingQueue<>(10);
         int i=0;
         Object obj = configMap.get(key);
         if (obj == null || obj.toString().isEmpty())
@@ -1748,31 +1749,14 @@ public final class Utils {
             return transportPorts;
         }
         String tp = obj.toString();
-        if (tp.isEmpty() || tp.replace(",","").isEmpty())
-        {
-            transportPorts.add(defaultPortNo);
-            return transportPorts;
-        }
-        else
-        {
-
-
-
-
-        int n[]=new int[10];//for integer array of numbers
-
-        StringTokenizer stk=new StringTokenizer(tp,",");
-        String s[]=new String[10];//for String array of numbers
-        while(stk.hasMoreTokens())
-        {
-            s[i]=stk.nextToken();
-            transportPorts.add(Integer.parseInt(s[i]));//Converting into Integer
-            i++;
-        }
-        }
-        for(i=0;i<transportPorts.size();i++)
-            System.out.println("number["+i+"]=" + transportPorts.get(i));
-
+            StringTokenizer stk=new StringTokenizer(tp,",");
+            String s[]=new String[10];
+            while(stk.hasMoreTokens())
+            {
+                s[i]=stk.nextToken();
+                transportPorts.add(Integer.parseInt(s[i]));
+                i++;
+            }
         return transportPorts;
     }
 
@@ -1822,7 +1806,6 @@ public final class Utils {
                 loggingProps.put("handlers", "java.util.logging.ConsoleHandler");
                 loggingProps.put("java.util.logging.ConsoleHandler.level", "FINEST");
                 loggingProps.put("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
-                loggingProps.put("java.util.logging.SimpleFormatter.format", "%1$tY-%1$tm-%1$td %1$tH:%1$tM:%1$tS %4$s %2$s %5$s%6$s%n");
             }
 
             if (logFile != null) {
@@ -1833,7 +1816,6 @@ public final class Utils {
                 loggingProps.put("handlers", "java.util.logging.FileHandler");
                 loggingProps.put("java.util.logging.FileHandler.level", "FINEST");
                 loggingProps.put("java.util.logging.FileHandler.formatter", "java.util.logging.SimpleFormatter");
-                loggingProps.put("java.util.logging.SimpleFormatter.format", "%1$tY-%1$tm-%1$td %1$tH:%1$tM:%1$tS %4$s %2$s %5$s%6$s%n");
                 loggingProps.put("java.util.logging.FileHandler.pattern", "" + logFile);
                 loggingProps.put("java.util.logging.FileHandler.append", "true");
 
@@ -1857,5 +1839,68 @@ public final class Utils {
             System.err.println(" Got exception setting the logging level ");
             t.printStackTrace();
         }
+    }
+
+    public static void waitAndWork(ExecutorService executor, ServerSocket ss, Selector sel, Config config) throws Exception {
+        waitForTask(executor, ss, sel);
+
+        int transferPort = getFDTTransferPort(config);
+        if (transferPort > 0) {
+            final FDTServer theServer = new FDTServer(transferPort);
+            theServer.doWork();
+        } else {
+            logger.warning("There are no free transfer ports at this moment, please try again later");
+            waitForTask(executor, ss, sel);
+        }
+    }
+
+    public static int getFDTTransferPort(Config config) throws Exception {
+        ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
+        int transferPort = cc.sendTransferPortMessage(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, "rtp"));
+        // wait for remote config
+        logger.log(Level.INFO, "Got transfer port: " + config.getHostName() + ":" + transferPort);
+        return transferPort;
+    }
+
+    private static void waitForTask(ExecutorService executor, ServerSocket ss, Selector sel) throws Exception {
+        try {
+
+            for (; ; ) {
+                final int count = sel.select(2000);
+
+                if (count == 0)
+                    continue;
+
+                Iterator<SelectionKey> it = sel.selectedKeys().iterator();
+                while (it.hasNext()) {
+                    final SelectionKey sk = it.next();
+                    it.remove();
+
+                    if (!sk.isValid())
+                        continue;// closed socket ?
+
+                    if (sk.isAcceptable()) {
+                        final ServerSocketChannel ssc = (ServerSocketChannel) sk.channel();
+                        final SocketChannel sc = ssc.accept();
+
+                        try {
+                            executor.execute(new AcceptableTask(sc));
+                        } catch (Throwable t) {
+                            StringBuilder sb = new StringBuilder();
+                            sb.append("[ FDT ] [ waitForTask ] got exception in while sumbiting the AcceptableTask for SocketChannel: ").append(sc);
+                            if (sc != null) {
+                                sb.append(" Socket: ").append(sc.socket());
+                            }
+                            sb.append(" Cause: ");
+                            logger.log(Level.WARNING, sb.toString(), t);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            logger.log(Level.WARNING, "[FDT] [ waitForTask ] Exception in main loop!", t);
+            throw new Exception(t);
+        }
+
     }
 }

@@ -11,7 +11,14 @@ import lia.util.net.copy.transport.internal.SelectionManager;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
@@ -62,6 +69,93 @@ public class FDT {
     FDT() throws Exception {
 
         // initialize monitoring, if requested
+        initApMon();
+
+        scheduleReportingTasks();
+
+        if (config.isCoordinatorMode()) {
+            ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
+            String sessionID = cc.sendCoordinatorMessage(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, new FDTSessionConfigMsg(config)));
+            // wait for remote config
+            if (sessionID.equals("-1")) {
+                logger.log(Level.WARNING, "Message sent to: " + config.getHostName() + ":" + config.getPort() + " but no free transfer ports available");
+            } else
+            {
+                logger.log(Level.INFO, "Message sent to: " + config.getHostName() + ":" + config.getPort() + " Remote Job Session ID: " + sessionID);
+            }
+            System.exit(0);
+        } else if (config.isListFilesMode()) {
+            ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
+            List<String> filesInDir = cc.sendListFilesMessage(new CtrlMsg(CtrlMsg.LIST_FILES, new FDTListFilesMsg(config.getListFilesFrom())));
+            // wait for remote config
+            logger.log(Level.INFO, "Message sent to: " + config.getHostName() + ":" + config.getPort());
+            printOutResults(filesInDir);
+            System.exit(0);
+
+        } else if (config.isThirdPartyCopyAgent()) {
+            waitForTask();
+        } else {
+            if (config.getHostName() != null) { // role == client
+                config.setRemoteTransferPort(Utils.getFDTTransferPort(config));
+                FDTSessionManager.getInstance().addFDTClientSession(config.getRemoteTransferPort());
+            } else { // is server
+                if (!DirectByteBufferPool.initInstance(config.getByteBufferSize(), Config.getMaxTakePollIter())) {
+                    // this is really wrong ... I cannot be already initialized
+                    throw new FDTProcolException("The buffer pool cannot be already initialized");
+                }
+                final FDTServer theServer = new FDTServer(config.getPort());
+                theServer.doWork();
+            }
+        }
+    }
+
+    private void waitForTask() throws Exception {
+        if (!DirectByteBufferPool.initInstance(config.getByteBufferSize(), Config.getMaxTakePollIter())) {
+            // this is really wrong ... It cannot be already initialized
+            throw new FDTProcolException("The buffer pool cannot be already initialized");
+        }
+
+        ExecutorService executor = null;
+        ServerSocketChannel ssc = null;
+        ServerSocket ss = null;
+        Selector sel = null;
+        try {
+            executor = Utils.getStandardExecService("[ Acceptable ServersThreadPool ] ",
+                    2,
+                    10,
+                    new ArrayBlockingQueue<Runnable>(65500),
+                    Thread.NORM_PRIORITY - 2);
+            ssc = ServerSocketChannel.open();
+            ssc.configureBlocking(false);
+            ss = ssc.socket();
+            ss.bind(new InetSocketAddress(config.getPort()));
+            sel = Selector.open();
+            ssc.register(sel, SelectionKey.OP_ACCEPT);
+            System.out.println("READY");
+            Utils.waitAndWork(executor, ss, sel, config);
+        } finally {
+            logger.log(Level.INFO, "[FDT] [ waitForTask ] main loop FINISHED!");
+            // close all the stuff
+            Utils.closeIgnoringExceptions(ssc);
+            Utils.closeIgnoringExceptions(sel);
+            Utils.closeIgnoringExceptions(ss);
+            if (executor != null) {
+                executor.shutdown();
+            }
+        }
+    }
+
+    private static void scheduleReportingTasks() {
+        Utils.getMonitoringExecService().scheduleWithFixedDelay(FDTInternalMonitoringTask.getInstance(), 1, 5,
+                TimeUnit.SECONDS);
+        final long reportingTaskDelay = config.getReportingTaskDelay();
+        if (reportingTaskDelay > 0) {
+            Utils.getMonitoringExecService().scheduleWithFixedDelay(ConsoleReportingTask.getInstance(), 0,
+                    reportingTaskDelay, TimeUnit.SECONDS);
+        }
+    }
+
+    private void initApMon() throws Exception {
         final String configApMonHosts = config.getApMonHosts();
         if (configApMonHosts != null) {
             long lStart = System.currentTimeMillis();
@@ -145,44 +239,8 @@ public class FDT {
             long lEnd = System.currentTimeMillis();
             logger.info("ApMon initialization took " + (lEnd - lStart) + " ms");
         }
-
-        Utils.getMonitoringExecService().scheduleWithFixedDelay(FDTInternalMonitoringTask.getInstance(), 1, 5,
-                TimeUnit.SECONDS);
-        final long reportingTaskDelay = config.getReportingTaskDelay();
-        if (reportingTaskDelay > 0) {
-            Utils.getMonitoringExecService().scheduleWithFixedDelay(ConsoleReportingTask.getInstance(), 0,
-                    reportingTaskDelay, TimeUnit.SECONDS);
-        }
-
-        if (config.isCoordinatorMode()) {
-            ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
-            UUID sessionID = cc.sendCoordinatorMessage(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, new FDTSessionConfigMsg(config)));
-            // wait for remote config
-            logger.log(Level.INFO, "Message sent to: " + config.getHostName() + ":" + config.getPort() + " Remote Job Session ID: " + sessionID);
-            System.exit(0);
-        } else if (config.isListFilesMode()) {
-            ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
-            List<String> filesInDir = cc.sendListFilesMessage(new CtrlMsg(CtrlMsg.LIST_FILES, new FDTListFilesMsg(config.getListFilesFrom())));
-            // wait for remote config
-            logger.log(Level.INFO, "Message sent to: " + config.getHostName() + ":" + config.getPort());
-            printOutResults(filesInDir);
-            System.exit(0);
-
-        } else {
-            if (config.getHostName() != null) { // role == client
-                // the session manager will check the "pull/push" mode and start the FDTSession
-                FDTSessionManager.getInstance().addFDTClientSession();
-            } else { // is server
-                if (!DirectByteBufferPool.initInstance(config.getByteBufferSize(), Config.getMaxTakePollIter())) {
-                    // this is really wrong ... I cannot be already initialized
-                    throw new FDTProcolException("The buffer pool cannot be alredy initialized");
-                }
-
-                final FDTServer theServer = new FDTServer(); // ( because it's the only one )
-                theServer.doWork();
-            }
-        }
     }
+
 
     private static void printOutResults(List<String> filesInDir) {
         StringBuilder sb = new StringBuilder();

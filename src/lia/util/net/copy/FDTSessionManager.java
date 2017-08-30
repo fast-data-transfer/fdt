@@ -6,7 +6,9 @@ package lia.util.net.copy;
 import lia.util.net.common.AbstractFDTCloseable;
 import lia.util.net.common.Config;
 import lia.util.net.common.Utils;
-import lia.util.net.copy.transport.*;
+import lia.util.net.copy.transport.ControlChannel;
+import lia.util.net.copy.transport.ControlChannelNotifier;
+import lia.util.net.copy.transport.FDTProcolException;
 
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
@@ -95,18 +97,18 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
     }
 
     //called from
-    public FDTSession addFDTClientSession() throws Exception {
+    public FDTSession addFDTClientSession(int transferPort) throws Exception {
 
         FDTSession fdtSession = null;
 
         try {
-                if (config.isPullMode()) {
-                    //-> Start a writer and connect to the server
-                    fdtSession = new FDTWriterSession();
-                } else {
-                    //-> Start a reader and connect to the server
-                    fdtSession = new FDTReaderSession();
-                }
+            if (config.isPullMode()) {
+                //-> Start a writer and connect to the server
+                fdtSession = new FDTWriterSession(transferPort);
+            } else {
+                //-> Start a reader and connect to the server
+                fdtSession = new FDTReaderSession(transferPort);
+            }
 
             fdtSessionMap.put(fdtSession.sessionID(), fdtSession);
             inited.set(true);
@@ -138,10 +140,9 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
 
     public boolean finishSession(UUID fdtSessionID, String downMessage, Throwable downCause) {
         final FDTSession fdtSession = fdtSessionMap.remove(fdtSessionID);
-        if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, " FDTSessionManager removed sessionID " + fdtSessionID + "; removed == "
-                    + (fdtSession != null) + " new size: " + fdtSessionMap.size());
-        }
+        fdtSession.setClosed(true);
+        logger.log(Level.FINER, " FDTSessionManager removed sessionID " + fdtSessionID + "; removed == "
+                + (fdtSession != null) + " new size: " + fdtSessionMap.size());
         //I know ... it's not very well sync, but should be enough for the client side ... which will have only one FDT Session
         if (fdtSessionMap.size() == 0) {
             lock.lock();

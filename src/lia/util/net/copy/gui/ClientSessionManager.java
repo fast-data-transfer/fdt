@@ -40,8 +40,6 @@ public class ClientSessionManager {
     private RunnableScheduledFuture fdtInternalMonitoringTask = null;
     private RunnableScheduledFuture consoleReporting = null;
     
-//    private Runnable progressReporter;
-    
 	/**
 	 * Called in order to initialize a connection with a remote port...
 	 * @param host
@@ -50,15 +48,13 @@ public class ClientSessionManager {
 	public String initTransfer(final String host, final int port, final boolean isPullMode, 
 			final String[] fileList, final String destDir, final FDTPropsDialog d, final boolean isRecursive) {
 		// start by constructing a dummy config
-//	    System.out.println(" PullMode = " + isPullMode);
-//		this.progressReporter = progressReporter;
 		constructConfig(host, port, isPullMode, fileList, destDir, d, isRecursive);
 		HeaderBufferPool.initInstance();
 		fdtInternalMonitoringTask = (RunnableScheduledFuture)Utils.getMonitoringExecService().scheduleWithFixedDelay(FDTInternalMonitoringTask.getInstance(), 1, 5, TimeUnit.SECONDS);
         consoleReporting = (RunnableScheduledFuture)Utils.getMonitoringExecService().scheduleWithFixedDelay(ConsoleReportingTask.getInstance(), 1, 2, TimeUnit.SECONDS);
 		// the session manager will check the "pull/push" mode and start the FDTSession
 		try {
-			currentSession = FDTSessionManager.getInstance().addFDTClientSession();
+			currentSession = FDTSessionManager.getInstance().addFDTClientSession(port);
 			fdtSessionMTask = currentSession.getMonitoringTask();
 		} catch (Throwable t) {
 			logger.log(Level.WARNING, "Got exception when initiating transfer", t);

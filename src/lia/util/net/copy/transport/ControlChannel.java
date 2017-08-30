@@ -5,6 +5,7 @@ package lia.util.net.copy.transport;
 
 import lia.gsi.GSIServer;
 import lia.gsi.net.GSIGssSocketFactory;
+import lia.util.net.copy.transport.FDTListFilesMsg;
 import lia.util.net.common.*;
 
 import javax.security.auth.Subject;
@@ -376,6 +377,22 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
     }
 
+    public void sendRemoteTransferPort(CtrlMsg ctrlMsg) {
+        logger.log(Level.INFO, "[ ControlChannel ] [ sendRemoteTransferPort ( " + ctrlMsg.message.toString() + " )" + this.remoteAddress + ":" + this.remotePort);
+        if (logger.isLoggable(Level.FINER)) {
+            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+            if (logger.isLoggable(Level.FINEST)) {
+                Thread.dumpStack();
+            }
+        }
+        try {
+            sendMsgImpl(ctrlMsg);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
     public List<String> sendListFilesMessage(CtrlMsg ctrlMsg) throws IOException {
 
         logger.log(Level.INFO, "[ ControlChannel ] [ sendListFilesMessage ]");
@@ -400,7 +417,30 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         return null;
     }
 
-    public UUID sendCoordinatorMessage(CtrlMsg ctrlMsg) throws IOException {
+    public int sendTransferPortMessage(CtrlMsg ctrlMsg) throws IOException {
+
+        logger.log(Level.INFO, "[ ControlChannel ] [ sendTransferPortMessage ]");
+        if (logger.isLoggable(Level.FINER)) {
+            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+            if (logger.isLoggable(Level.FINEST)) {
+                Thread.dumpStack();
+            }
+        }
+        try {
+            sendMsgImpl(ctrlMsg);
+            CtrlMsg newCtrlMsg = getResponse();
+            if (logger.isLoggable(Level.FINER)) {
+                logger.log(Level.FINER, "[ CtrlChannel ] [ sendTransferPortMessage ] got response: " + newCtrlMsg.message);
+            }
+            return (Integer) newCtrlMsg.message;
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to retrieve response from server", e);
+        }
+        cleanup();
+        return -1;
+    }
+
+    public String sendCoordinatorMessage(CtrlMsg ctrlMsg) throws IOException {
 
         logger.log(Level.INFO, "[ ControlChannel ] [ sendCoordinatorMessage ]");
         if (logger.isLoggable(Level.FINER)) {
@@ -413,7 +453,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
             sendMsgImpl(ctrlMsg);
             CtrlMsg newCtrlMsg = getResponse();
             logger.info("Remote job session ID: " + newCtrlMsg.message.toString());
-            return (UUID) newCtrlMsg.message;
+            return newCtrlMsg.message.toString();
 
         } catch (Exception e) {
             logger.log(Level.WARNING, "Failed to retrieve response from server", e);
@@ -574,6 +614,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
                 }
             }
         } finally {
+            config.releaseRemoteTransferPort(fdtSessionID.toString());
             if ((downMessage() != null) || (downCause() != null)) {
                 close(downMessage(), downCause());
             } else {

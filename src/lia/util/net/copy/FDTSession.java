@@ -12,14 +12,18 @@ import lia.util.net.copy.transport.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.util.*;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -83,6 +87,18 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     // should be 0 in case everything works fine and !=0 in case of an error
     protected short currentStatus;
 
+    protected ServerSocketChannel ssc;
+
+    protected ServerSocket ss;
+
+    protected Selector sel;
+
+    protected SocketChannel sc;
+
+    protected Socket s;
+
+    ExecutorService executor;
+
     protected static final String[] FDT_SESION_STATES = {"UNINITIALIZED", "STARTED", "INIT_CONF_SENT",
             "INIT_CONF_RCV", "FINAL_CONF_SENT", "FINAL_CONF_RCV", "START_SENT", "START_RCV", "TRANSFERING", "END_SENT",
             "END_RCV"};
@@ -133,6 +149,8 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     // do not try to write on the writer peer
     protected boolean localLoop = config.localLoop();
 
+    protected int transferPort;
+
     // is loop ?
     protected boolean isLoop = config.loop();
 
@@ -149,8 +167,9 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
     protected final boolean customLog;
 
-    public FDTSession(short role) throws Exception {
+    public FDTSession(short role, int transferPort) throws Exception {
         super();
+        this.transferPort = transferPort;
 //        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+ (role == CLIENT ? "CLIENT" : "SERVER")+ "-" + sessionID + ".log"), new Properties());
 
         customLog = Utils.isCustomLog();
@@ -162,7 +181,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         setCurrentState(STARTED);
         this.role = role;
         if (this.role == CLIENT || this.role == COORDINATOR) {
-            this.controlChannel = new ControlChannel(config.getHostName(), config.getPort(), sessionID(), this);
+            this.controlChannel = new ControlChannel(config.getHostName(), transferPort, sessionID(), this);
         }
 
         rateLimit.set(config.getRateLimit());
@@ -204,7 +223,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
     final void startControlThread() {
         if (ctrlThreadStarted.compareAndSet(false, true)) {
-            new Thread(this.controlChannel, "Control channel for [ " + config.getHostName() + ":" + config.getPort()
+            new Thread(this.controlChannel, "Control channel for [ " + config.getHostName() + ":" + transferPort
                     + " ]").start();
         }
     }
@@ -420,6 +439,11 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
                             handleListFilesMessage(ctrlMsg);
                             break;
                         }
+                        case CtrlMsg.REMOTE_TRANSFER_PORT: {
+                            setCurrentState(COORDINATOR_MSG_RCVD);
+                            handleGetRemoteTransferPortMessage(ctrlMsg);
+                            break;
+                        }
                         default: {
                             FDTProcolException fpe = new FDTProcolException("Illegal CtrlMsg tag [ " + ctrlMsg.tag + " ]");
                             fpe.fillInStackTrace();
@@ -446,10 +470,17 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             config.setCoordinatorMode(false);
             config.setDestinationIP(sessionConfig.destinationIP);
             config.setFileList(sessionConfig.fileLists);
-            config.setPortNo(54321);
+            config.setPortNo(sessionConfig.destinationPort);
             final ControlChannel ctrlChann = this.controlChannel;
-            FDTSession session = FDTSessionManager.getInstance().addFDTClientSession();
-            ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, session.controlChannel.fdtSessionID()));
+            int remoteTransferPort = getFDTTransferPort(sessionConfig.destinationPort);
+            if (remoteTransferPort > 0) {
+                FDTSession session = FDTSessionManager.getInstance().addFDTClientSession(remoteTransferPort);
+                ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, session.controlChannel.fdtSessionID().toString()));
+            }
+            else
+            {
+                ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, "-1"));
+            }
         } catch (Exception ex) {
             logger.log(Level.WARNING, "Exception while handling coordinator message", ex);
         } finally {
@@ -459,8 +490,16 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         }
     }
 
-    private void handleListFilesMessage(CtrlMsg ctrlMsg) {
+    public int getFDTTransferPort(int destinationMsgPort) throws Exception {
+//        openSocketForTransferPort(destinationMsgPort);
+        ControlChannel cc = new ControlChannel(config.getHostName(), destinationMsgPort, UUID.randomUUID(), FDTSessionManager.getInstance());
+        int transferPort = cc.sendTransferPortMessage(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, "rtp"));
+        // wait for remote config
+        logger.log(Level.INFO, "Got transfer port: " + config.getHostName() + ":" + transferPort);
+        return transferPort;
+    }
 
+    private void handleListFilesMessage(CtrlMsg ctrlMsg) {
         logger.log(Level.INFO, "[ FDTSession ] [ handleListFilesMessage ( " + ctrlMsg.message.toString() + " )");
         try {
             FDTListFilesMsg lsMsg = (FDTListFilesMsg) ctrlMsg.message;
@@ -473,6 +512,45 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         } finally {
             this.setClosed(true);
         }
+    }
+
+    private void handleGetRemoteTransferPortMessage(CtrlMsg ctrlMsg) {
+        logger.log(Level.INFO, "[ FDTSession ] [ handleGetRemoteTransferPortMessage ( " + ctrlMsg.message.toString() + " )");
+        try {
+            final ControlChannel ctrlChann = this.controlChannel;
+            int newTransferPort = config.getNewRemoteTransferPort();
+            if (newTransferPort > 0) {
+                openSocketForTransferPort(newTransferPort);
+                ctrlChann.sendRemoteTransferPort(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, newTransferPort));
+                Utils.waitAndWork(executor, ss, sel, config);
+            } else {
+                ctrlChann.sendRemoteTransferPort(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, -1));
+                logger.warning("There are no free transfer ports at this moment, please try again later");
+            }
+        } catch (Exception ex) {
+            logger.log(Level.WARNING, "Exception while handling 'get remote transfer port' message", ex);
+        } finally {
+            this.setClosed(true);
+        }
+    }
+
+    private void openSocketForTransferPort(int port) throws IOException {
+
+        executor = Utils.getStandardExecService("[ Acceptable ServersThreadPool ] ",
+                2,
+                10,
+                new ArrayBlockingQueue<Runnable>(65500),
+                Thread.NORM_PRIORITY - 2);
+        ssc = ServerSocketChannel.open();
+        ssc.configureBlocking(false);
+        FDTSession sess = FDTSessionManager.getInstance().getSession(sessionID);
+        ss = ssc.socket();
+        ss.bind(new InetSocketAddress(port));
+
+        sel = Selector.open();
+        ssc.register(sel, SelectionKey.OP_ACCEPT);
+        sc = ssc.accept();
+        config.setSessionSocket(ssc, ss, sc, s, port);
     }
 
     protected void buildPartitionMap() {
