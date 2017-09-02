@@ -1,7 +1,6 @@
 package lia.util.net.common;
 
 import apmon.ApMon;
-import com.sun.istack.internal.NotNull;
 import lia.util.net.copy.FDT;
 import lia.util.net.copy.FDTServer;
 import lia.util.net.copy.FDTSessionManager;
@@ -1529,7 +1528,7 @@ public final class Utils {
      *
      * @param closeable to be closed
      */
-    public static void closeIgnoringExceptions(FDTCloseable closeable, @NotNull String downMessage, Throwable downCause) {
+    public static void closeIgnoringExceptions(FDTCloseable closeable, String downMessage, Throwable downCause) {
         if (closeable != null) {
             try {
                 closeable.close(downMessage, downCause);
