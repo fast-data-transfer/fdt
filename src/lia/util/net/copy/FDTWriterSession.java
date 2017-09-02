@@ -277,7 +277,6 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                             ignCtrl);
                 }
             }
-            setClosed(true);
             try {
                 FDTSessionManager.getInstance().finishSession(sessionID, downMessage(), downCause());
             } catch (Throwable ignore) {

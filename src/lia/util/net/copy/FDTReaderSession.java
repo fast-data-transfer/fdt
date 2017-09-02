@@ -744,7 +744,6 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                         "\n\n [ FDTReaderSession ] [ HANDLED ] exception returning buffers to pool \n\n ", t);
             }
 
-            setClosed(true);
             try {
                 FDTSessionManager.getInstance().finishSession(sessionID, downMessage(), downCause());
             } catch (Throwable ignore) {
@@ -763,8 +762,6 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             logger.log(Level.FINER, " [ FDTReaderSession ] enters internalClose downMsg: " + downMessage()
                     + " ,  downCause: " + downCause());
         }
-        FDTSession session = FDTSessionManager.getInstance().getSession(sessionID);
-        session.setClosed(true);
         try {
             super.internalClose();
         } catch (Throwable t) {

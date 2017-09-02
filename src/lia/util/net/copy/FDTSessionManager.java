@@ -140,7 +140,7 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
 
     public boolean finishSession(UUID fdtSessionID, String downMessage, Throwable downCause) {
         final FDTSession fdtSession = fdtSessionMap.remove(fdtSessionID);
-        fdtSession.setClosed(true);
+        //fdtSession.setClosed(true);
         logger.log(Level.FINER, " FDTSessionManager removed sessionID " + fdtSessionID + "; removed == "
                 + (fdtSession != null) + " new size: " + fdtSessionMap.size());
         //I know ... it's not very well sync, but should be enough for the client side ... which will have only one FDT Session
