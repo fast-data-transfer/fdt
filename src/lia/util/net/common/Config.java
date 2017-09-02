@@ -718,6 +718,10 @@ public class Config {
     }
 
     public String getHostName() {
+        if (configMap.get("-agent") != null)
+        {
+            return dIP;
+        }
         return hostname;
     }
 

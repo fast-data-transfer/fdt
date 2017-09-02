@@ -468,6 +468,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             config.setDestinationDir(sessionConfig.destinationDir);
             config.setCoordinatorMode(false);
             config.setDestinationIP(sessionConfig.destinationIP);
+            config.setHostName(sessionConfig.destinationIP);
             config.setFileList(sessionConfig.fileLists);
             config.setPortNo(sessionConfig.destinationPort);
             final ControlChannel ctrlChann = this.controlChannel;
