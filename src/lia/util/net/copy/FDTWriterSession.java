@@ -49,7 +49,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
     public FDTWriterSession(int transferPort) throws Exception {
         super(FDTSession.CLIENT, transferPort);
-        Utils.initLogger(config.getLogLevel(), new File("/tmp/"+"W-"+ "CLIENT" + "-" + sessionID + ".log"), new Properties());
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
         dwm.addSession(this);
         sendInitConf();
         this.monID = config.getMonID();

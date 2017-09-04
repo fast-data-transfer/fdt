@@ -255,7 +255,9 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 int c = 0;
                 if (remappedFileList != null) {
                     for (String f : newFileList) {
-                        newRemappedFileList.put(new File(f).getAbsolutePath(), remappedFileList[c++]);
+                        if (new File(f).isFile()) {
+                            newRemappedFileList.put(new File(f).getAbsolutePath(), remappedFileList[c++]);
+                        }
                     }
                 } else {
                     newRemappedFileList = null;
@@ -271,9 +273,15 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 logger.warning("File listed in file list does not exist! " + fName);
                 throw new IOException("File does not exist! " + fName);
             }
-            FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);
-            fileSessions.put(frs.sessionID, frs);
-            setSessionSize(sessionSize() + frs.sessionSize());
+            if (new File(fName).isFile()) {
+                FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);
+                fileSessions.put(frs.sessionID, frs);
+                setSessionSize(sessionSize() + frs.sessionSize());
+            }
+            else
+            {
+                logger.warning("File listed in file list is not a file! " + fName);
+            }
         }
 
         buildPartitionMap();
