@@ -20,4 +20,4 @@ FDT can be used to stream a large set of files across the network, so that
 a large dataset composed of thousands of files can be sent or received at
 full speed, without the network transfer restarting between files.
 
-![Fast Data Transfer Diagram](docs/img/FDT_diagram.png)
+![Fast Data Transfer Diagram](img/FDT_diagram.png)
