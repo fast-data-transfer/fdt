@@ -13,6 +13,8 @@ import lia.util.net.copy.transport.*;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -675,9 +677,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                     processorInfo.remotePort = this.controlChannel.remotePort;
 
                     for (final String filterName : postProcessFilters) {
-                        Postprocessor postprocessor = (Postprocessor) (Class.forName(filterName).newInstance());
-                        postprocessor.postProcessFileList(processorInfo, this.controlChannel.subject, downCause(),
-                                downMessage());
+                        postPprocess(processorInfo, filterName);
                     }
                 }
             }
@@ -693,6 +693,35 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
         }
 
         return (filtersCount > 0);
+    }
+
+    private void postPprocess(ProcessorInfo processorInfo, String filterName) throws Exception {
+        boolean searchElsewhere = false;
+        Postprocessor postprocessor = null;
+        try {
+            postprocessor = (Postprocessor) (Class.forName("lia.util.net.copy.filters.examples." + filterName).newInstance());
+        } catch (ClassNotFoundException e) {
+            searchElsewhere = true;
+        }
+        if (searchElsewhere) {
+            String userDirectory = System.getProperty("user.dir");
+            File filter = new File(userDirectory + File.separator + "plugins" + File.separator);
+            logger.log(Level.FINER, "Trying to load plugin from 'plugins' directory. " + filter.toString());
+            try {
+                URL url = filter.toURL();
+                URL[] urls = new URL[]{url};
+                ClassLoader cl = new URLClassLoader(urls);
+                Class cls = cl.loadClass(filterName);
+                postprocessor = (Postprocessor) cls.newInstance();
+            } catch (Exception e) {
+                logger.log(Level.FINER, "Failed to load filter from external plugins directory. " + e);
+                postprocessor = (Postprocessor) (Class.forName(filterName).newInstance());
+            }
+        }
+        if (postprocessor != null) {
+            postprocessor.postProcessFileList(processorInfo, this.controlChannel.subject, downCause(),
+                    downMessage());
+        }
     }
 
     private void checkFinished(Throwable finishCause) {

@@ -3,9 +3,19 @@
  */
 package lia.util.net.copy;
 
+import lia.util.net.common.*;
+import lia.util.net.copy.disk.DiskReaderManager;
+import lia.util.net.copy.disk.DiskReaderTask;
+import lia.util.net.copy.filters.Postprocessor;
+import lia.util.net.copy.filters.Preprocessor;
+import lia.util.net.copy.filters.ProcessorInfo;
+import lia.util.net.copy.transport.*;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -15,22 +25,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import lia.util.net.common.Config;
-import lia.util.net.common.DirectByteBufferPool;
-import lia.util.net.common.FileChannelProvider;
-import lia.util.net.common.NetloggerRecord;
-import lia.util.net.common.Utils;
-import lia.util.net.copy.disk.DiskReaderManager;
-import lia.util.net.copy.disk.DiskReaderTask;
-import lia.util.net.copy.filters.Postprocessor;
-import lia.util.net.copy.filters.Preprocessor;
-import lia.util.net.copy.filters.ProcessorInfo;
-import lia.util.net.copy.transport.ControlChannel;
-import lia.util.net.copy.transport.CtrlMsg;
-import lia.util.net.copy.transport.FDTProcolException;
-import lia.util.net.copy.transport.FDTSessionConfigMsg;
-import lia.util.net.copy.transport.TCPSessionWriter;
 
 /**
  * The "reader" session; it will send data over the wire
@@ -192,8 +186,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                     System.arraycopy(fileList, 0, processorInfo.fileList, 0, fileList.length);
 
                     for (final String filterName : preProcessFilters) {
-                        Preprocessor preprocessor = (Preprocessor) (Class.forName(filterName).newInstance());
-                        preprocessor.preProcessFileList(processorInfo, this.controlChannel.subject);
+                        preProcess(processorInfo, filterName);
                     }
                 }
             }
@@ -277,9 +270,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);
                 fileSessions.put(frs.sessionID, frs);
                 setSessionSize(sessionSize() + frs.sessionSize());
-            }
-            else
-            {
+            } else {
                 logger.warning("File listed in file list is not a file! " + fName);
             }
         }
@@ -299,6 +290,36 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         }
 
         sendRemoteSessions(initialMapping, newRemappedFileList);
+    }
+
+    private void preProcess(ProcessorInfo processorInfo, String filterName) throws Exception {
+        boolean searchElsewhere = false;
+        Preprocessor preprocessor = null;
+        try {
+            preprocessor = (Preprocessor) (Class.forName("lia.util.net.copy.filters.examples." + filterName).newInstance());
+        } catch (ClassNotFoundException e) {
+            searchElsewhere = true;
+        }
+        if (searchElsewhere) {
+            try {
+                String userDirectory = System.getProperty("user.dir");
+                File filter = new File(userDirectory + File.separator + "plugins" + File.separator);
+                logger.log(Level.FINER, "Trying to load plugin from 'plugins' directory. " + filter.toString());
+
+                URL url = filter.toURL();
+                URL[] urls = new URL[]{url};
+                ClassLoader cl = new URLClassLoader(urls);
+                Class cls = cl.loadClass(filterName);
+
+                preprocessor = (Preprocessor) cls.newInstance();
+            } catch (Exception e) {
+                logger.log(Level.FINER, "Failed to load filter from external plugins directory. " + e);
+                preprocessor = (Preprocessor) (Class.forName(filterName).newInstance());
+            }
+        }
+        if (preprocessor != null) {
+            preprocessor.preProcessFileList(processorInfo, this.controlChannel.subject);
+        }
     }
 
     @Override

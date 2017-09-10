@@ -1,6 +1,3 @@
-/*
- * Copyright (c) 2017 NoMagic, Inc. All Rights Reserved.
- */
 package lia.util.net.common;
 
 import lia.util.net.copy.FDTServer;
