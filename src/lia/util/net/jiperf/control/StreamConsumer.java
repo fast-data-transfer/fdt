@@ -4,11 +4,10 @@
 package lia.util.net.jiperf.control;
 
 /**
- * 
- * This will be kept for history :). 
+ * This will be kept for history :).
  * The entire package lia.util.net.jiperf is the very first version of FDT. It
  * started as an Iperf-like test for Java.
- * 
+ *
  * @author ramiro
  */
 public interface StreamConsumer {

@@ -6,16 +6,24 @@ package lia.util.net.copy;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 
  * Default implementation for {@link Accountable}
+ *
  * @author ramiro
- * 
  */
 public abstract class AccountableEntity implements Accountable {
 
     AtomicLong totalProcessedBytes;
     AtomicLong totalUtilBytes;
-    
+
+    public AccountableEntity() {
+        this(0, 0);
+    }
+
+    public AccountableEntity(long initialProcessedBytes, long initialUtilBytes) {
+        totalProcessedBytes = new AtomicLong(initialProcessedBytes);
+        totalUtilBytes = new AtomicLong(initialUtilBytes);
+    }
+
     public long addAndGetTotalBytes(long delta) {
         return totalProcessedBytes.addAndGet(delta);
     }
@@ -32,14 +40,5 @@ public abstract class AccountableEntity implements Accountable {
         return totalUtilBytes.get();
     }
 
-    public AccountableEntity() {
-        this(0, 0);
-    }
-    
     public abstract long getSize();
-    
-    public AccountableEntity(long initialProcessedBytes, long initialUtilBytes) {
-        totalProcessedBytes = new AtomicLong(initialProcessedBytes);
-        totalUtilBytes = new AtomicLong(initialUtilBytes);
-    }
 }

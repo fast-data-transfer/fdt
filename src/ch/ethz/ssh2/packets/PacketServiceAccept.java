@@ -4,49 +4,44 @@ import java.io.IOException;
 
 /**
  * PacketServiceAccept.
- * 
+ *
  * @author Christian Plattner, plattner@inf.ethz.ch
  * @version $Id: PacketServiceAccept.java,v 1.2 2005/08/24 17:54:09 cplattne Exp $
  */
-public class PacketServiceAccept
-{
-	byte[] payload;
+public class PacketServiceAccept {
+    byte[] payload;
 
-	String serviceName;
-	
-	public PacketServiceAccept(String serviceName)
-	{
-		this.serviceName = serviceName;
-	}
+    String serviceName;
 
-	public PacketServiceAccept(byte payload[], int off, int len) throws IOException
-	{
-		this.payload = new byte[len];
-		System.arraycopy(payload, off, this.payload, 0, len);
+    public PacketServiceAccept(String serviceName) {
+        this.serviceName = serviceName;
+    }
 
-		TypesReader tr = new TypesReader(payload, off, len);
+    public PacketServiceAccept(byte payload[], int off, int len) throws IOException {
+        this.payload = new byte[len];
+        System.arraycopy(payload, off, this.payload, 0, len);
 
-		int packet_type = tr.readByte();
+        TypesReader tr = new TypesReader(payload, off, len);
 
-		if (packet_type != Packets.SSH_MSG_SERVICE_ACCEPT)
-			throw new IOException("This is not a SSH_MSG_SERVICE_ACCEPT! ("
-					+ packet_type + ")");
+        int packet_type = tr.readByte();
 
-		serviceName = tr.readString();
-		
-		if (tr.remain() != 0)
-			throw new IOException("Padding in SSH_MSG_SERVICE_ACCEPT packet!");
-	}
+        if (packet_type != Packets.SSH_MSG_SERVICE_ACCEPT)
+            throw new IOException("This is not a SSH_MSG_SERVICE_ACCEPT! ("
+                    + packet_type + ")");
 
-	public byte[] getPayload()
-	{
-		if (payload == null)
-		{
-			TypesWriter tw = new TypesWriter();
-			tw.writeByte(Packets.SSH_MSG_SERVICE_ACCEPT);
-			tw.writeString(serviceName);
-			payload = tw.getBytes();
-		}
-		return payload;
-	}
+        serviceName = tr.readString();
+
+        if (tr.remain() != 0)
+            throw new IOException("Padding in SSH_MSG_SERVICE_ACCEPT packet!");
+    }
+
+    public byte[] getPayload() {
+        if (payload == null) {
+            TypesWriter tw = new TypesWriter();
+            tw.writeByte(Packets.SSH_MSG_SERVICE_ACCEPT);
+            tw.writeString(serviceName);
+            payload = tw.getBytes();
+        }
+        return payload;
+    }
 }

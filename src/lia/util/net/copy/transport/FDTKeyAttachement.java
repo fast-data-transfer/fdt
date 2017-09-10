@@ -3,18 +3,18 @@
  */
 package lia.util.net.copy.transport;
 
-import java.nio.ByteBuffer;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import lia.util.net.common.DirectByteBufferPool;
 import lia.util.net.common.HeaderBufferPool;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
 
+import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * Abstract class implemented by both the reader and writer keys TODO - Use finer grained synchronization mechanism
  * instead of syncronized on the entire key
- * 
+ *
  * @author ramiro
  */
 public abstract class FDTKeyAttachement {
@@ -30,18 +30,12 @@ public abstract class FDTKeyAttachement {
      * - timeStamp 64 bits ( 8 bytes ) long - seq 64 bits ( 8 bytes ) int - packet type 32 bits ( 4 bytes ) UUID - 2
      * long-s 128 bits ( 16 bytes ) long - offset in file 64 bits ( 8 bytes )
      */
-
-    private ByteBuffer header;
-
-    private ByteBuffer payload;
-
-    private final ByteBuffer[] _array = new ByteBuffer[2];
-
     protected final int seq;
-
+    private final ByteBuffer[] _array = new ByteBuffer[2];
     public FDTSelectionKey fdtSelectionKey;
-
     protected boolean useFixedSizeBlocks;
+    private ByteBuffer header;
+    private ByteBuffer payload;
 
     public FDTKeyAttachement(FDTSelectionKey fdtSelectionKey, boolean useFixedSizeBlocks) {
         this.header = null;
@@ -53,7 +47,7 @@ public abstract class FDTKeyAttachement {
 
     /**
      * This MUST stay synchronized
-     * 
+     *
      * @param header
      * @param payload
      */
@@ -95,12 +89,12 @@ public abstract class FDTKeyAttachement {
         this.payload = bb;
         setArray();
     }
-    
+
     public synchronized void setPayload(ByteBuffer bb) {
         this.payload = bb;
         setArray();
     }
-    
+
     public synchronized void recycleHeader() {
         if (this.header != null) {
             headerPool.put(this.header);
@@ -143,7 +137,7 @@ public abstract class FDTKeyAttachement {
                 return false;
             }
         }
-        
+
         setBuffers(_header, _payload);
 
         return true;
@@ -172,11 +166,11 @@ public abstract class FDTKeyAttachement {
     public synchronized final ByteBuffer header() {
         return header;
     }
-    
+
     public synchronized final ByteBuffer payload() {
         return payload;
     }
-    
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("SocketAttachement :- header: ").append(header).append(" :- payload: ").append(payload);

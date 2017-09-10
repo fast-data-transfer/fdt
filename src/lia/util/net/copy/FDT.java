@@ -34,37 +34,19 @@ import java.util.logging.Logger;
 public class FDT {
 
     public static final String MONALISA2_CERN_CH = "monalisa2.cern.ch:28884";
-    private static final String name = "FDT";
-
-    private static final Logger logger = Logger.getLogger(FDT.class.getName());
-
-    private static String UPDATE_OWNER = "fast-data-transfer";
-    private static String UPDATE_REPO = "fdt";
-    public static String UPDATE_URL = "https://api.github.com/repos/" + UPDATE_OWNER + "/" + UPDATE_REPO + "/releases";
-
     public static final String FDT_FULL_VERSION = "0.26.0-201708081850";
-
     /**
      * two weeks between checking for updates
      */
     public static final long UPDATE_PERIOD = 2 * 24 * 3600 * 1000;
-
+    private static final String name = "FDT";
+    private static final Logger logger = Logger.getLogger(FDT.class.getName());
+    private static String UPDATE_OWNER = "fast-data-transfer";
+    private static String UPDATE_REPO = "fdt";
+    public static String UPDATE_URL = "https://api.github.com/repos/" + UPDATE_OWNER + "/" + UPDATE_REPO + "/releases";
     private static Config config;
 
     private static Properties localProps = new Properties();
-
-    /**
-     * Helper class for "graceful" shutdown of FDT.
-     */
-    private final static class GracefulStopper extends AbstractFDTCloseable {
-
-        private boolean internalClosed = false;
-
-        protected synchronized void internalClose() throws Exception {
-            this.internalClosed = true;
-            this.notifyAll();
-        }
-    }
 
     FDT() throws Exception {
 
@@ -79,8 +61,7 @@ public class FDT {
             // wait for remote config
             if (sessionID.equals("-1")) {
                 logger.log(Level.WARNING, "Message sent to: " + config.getHostName() + ":" + config.getPort() + " but no free transfer ports available");
-            } else
-            {
+            } else {
                 logger.log(Level.INFO, "Message sent to: " + config.getHostName() + ":" + config.getPort() + " Remote Job Session ID: " + sessionID);
             }
             System.exit(0);
@@ -109,42 +90,6 @@ public class FDT {
         }
     }
 
-    private void waitForTask() throws Exception {
-        if (!DirectByteBufferPool.initInstance(config.getByteBufferSize(), Config.getMaxTakePollIter())) {
-            // this is really wrong ... It cannot be already initialized
-            throw new FDTProcolException("The buffer pool cannot be already initialized");
-        }
-
-        ExecutorService executor = null;
-        ServerSocketChannel ssc = null;
-        ServerSocket ss = null;
-        Selector sel = null;
-        try {
-            executor = Utils.getStandardExecService("[ Acceptable ServersThreadPool ] ",
-                    2,
-                    10,
-                    new ArrayBlockingQueue<Runnable>(65500),
-                    Thread.NORM_PRIORITY - 2);
-            ssc = ServerSocketChannel.open();
-            ssc.configureBlocking(false);
-            ss = ssc.socket();
-            ss.bind(new InetSocketAddress(config.getPort()));
-            sel = Selector.open();
-            ssc.register(sel, SelectionKey.OP_ACCEPT);
-            System.out.println("READY");
-            Utils.waitAndWork(executor, ss, sel, config);
-        } finally {
-            logger.log(Level.INFO, "[FDT] [ waitForTask ] main loop FINISHED!");
-            // close all the stuff
-            Utils.closeIgnoringExceptions(ssc);
-            Utils.closeIgnoringExceptions(sel);
-            Utils.closeIgnoringExceptions(ss);
-            if (executor != null) {
-                executor.shutdown();
-            }
-        }
-    }
-
     private static void scheduleReportingTasks() {
         Utils.getMonitoringExecService().scheduleWithFixedDelay(FDTInternalMonitoringTask.getInstance(), 1, 5,
                 TimeUnit.SECONDS);
@@ -154,93 +99,6 @@ public class FDT {
                     reportingTaskDelay, TimeUnit.SECONDS);
         }
     }
-
-    private void initApMon() throws Exception {
-        final String configApMonHosts = config.getApMonHosts();
-        if (configApMonHosts != null) {
-            long lStart = System.currentTimeMillis();
-
-            ApMon apmon = null;
-
-            final String apMonHosts = (configApMonHosts.length() > 0) ? configApMonHosts : MONALISA2_CERN_CH;
-
-            logger.info("Trying to instantiate apMon to: " + apMonHosts);
-            try {
-                Vector<String> vHosts = new Vector<>();
-                Vector<Integer> vPorts = new Vector<>();
-                final String[] apMonDstTks = apMonHosts.split(",");
-
-                if (apMonDstTks.length == 0) {
-                    logger.log(Level.WARNING, "\n\nApMon enabled but no hosts defined! Cannot send apmon statistics\n\n");
-                } else {
-                    for (String host_port : apMonDstTks) {
-                        int index;
-                        String host;
-                        int port;
-                        if ((index = host_port.indexOf(':')) != -1) {
-                            host = host_port.substring(0, index);
-                            try {
-                                port = Integer.parseInt(host_port.substring(index + 1));
-                            } catch (Exception ex) {
-                                port = 28884;
-                            }
-                        } else {
-                            host = host_port;
-                            port = 28884;
-                        }
-                        vHosts.add(host);
-                        vPorts.add(port);
-                    }
-
-                    ApMon.setLogLevel("WARNING");
-                    apmon = new ApMon(vHosts, vPorts);
-                    apmon.setConfRecheck(false, -1);
-                    apmon.setGenMonitoring(true, 40);
-                    // apmon.setJobMonitoring(, )
-                    // apmon.setMaxMsgRate(50);
-                    String cluster_name;
-                    String node_name;
-                    if (config.getHostName() != null) {// client
-                        cluster_name = "Clients";
-                        node_name = config.getHostName();
-                    } else {// server
-                        cluster_name = "Servers";
-                        node_name = apmon.getMyHostname();
-                    }
-                    apmon.setMonitorClusterNode(cluster_name, node_name);
-                    // apmon.setRecheckInterval(-1)
-                    apmon.setSysMonitoring(true, 40);
-                    try {
-                        apmon.sendParameter(cluster_name, node_name, "FDT_version", FDT_FULL_VERSION);
-                    } catch (Exception e) {
-                        logger.info("Send operation failed: ");
-                        e.printStackTrace();
-                    }
-
-                }
-            } catch (Throwable ex) {
-                logger.log(Level.WARNING, "Error initializing ApMon engine.", ex);
-            } finally {
-                Utils.initApMonInstance(apmon);
-            }
-
-            try {
-                if (Utils.getApMon() != null) {
-                    ApMonReportingTask apmrt = new ApMonReportingTask();
-                    Utils.getMonitoringExecService().scheduleWithFixedDelay(apmrt, 1,
-                            config.getApMonReportingInterval(), TimeUnit.SECONDS);
-                } else {
-                    logger.log(Level.WARNING, "Cannot start ApMonReportingTask because apMon is null!");
-                }
-            } catch (Throwable t) {
-                logger.log(Level.WARNING, "Cannot start ApMonReportingTask because got Exception.", t);
-            }
-
-            long lEnd = System.currentTimeMillis();
-            logger.info("ApMon initialization took " + (lEnd - lStart) + " ms");
-        }
-    }
-
 
     private static void printOutResults(List<String> filesInDir) {
         StringBuilder sb = new StringBuilder();
@@ -748,5 +606,140 @@ public class FDT {
         }
         Utils.initLogger(logLevel, logFile, localProps);
         return logLevel;
+    }
+
+    private void waitForTask() throws Exception {
+        if (!DirectByteBufferPool.initInstance(config.getByteBufferSize(), Config.getMaxTakePollIter())) {
+            // this is really wrong ... It cannot be already initialized
+            throw new FDTProcolException("The buffer pool cannot be already initialized");
+        }
+
+        ExecutorService executor = null;
+        ServerSocketChannel ssc = null;
+        ServerSocket ss = null;
+        Selector sel = null;
+        try {
+            executor = Utils.getStandardExecService("[ Acceptable ServersThreadPool ] ",
+                    2,
+                    10,
+                    new ArrayBlockingQueue<Runnable>(65500),
+                    Thread.NORM_PRIORITY - 2);
+            ssc = ServerSocketChannel.open();
+            ssc.configureBlocking(false);
+            ss = ssc.socket();
+            ss.bind(new InetSocketAddress(config.getPort()));
+            sel = Selector.open();
+            ssc.register(sel, SelectionKey.OP_ACCEPT);
+            System.out.println("READY");
+            Utils.waitAndWork(executor, ss, sel, config);
+        } finally {
+            logger.log(Level.INFO, "[FDT] [ waitForTask ] main loop FINISHED!");
+            // close all the stuff
+            Utils.closeIgnoringExceptions(ssc);
+            Utils.closeIgnoringExceptions(sel);
+            Utils.closeIgnoringExceptions(ss);
+            if (executor != null) {
+                executor.shutdown();
+            }
+        }
+    }
+
+    private void initApMon() throws Exception {
+        final String configApMonHosts = config.getApMonHosts();
+        if (configApMonHosts != null) {
+            long lStart = System.currentTimeMillis();
+
+            ApMon apmon = null;
+
+            final String apMonHosts = (configApMonHosts.length() > 0) ? configApMonHosts : MONALISA2_CERN_CH;
+
+            logger.info("Trying to instantiate apMon to: " + apMonHosts);
+            try {
+                Vector<String> vHosts = new Vector<>();
+                Vector<Integer> vPorts = new Vector<>();
+                final String[] apMonDstTks = apMonHosts.split(",");
+
+                if (apMonDstTks.length == 0) {
+                    logger.log(Level.WARNING, "\n\nApMon enabled but no hosts defined! Cannot send apmon statistics\n\n");
+                } else {
+                    for (String host_port : apMonDstTks) {
+                        int index;
+                        String host;
+                        int port;
+                        if ((index = host_port.indexOf(':')) != -1) {
+                            host = host_port.substring(0, index);
+                            try {
+                                port = Integer.parseInt(host_port.substring(index + 1));
+                            } catch (Exception ex) {
+                                port = 28884;
+                            }
+                        } else {
+                            host = host_port;
+                            port = 28884;
+                        }
+                        vHosts.add(host);
+                        vPorts.add(port);
+                    }
+
+                    ApMon.setLogLevel("WARNING");
+                    apmon = new ApMon(vHosts, vPorts);
+                    apmon.setConfRecheck(false, -1);
+                    apmon.setGenMonitoring(true, 40);
+                    // apmon.setJobMonitoring(, )
+                    // apmon.setMaxMsgRate(50);
+                    String cluster_name;
+                    String node_name;
+                    if (config.getHostName() != null) {// client
+                        cluster_name = "Clients";
+                        node_name = config.getHostName();
+                    } else {// server
+                        cluster_name = "Servers";
+                        node_name = apmon.getMyHostname();
+                    }
+                    apmon.setMonitorClusterNode(cluster_name, node_name);
+                    // apmon.setRecheckInterval(-1)
+                    apmon.setSysMonitoring(true, 40);
+                    try {
+                        apmon.sendParameter(cluster_name, node_name, "FDT_version", FDT_FULL_VERSION);
+                    } catch (Exception e) {
+                        logger.info("Send operation failed: ");
+                        e.printStackTrace();
+                    }
+
+                }
+            } catch (Throwable ex) {
+                logger.log(Level.WARNING, "Error initializing ApMon engine.", ex);
+            } finally {
+                Utils.initApMonInstance(apmon);
+            }
+
+            try {
+                if (Utils.getApMon() != null) {
+                    ApMonReportingTask apmrt = new ApMonReportingTask();
+                    Utils.getMonitoringExecService().scheduleWithFixedDelay(apmrt, 1,
+                            config.getApMonReportingInterval(), TimeUnit.SECONDS);
+                } else {
+                    logger.log(Level.WARNING, "Cannot start ApMonReportingTask because apMon is null!");
+                }
+            } catch (Throwable t) {
+                logger.log(Level.WARNING, "Cannot start ApMonReportingTask because got Exception.", t);
+            }
+
+            long lEnd = System.currentTimeMillis();
+            logger.info("ApMon initialization took " + (lEnd - lStart) + " ms");
+        }
+    }
+
+    /**
+     * Helper class for "graceful" shutdown of FDT.
+     */
+    private final static class GracefulStopper extends AbstractFDTCloseable {
+
+        private boolean internalClosed = false;
+
+        protected synchronized void internalClose() throws Exception {
+            this.internalClosed = true;
+            this.notifyAll();
+        }
     }
 }

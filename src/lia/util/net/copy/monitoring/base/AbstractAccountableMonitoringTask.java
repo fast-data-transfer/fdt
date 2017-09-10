@@ -1,5 +1,7 @@
 package lia.util.net.copy.monitoring.base;
 
+import lia.util.net.copy.Accountable;
+
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -7,70 +9,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.copy.Accountable;
-
 /**
  * Generic class to monitor an {@link Accountable} class
- * 
+ * <p>
  * The subclasses should only call super.computeRate()
- * 
+ *
  * @author ramiro
- * 
  */
 public abstract class AbstractAccountableMonitoringTask implements Runnable {
 
     private static final Logger logger = Logger.getLogger(AbstractAccountableMonitoringTask.class.getName());
 
     private final ConcurrentHashMap<Accountable, AccountableEntry> accMap = new ConcurrentHashMap<Accountable, AccountableEntry>();
-
-    private static class AccountableEntry {
-        final boolean debug;
-
-        long monCount;
-
-        protected long startTime;
-        protected long lastTimeCalled;
-
-        protected long lastUtilBytes;
-        protected long currentUtilBytes;
-        protected long lastTotalBytes;
-        protected long currentTotalBytes;
-
-        protected long startUtilBytes;
-        protected long startTotalBytes;
-
-        protected double utilRate;
-        protected double totalRate;
-
-        protected double avgUtilRate;
-        protected double avgTotalRate;
-
-        AccountableEntry() {
-            this(false);
-        }
-
-        AccountableEntry(boolean debug) {
-            this.debug = debug;
-        }
-
-        @Override
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            sb.append(" startTimeMillis: ").append(startTime).append(", ");
-            sb.append(" startUtilBytes: ").append(startUtilBytes).append(", ");
-            sb.append(" startTotalBytes: ").append(startTotalBytes).append(", ");
-            sb.append(" lastTimeCalled: ").append(lastTimeCalled).append(", ");
-            sb.append(" lastUtilBytes: ").append(lastUtilBytes).append(", ");
-            sb.append(" currentUtilBytes: ").append(currentUtilBytes).append(", ");
-            sb.append(" lastTotalBytes: ").append(lastTotalBytes).append(", ");
-            sb.append(" currentTotalBytes: ").append(currentTotalBytes).append(", ");
-            sb.append(" utilRate: ").append(utilRate).append(", ");
-            sb.append(" totalRate: ").append(totalRate).append(", ");
-            sb.append(" avgUtilRate: ").append(avgUtilRate).append(", ");
-            sb.append(" avgUtilRate: ").append(avgUtilRate);
-            return sb.toString();
-        }
-    }
 
     public AbstractAccountableMonitoringTask(Accountable[] accountableList) {
         //nehotarat mai esti ... poate vrei mai tarliu
@@ -251,5 +201,48 @@ public abstract class AbstractAccountableMonitoringTask implements Runnable {
 
     protected boolean remove(final Accountable accountable) {
         return (accMap.remove(accountable) != null);
+    }
+
+    private static class AccountableEntry {
+        final boolean debug;
+        protected long startTime;
+        protected long lastTimeCalled;
+        protected long lastUtilBytes;
+        protected long currentUtilBytes;
+        protected long lastTotalBytes;
+        protected long currentTotalBytes;
+        protected long startUtilBytes;
+        protected long startTotalBytes;
+        protected double utilRate;
+        protected double totalRate;
+        protected double avgUtilRate;
+        protected double avgTotalRate;
+        long monCount;
+
+        AccountableEntry() {
+            this(false);
+        }
+
+        AccountableEntry(boolean debug) {
+            this.debug = debug;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(" startTimeMillis: ").append(startTime).append(", ");
+            sb.append(" startUtilBytes: ").append(startUtilBytes).append(", ");
+            sb.append(" startTotalBytes: ").append(startTotalBytes).append(", ");
+            sb.append(" lastTimeCalled: ").append(lastTimeCalled).append(", ");
+            sb.append(" lastUtilBytes: ").append(lastUtilBytes).append(", ");
+            sb.append(" currentUtilBytes: ").append(currentUtilBytes).append(", ");
+            sb.append(" lastTotalBytes: ").append(lastTotalBytes).append(", ");
+            sb.append(" currentTotalBytes: ").append(currentTotalBytes).append(", ");
+            sb.append(" utilRate: ").append(utilRate).append(", ");
+            sb.append(" totalRate: ").append(totalRate).append(", ");
+            sb.append(" avgUtilRate: ").append(avgUtilRate).append(", ");
+            sb.append(" avgUtilRate: ").append(avgUtilRate);
+            return sb.toString();
+        }
     }
 }

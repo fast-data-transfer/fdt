@@ -1,18 +1,16 @@
 package edu.caltech.hep.dcapj.io;
 
-import java.io.*;
-import edu.caltech.hep.dcapj.*;
-import edu.caltech.hep.dcapj.nio.*;
 import edu.caltech.hep.dcapj.dCacheFile;
 import edu.caltech.hep.dcapj.nio.dCacheFileChannel;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
 
 /**
  * Use this class to read from a dCache file.
- * 
+ *
  * @author Kamran Soomro
- * 
  */
 public class dCacheFileInputStream extends FileInputStream {
     private dCacheFile _file = null;
@@ -20,11 +18,9 @@ public class dCacheFileInputStream extends FileInputStream {
     /**
      * Create a dCacheFileInputStream object from the specified dCacheFile
      * object.
-     * 
-     * @param file
-     *            The dCacheFile to use as the underlying file
-     * @throws java.lang.Exception
-     *             If an error occurred
+     *
+     * @param file The dCacheFile to use as the underlying file
+     * @throws java.lang.Exception If an error occurred
      */
     public dCacheFileInputStream(dCacheFile file) throws java.lang.Exception {
         super(file);
@@ -34,11 +30,9 @@ public class dCacheFileInputStream extends FileInputStream {
 
     /**
      * Open a dCache file for reading.
-     * 
-     * @param file
-     *            The Pnfs path of the file to open
-     * @throws Exception
-     *             If an occurred
+     *
+     * @param file The Pnfs path of the file to open
+     * @throws Exception If an occurred
      */
     public dCacheFileInputStream(String file) throws Exception {
         this(new dCacheFile(file, dCacheFile.Mode.READ_ONLY));
@@ -46,7 +40,7 @@ public class dCacheFileInputStream extends FileInputStream {
 
     /**
      * Return an estimate of the number of bytes available.
-     * 
+     *
      * @return The estimated number of bytes available for reading
      */
     public int available() throws IOException {
@@ -57,9 +51,8 @@ public class dCacheFileInputStream extends FileInputStream {
      * Reads up to <code>bytes.length</code> bytes of data from this input
      * stream into an array of bytes. This method blocks until some input is
      * available.
-     * 
-     * @throws IOException
-     *             If an error reading the file occurs
+     *
+     * @throws IOException If an error reading the file occurs
      */
     public int read(byte bytes[]) throws IOException {
         return _file.read(bytes);
@@ -68,7 +61,6 @@ public class dCacheFileInputStream extends FileInputStream {
     /**
      * Reads up to <code>bytes.length</code> bytes of data from this input
      * stream into an array of bytes. <code>len</code> is ignored.
-     * 
      */
     public int read(byte bytes[], int off, int len) throws IOException {
         // return _file.read(bytes, off);

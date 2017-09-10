@@ -9,11 +9,12 @@ import java.util.List;
 
 /**
  * The list files msg between FDT peers.
+ *
  * @author Raimondas Sirvinskas
  */
 public class FDTListFilesMsg implements Serializable {
 
-    public String   listFilesFrom;
+    public String listFilesFrom;
     public List<String> filesInDir;
 
     public FDTListFilesMsg(String listFilesFrom) {

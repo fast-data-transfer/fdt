@@ -5,9 +5,8 @@ package lia.util.net.common;
 
 import java.io.FileInputStream;
 import java.util.Properties;
-
-import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author Ilya Narsky
@@ -35,6 +34,12 @@ public class MassStorage {
     private int nThreads;// number of threads used for transfers to/from storage
 
     private int verbose;// verbosity level
+
+    static public boolean checkType(String type) {
+        if (type.compareTo("dcache") == 0)
+            return true;
+        return false;
+    }
 
     public String siteStorageID() {
         return this.siteStorageID;
@@ -74,12 +79,6 @@ public class MassStorage {
 
     public int verbose() {
         return this.verbose;
-    }
-
-    static public boolean checkType(String type) {
-        if (type.compareTo("dcache") == 0)
-            return true;
-        return false;
     }
 
     public boolean init(String configFile) {

@@ -1,26 +1,22 @@
 package edu.caltech.hep.dcapj.util;
 
 import edu.caltech.hep.dcapj.Config;
-import edu.caltech.hep.dcapj.dCapLayer;
 import edu.caltech.hep.dcapj.PnfsUtil;
+import edu.caltech.hep.dcapj.dCapLayer;
 
-import java.util.Hashtable;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.io.IOException;
 import java.net.Socket;
+import java.util.Hashtable;
 import java.util.logging.Logger;
 
 public class ControlConnection implements Runnable {
 
-    protected Hashtable<Integer, ControlCommandCallback> callbacks;
-
     private static final Logger _logger = Logger
             .getLogger(ControlConnection.class.getName());
-
+    protected Hashtable<Integer, ControlCommandCallback> callbacks;
     private Socket _client = null;
 
     private PrintWriter _clientOut = null;
@@ -75,7 +71,7 @@ public class ControlConnection implements Runnable {
             if (tmp.length > 1) {
                 ip = tmp[0];
                 try {
-                	System.out.println(tmp[1]);
+                    System.out.println(tmp[1]);
                     port = Integer.parseInt(tmp[1]);
                 } catch (NumberFormatException nfe) {
                     _logger.severe("Illegal port number in dCap host address");

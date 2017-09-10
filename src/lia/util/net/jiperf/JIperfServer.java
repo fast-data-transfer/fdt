@@ -16,179 +16,182 @@ import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
 
 /**
- * 
- * This will be kept for history :). 
+ * This will be kept for history :).
  * The entire package lia.util.net.jiperf is the very first version of FDT. It
  * started as an Iperf-like test for Java.
- * 
+ *
  * @author ramiro
  */
 public class JIperfServer {
 
-	/** Logger used by this class */
-	private static final transient Logger logger = Logger.getLogger(JIperfServer.class.getName());
+    /**
+     * Logger used by this class
+     */
+    private static final transient Logger logger = Logger.getLogger(JIperfServer.class.getName());
 
-	ServerSocketChannel ssc;
+    ServerSocketChannel ssc;
 
-	ServerSocket ss;
+    ServerSocket ss;
 
-	Selector sel;
+    Selector sel;
 
-	int port;
+    int port;
 
-	ByteBufferPool buffPool;
+    ByteBufferPool buffPool;
 
-	ExecutorService executor;
+    ExecutorService executor;
 
-	/** -- SSH Mode fields -- */
-	boolean sshMode = false;
+    /**
+     * -- SSH Mode fields --
+     */
+    boolean sshMode = false;
 
-	/**
-	 * the Client/Gateway IP that this server restricts connections from if not set, the connections will not be checked against this
-	 */
-	String allowedIP = null;
+    /**
+     * the Client/Gateway IP that this server restricts connections from if not set, the connections will not be checked against this
+     */
+    String allowedIP = null;
 
-	/**
-	 * the number of connection that the server accept from the {@linkplain allowedIP}
-	 */
-	int connectionNo;
+    /**
+     * the number of connection that the server accept from the allowedIP
+     */
+    int connectionNo;
 
-	/**
-	 * window size on client side (server should consider this when accepting connections?)
-	 */
-	int windowSize;
+    /**
+     * window size on client side (server should consider this when accepting connections?)
+     */
+    int windowSize;
 
-	class ReaderTask implements Runnable {
+    public JIperfServer(final HashMap<String, String> config) throws Exception {
+        /** --SSH mode-- */
+        /* we start the remote jiperf server */
+        if (config.containsKey("-ssh")) {
+            sshMode = true;
+            initSSH();
+        } else {
+            port = Integer.parseInt(config.get("-p"));
+            init();
+        }
+    }
 
-		SelectionKey sk;
+    private void init() throws Exception {
+        buffPool = ByteBufferPool.getInstance();
+        executor = JIperf.getExecutor();
 
-		ByteBuffer buff;
+        ssc = ServerSocketChannel.open();
+        ssc.configureBlocking(false);
 
-		ReaderTask(SelectionKey sk) {
-			this.sk = sk;
-			// take a free buffer from the pool
-			buff = buffPool.get();
-		}
+        ss = ssc.socket();
+        ss.bind(new InetSocketAddress(port));
 
-		private void readData() throws Exception {
-			buff.clear();
-			SocketChannel sc = (SocketChannel) sk.channel();
-			int count = -1;
-			while ((count = sc.read(buff)) > 0) {
-				// TODO - in the future pass this to a "listener" which will do something useful with this buffer
-				buff.clear();
-			}
+        sel = Selector.open();
+        ssc.register(sel, SelectionKey.OP_ACCEPT);
+    }
 
-			if (count < 0) {
-				sc.close();
-			} else {
-				sk.interestOps(sk.interestOps() | SelectionKey.OP_READ);
-			}
+    private void initSSH() throws Exception {
+        // stdin,stdout are tunneled through SSH and used as control in/out streams
+        java.io.BufferedReader stdin = new java.io.BufferedReader(new java.io.InputStreamReader(System.in));
+        try {
+            System.out.println("ACK1");
+            allowedIP = stdin.readLine();
+            port = Integer.parseInt(stdin.readLine());
+            connectionNo = Integer.parseInt(stdin.readLine());
+            windowSize = Integer.parseInt(stdin.readLine());
+            System.err.println("Conection parameters received: IP: " + allowedIP + " PORT: " + port + " STREAMS: " + connectionNo + " WSIZE: " + windowSize);
+            init();
+            System.out.println("ACK2");
+        } catch (Throwable t) {
+            System.err.println("Invalid connection parameters" + t.getMessage());
+            ssc.close();
+            ss.close();
+            System.exit(1);
+        }
+        /** --SSH mode-- */
+    }
 
-			sel.wakeup();
+    public void doWork() throws Exception {
+        for (; ; ) {
+            //TODO, stop the server (this loop and the executor) if there are no more connected sockets
+            while (sel.select() > 0)
+                ;
+            Iterator it = sel.selectedKeys().iterator();
+            while (it.hasNext()) {
+                SelectionKey sk = (SelectionKey) it.next();
 
-		}// readData()
+                if (sk.isAcceptable()) {
+                    ServerSocketChannel ssc = (ServerSocketChannel) sk.channel();
+                    SocketChannel sc = ssc.accept();
+                    if (!sshMode) {// standalone mode
+                        sc.configureBlocking(false);
+                        sc.register(sel, SelectionKey.OP_READ);
+                    } else {// SSH mode
+                        if (allowedIP != null && !allowedIP.equals(sc.socket().getInetAddress().getHostAddress())) {
+                            // just the IP passed on secured SSH control connection is allowed to connect
+                            System.err.println(" [" + allowedIP + "] does not match " + sc.socket().getInetAddress().getHostAddress());
+                            sc.close();
+                        } else {// allowed connection
+                            sc.configureBlocking(false);
+                            sc.register(sel, SelectionKey.OP_READ);
+                            if (--connectionNo == 0) {
+                                // stop listening for other connection
+                                this.ssc.keyFor(sel).cancel();
+                                this.ssc.close();
+                            }
+                        }
+                    }
+                } else if (sk.isReadable()) {
+                    sk.interestOps(sk.interestOps() & ~SelectionKey.OP_READ);
+                    executor.execute(new ReaderTask(sk));
+                }
 
-		public void run() {
-			if (sk == null)
-				return;
-			try {
-				readData();
-			} catch (Throwable t) {
-				t.printStackTrace();
-			} finally {
-				// *ALWAYS* return the buffer to the pool whatever happens
-				buffPool.put(buff);
-			}
-		}
-	}// ReaderTask class
+                it.remove();
+            }
+        }
 
-	private void init() throws Exception {
-		buffPool = ByteBufferPool.getInstance();
-		executor = JIperf.getExecutor();
 
-		ssc = ServerSocketChannel.open();
-		ssc.configureBlocking(false);
+    }
 
-		ss = ssc.socket();
-		ss.bind(new InetSocketAddress(port));
+    class ReaderTask implements Runnable {
 
-		sel = Selector.open();
-		ssc.register(sel, SelectionKey.OP_ACCEPT);
-	}
+        SelectionKey sk;
 
-	private void initSSH() throws Exception {
-		// stdin,stdout are tunneled through SSH and used as control in/out streams
-		java.io.BufferedReader stdin = new java.io.BufferedReader(new java.io.InputStreamReader(System.in));
-		try {
-			System.out.println("ACK1");
-			allowedIP = stdin.readLine();
-			port = Integer.parseInt(stdin.readLine());
-			connectionNo = Integer.parseInt(stdin.readLine());
-			windowSize = Integer.parseInt(stdin.readLine());
-			System.err.println("Conection parameters received: IP: " + allowedIP + " PORT: " + port + " STREAMS: " + connectionNo + " WSIZE: " + windowSize);
-			init();
-			System.out.println("ACK2");
-		} catch (Throwable t) {
-			System.err.println("Invalid connection parameters" + t.getMessage());
-			ssc.close();
-			ss.close();
-			System.exit(1);
-		}
-		/** --SSH mode-- */
-	}
+        ByteBuffer buff;
 
-	public JIperfServer(final HashMap<String, String> config) throws Exception {
-		/** --SSH mode-- */
-		/* we start the remote jiperf server */
-		if (config.containsKey("-ssh")) {
-			sshMode = true;
-			initSSH();
-		} else {
-			port = Integer.parseInt(config.get("-p"));
-			init();
-		}
-	}
-	
-	public void doWork() throws Exception {
-		for (;;) {
-			//TODO, stop the server (this loop and the executor) if there are no more connected sockets
-			while (sel.select() > 0)
-				;
-			Iterator it = sel.selectedKeys().iterator();
-			while (it.hasNext()) {
-				SelectionKey sk = (SelectionKey) it.next();
+        ReaderTask(SelectionKey sk) {
+            this.sk = sk;
+            // take a free buffer from the pool
+            buff = buffPool.get();
+        }
 
-				if (sk.isAcceptable()) {
-					ServerSocketChannel ssc = (ServerSocketChannel) sk.channel();
-					SocketChannel sc = ssc.accept();
-					if (!sshMode) {// standalone mode
-						sc.configureBlocking(false);
-						sc.register(sel, SelectionKey.OP_READ);
-					} else {// SSH mode
-						if (allowedIP != null && !allowedIP.equals(sc.socket().getInetAddress().getHostAddress())) {
-							// just the IP passed on secured SSH control connection is allowed to connect
-							System.err.println(" [" + allowedIP + "] does not match " + sc.socket().getInetAddress().getHostAddress());
-							sc.close();
-						} else {// allowed connection
-							sc.configureBlocking(false);
-							sc.register(sel, SelectionKey.OP_READ);
-							if (--connectionNo == 0) {
-								// stop listening for other connection
-								this.ssc.keyFor(sel).cancel();
-								this.ssc.close();								
-							}
-						}
-					}
-				} else if (sk.isReadable()) {
-					sk.interestOps(sk.interestOps() & ~SelectionKey.OP_READ);
-					executor.execute(new ReaderTask(sk));
-				}
+        private void readData() throws Exception {
+            buff.clear();
+            SocketChannel sc = (SocketChannel) sk.channel();
+            int count = -1;
+            while ((count = sc.read(buff)) > 0) {
+                // TODO - in the future pass this to a "listener" which will do something useful with this buffer
+                buff.clear();
+            }
 
-				it.remove();
-			}
-		}
-	
-	
-	}
+            if (count < 0) {
+                sc.close();
+            } else {
+                sk.interestOps(sk.interestOps() | SelectionKey.OP_READ);
+            }
+
+            sel.wakeup();
+
+        }// readData()
+
+        public void run() {
+            if (sk == null)
+                return;
+            try {
+                readData();
+            } catch (Throwable t) {
+                t.printStackTrace();
+            } finally {
+                // *ALWAYS* return the buffer to the pool whatever happens
+                buffPool.put(buff);
+            }
+        }
+    }// ReaderTask class
 }

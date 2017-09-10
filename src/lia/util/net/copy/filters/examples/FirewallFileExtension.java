@@ -20,9 +20,9 @@ import java.util.regex.Pattern;
  * This filter can be used directly (as it ships with the fdt.jar):
  * </p>
  * <pre>java -DFirewallFileExtension.suffix="/some/path/TMP_TEST" -jar fdt.jar ... other params</pre>
- * 
- * @see Pattern
+ *
  * @author Raimondas Sirvinskas
+ * @see Pattern
  */
 public class FirewallFileExtension implements Preprocessor {
 
@@ -30,30 +30,30 @@ public class FirewallFileExtension implements Preprocessor {
      * Logger used by this class
      */
     private static final Logger logger = Logger.getLogger(FirewallFileExtension.class.getName());
+
     /**
      * @param processorInfo
-     * @param peerSubject
-     *            - not used
+     * @param peerSubject   - not used
      */
     public void preProcessFileList(ProcessorInfo processorInfo, Subject peerSubject) throws Exception {
 
         final Map<String, FileSession> fileSessionMap = processorInfo.fileSessionMap;
         final String firewallSuffix = System.getProperty("FirewallFileExtension.suffix");
-        if(firewallSuffix == null || firewallSuffix.trim().isEmpty()) {
-            logger.log(Level.INFO,"[ FirewallFileNames ] No suffix defined");
+        if (firewallSuffix == null || firewallSuffix.trim().isEmpty()) {
+            logger.log(Level.INFO, "[ FirewallFileNames ] No suffix defined");
             return;
         }
-        
-        final String firewallSuffixTrim = firewallSuffix.trim();
-        logger.log(Level.INFO," [ FirewallFileNames ] firewall suffix pattern=" + firewallSuffixTrim);
 
-        for (Iterator<Map.Entry<String, FileSession>> iterator = fileSessionMap.entrySet().iterator(); iterator.hasNext();) {
+        final String firewallSuffixTrim = firewallSuffix.trim();
+        logger.log(Level.INFO, " [ FirewallFileNames ] firewall suffix pattern=" + firewallSuffixTrim);
+
+        for (Iterator<Map.Entry<String, FileSession>> iterator = fileSessionMap.entrySet().iterator(); iterator.hasNext(); ) {
             final Map.Entry<String, FileSession> entry = iterator.next();
             final FileSession fileSession = entry.getValue();
             final String fName = fileSession.fileName();
-            logger.log(Level.INFO,"[ FirewallFileNames ] fname = " + fName);
+            logger.log(Level.INFO, "[ FirewallFileNames ] fname = " + fName);
             if (fName.endsWith(firewallSuffixTrim)) {
-                logger.log(Level.INFO,"FNAME firewalled: " + fName);
+                logger.log(Level.INFO, "FNAME firewalled: " + fName);
                 iterator.remove();
             }
         }

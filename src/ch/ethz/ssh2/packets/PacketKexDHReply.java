@@ -5,50 +5,45 @@ import java.math.BigInteger;
 
 /**
  * PacketKexDHReply.
- * 
+ *
  * @author Christian Plattner, plattner@inf.ethz.ch
  * @version $Id: PacketKexDHReply.java,v 1.2 2005/08/24 17:54:09 cplattne Exp $
  */
-public class PacketKexDHReply
-{
-	byte[] payload;
+public class PacketKexDHReply {
+    byte[] payload;
 
-	byte[] hostKey;
-	BigInteger f;
-	byte[] signature;
-	
-	public PacketKexDHReply(byte payload[], int off, int len) throws IOException
-	{
-		this.payload = new byte[len];
-		System.arraycopy(payload, off, this.payload, 0, len);
+    byte[] hostKey;
+    BigInteger f;
+    byte[] signature;
 
-		TypesReader tr = new TypesReader(payload, off, len);
+    public PacketKexDHReply(byte payload[], int off, int len) throws IOException {
+        this.payload = new byte[len];
+        System.arraycopy(payload, off, this.payload, 0, len);
 
-		int packet_type = tr.readByte();
+        TypesReader tr = new TypesReader(payload, off, len);
 
-		if (packet_type != Packets.SSH_MSG_KEXDH_REPLY)
-			throw new IOException("This is not a SSH_MSG_KEXDH_REPLY! ("
-					+ packet_type + ")");
+        int packet_type = tr.readByte();
 
-		hostKey = tr.readByteString();
-		f = tr.readMPINT();
-		signature = tr.readByteString();
+        if (packet_type != Packets.SSH_MSG_KEXDH_REPLY)
+            throw new IOException("This is not a SSH_MSG_KEXDH_REPLY! ("
+                    + packet_type + ")");
 
-		if (tr.remain() != 0) throw new IOException("PADDING IN SSH_MSG_KEXDH_REPLY!");
-	}
+        hostKey = tr.readByteString();
+        f = tr.readMPINT();
+        signature = tr.readByteString();
 
-	public BigInteger getF()
-	{
-		return f;
-	}
-	
-	public byte[] getHostKey()
-	{
-		return hostKey;
-	}
+        if (tr.remain() != 0) throw new IOException("PADDING IN SSH_MSG_KEXDH_REPLY!");
+    }
 
-	public byte[] getSignature()
-	{
-		return signature;
-	}
+    public BigInteger getF() {
+        return f;
+    }
+
+    public byte[] getHostKey() {
+        return hostKey;
+    }
+
+    public byte[] getSignature() {
+        return signature;
+    }
 }

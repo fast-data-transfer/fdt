@@ -1,145 +1,131 @@
-
 package ch.ethz.ssh2.crypto.dh;
-
-import java.math.BigInteger;
-import java.security.SecureRandom;
 
 import ch.ethz.ssh2.crypto.digest.HashForSSH2Types;
 import ch.ethz.ssh2.log.Logger;
 
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
 /**
  * DhExchange.
- * 
+ *
  * @author Christian Plattner, plattner@inf.ethz.ch
  * @version $Id: DhExchange.java,v 1.5 2006/02/14 19:43:15 cplattne Exp $
  */
-public class DhExchange
-{
-	private static final Logger log = Logger.getLogger(DhExchange.class);
+public class DhExchange {
+    static final BigInteger p1, p14;
 
 	/* Given by the standard */
+    static final BigInteger g;
+    private static final Logger log = Logger.getLogger(DhExchange.class);
 
-	static final BigInteger p1, p14;
-	static final BigInteger g;
+    static {
+        final String p1_string = "17976931348623159077083915679378745319786029604875"
+                + "60117064444236841971802161585193689478337958649255415021805654859805036464"
+                + "40548199239100050792877003355816639229553136239076508735759914822574862575"
+                + "00742530207744771258955095793777842444242661733472762929938766870920560605"
+                + "0270810842907692932019128194467627007";
 
-	BigInteger p;
+        final String p14_string = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129"
+                + "024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0"
+                + "A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB"
+                + "6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A"
+                + "163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208"
+                + "552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36C"
+                + "E3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF69558171"
+                + "83995497CEA956AE515D2261898FA051015728E5A8AACAA68FFFFFFFFFFFFFFFF";
+
+        p1 = new BigInteger(p1_string);
+        p14 = new BigInteger(p14_string, 16);
+        g = new BigInteger("2");
+    }
 
 	/* Client public and private */
 
-	BigInteger e;
-	BigInteger x;
+    BigInteger p;
+    BigInteger e;
 
 	/* Server public */
-
-	BigInteger f;
+    BigInteger x;
 
 	/* Shared secret */
+    BigInteger f;
+    BigInteger k;
 
-	BigInteger k;
+    public DhExchange() {
+    }
 
-	static
-	{
-		final String p1_string = "17976931348623159077083915679378745319786029604875"
-				+ "60117064444236841971802161585193689478337958649255415021805654859805036464"
-				+ "40548199239100050792877003355816639229553136239076508735759914822574862575"
-				+ "00742530207744771258955095793777842444242661733472762929938766870920560605"
-				+ "0270810842907692932019128194467627007";
+    public void init(int group, SecureRandom rnd) {
+        k = null;
 
-		final String p14_string = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129"
-				+ "024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0"
-				+ "A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB"
-				+ "6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A"
-				+ "163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208"
-				+ "552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36C"
-				+ "E3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF69558171"
-				+ "83995497CEA956AE515D2261898FA051015728E5A8AACAA68FFFFFFFFFFFFFFFF";
+        if (group == 1)
+            p = p1;
+        else if (group == 14)
+            p = p14;
+        else
+            throw new IllegalArgumentException("Unknown DH group " + group);
 
-		p1 = new BigInteger(p1_string);
-		p14 = new BigInteger(p14_string, 16);
-		g = new BigInteger("2");
-	}
+        x = new BigInteger(p.bitLength() - 1, rnd);
 
-	public DhExchange()
-	{
-	}
+        e = g.modPow(x, p);
+    }
 
-	public void init(int group, SecureRandom rnd)
-	{
-		k = null;
+    /**
+     * @return Returns the e.
+     * @throws IllegalStateException
+     */
+    public BigInteger getE() {
+        if (e == null)
+            throw new IllegalStateException("DhDsaExchange not initialized!");
 
-		if (group == 1)
-			p = p1;
-		else if (group == 14)
-			p = p14;
-		else
-			throw new IllegalArgumentException("Unknown DH group " + group);
+        return e;
+    }
 
-		x = new BigInteger(p.bitLength() - 1, rnd);
+    /**
+     * @return Returns the shared secret k.
+     * @throws IllegalStateException
+     */
+    public BigInteger getK() {
+        if (k == null)
+            throw new IllegalStateException("Shared secret not yet known, need f first!");
 
-		e = g.modPow(x, p);
-	}
+        return k;
+    }
 
-	/**
-	 * @return Returns the e.
-	 * @throws IllegalStateException
-	 */
-	public BigInteger getE()
-	{
-		if (e == null)
-			throw new IllegalStateException("DhDsaExchange not initialized!");
+    /**
+     * @param f
+     */
+    public void setF(BigInteger f) {
+        if (e == null)
+            throw new IllegalStateException("DhDsaExchange not initialized!");
 
-		return e;
-	}
+        BigInteger zero = BigInteger.valueOf(0);
 
-	/**
-	 * @return Returns the shared secret k.
-	 * @throws IllegalStateException
-	 */
-	public BigInteger getK()
-	{
-		if (k == null)
-			throw new IllegalStateException("Shared secret not yet known, need f first!");
+        if (zero.compareTo(f) >= 0 || p.compareTo(f) <= 0)
+            throw new IllegalArgumentException("Invalid f specified!");
 
-		return k;
-	}
+        this.f = f;
+        this.k = f.modPow(x, p);
+    }
 
-	/**
-	 * @param f
-	 */
-	public void setF(BigInteger f)
-	{
-		if (e == null)
-			throw new IllegalStateException("DhDsaExchange not initialized!");
+    public byte[] calculateH(byte[] clientversion, byte[] serverversion, byte[] clientKexPayload,
+                             byte[] serverKexPayload, byte[] hostKey) {
+        HashForSSH2Types hash = new HashForSSH2Types("SHA1");
 
-		BigInteger zero = BigInteger.valueOf(0);
+        if (log.isEnabled()) {
+            log.log(90, "Client: '" + new String(clientversion) + "'");
+            log.log(90, "Server: '" + new String(serverversion) + "'");
+        }
 
-		if (zero.compareTo(f) >= 0 || p.compareTo(f) <= 0)
-			throw new IllegalArgumentException("Invalid f specified!");
+        hash.updateByteString(clientversion);
+        hash.updateByteString(serverversion);
+        hash.updateByteString(clientKexPayload);
+        hash.updateByteString(serverKexPayload);
+        hash.updateByteString(hostKey);
+        hash.updateBigInt(e);
+        hash.updateBigInt(f);
+        hash.updateBigInt(k);
 
-		this.f = f;
-		this.k = f.modPow(x, p);
-	}
-
-	public byte[] calculateH(byte[] clientversion, byte[] serverversion, byte[] clientKexPayload,
-			byte[] serverKexPayload, byte[] hostKey)
-	{
-		HashForSSH2Types hash = new HashForSSH2Types("SHA1");
-
-		if (log.isEnabled())
-		{
-			log.log(90, "Client: '" + new String(clientversion) + "'");
-			log.log(90, "Server: '" + new String(serverversion) + "'");
-		}
-
-		hash.updateByteString(clientversion);
-		hash.updateByteString(serverversion);
-		hash.updateByteString(clientKexPayload);
-		hash.updateByteString(serverKexPayload);
-		hash.updateByteString(hostKey);
-		hash.updateBigInt(e);
-		hash.updateBigInt(f);
-		hash.updateBigInt(k);
-
-		return hash.getDigest();
-	}
+        return hash.getDigest();
+    }
 }

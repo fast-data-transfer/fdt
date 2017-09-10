@@ -3,6 +3,13 @@
  */
 package lia.util.net.copy.monitoring;
 
+import lia.util.net.common.Utils;
+import lia.util.net.copy.FDTSession;
+import lia.util.net.copy.disk.DiskReaderManager;
+import lia.util.net.copy.disk.DiskWriterManager;
+import lia.util.net.copy.monitoring.base.AbstractAccountableMonitoringTask;
+import lia.util.net.copy.transport.TCPTransportProvider;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -12,13 +19,6 @@ import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import lia.util.net.common.Utils;
-import lia.util.net.copy.FDTSession;
-import lia.util.net.copy.disk.DiskReaderManager;
-import lia.util.net.copy.disk.DiskWriterManager;
-import lia.util.net.copy.monitoring.base.AbstractAccountableMonitoringTask;
-import lia.util.net.copy.transport.TCPTransportProvider;
 
 /**
  * This class is the only class which should report to the stdout
@@ -32,16 +32,11 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
     private static final DiskWriterManager diskWriterManager = DiskWriterManager.getInstance();
 
     private static final DiskReaderManager diskReaderManager = DiskReaderManager.getInstance();
-
+    private static final ConsoleReportingTask thisInstace = new ConsoleReportingTask();
     // private final DateFormat dateFormat = new SimpleDateFormat("dd/MM/yy HH:mm:ss");
     private final DateFormat dateFormat = new SimpleDateFormat("dd/MM HH:mm:ss");
-
     private final Set<FDTSession> oldReaderSessions = new TreeSet<FDTSession>();
-
     private final Set<FDTSession> oldWriterSessions = new TreeSet<FDTSession>();
-
-    private static final ConsoleReportingTask thisInstace = new ConsoleReportingTask();
-
     private final boolean customLog;
 
     private ConsoleReportingTask() {
@@ -69,7 +64,7 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                 sb.append(oldSessionSet.size()).append(" active sessions:");
             }
 
-            for (Iterator<FDTSession> it = oldSessionSet.iterator(); it.hasNext();) {
+            for (Iterator<FDTSession> it = oldSessionSet.iterator(); it.hasNext(); ) {
                 final FDTSession fdtSession = it.next();
                 final TCPTransportProvider tcpTransportProvider = fdtSession.getTransportProvider();
 

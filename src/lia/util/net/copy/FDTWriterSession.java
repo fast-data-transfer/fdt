@@ -38,16 +38,11 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
     private static final Config config = Config.getInstance();
 
     private static final DiskWriterManager dwm = DiskWriterManager.getInstance();
-
-    private String destinationDir;
-
-    private String[] fileList;
-
-    private ProcessorInfo processorInfo;
-
     private final AtomicBoolean finalCleaupExecuted = new AtomicBoolean(false);
-
     private final AtomicBoolean finishNotifiedExecuted = new AtomicBoolean(false);
+    private String destinationDir;
+    private String[] fileList;
+    private ProcessorInfo processorInfo;
 
     public FDTWriterSession(int transferPort) throws Exception {
         super(FDTSession.CLIENT, transferPort);

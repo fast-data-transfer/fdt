@@ -1,11 +1,11 @@
 package apmon.host;
 
+import apmon.ApMonMonitoringConstants;
+
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.StringTokenizer;
-
-import apmon.ApMonMonitoringConstants;
 
 //import lisa.core.util.cmdExec;
 
@@ -13,11 +13,11 @@ import apmon.ApMonMonitoringConstants;
  * Designated class that reads from the proc different parameter values.
  */
 public class ProcReader {
-	
-	static int cnt = 0;
+
+    static int cnt = 0;
 
     private HashMap hm = null;
-    
+
     private cmdExec exec = null;
 
     private Parser parser = null;
@@ -71,9 +71,9 @@ public class ProcReader {
     private String diskIO = null;
 
     private long ddiskIO = 0;
-    
+
     private long dblkRead = 0;
-    
+
     private long dblkWrite = 0;
 
     private String diskTotal = null;
@@ -99,11 +99,11 @@ public class ProcReader {
     private Hashtable netOut = null;
 
     private Hashtable dnetOut = null;
-    
+
     private Hashtable states = null;
-    
+
     private Hashtable netSockets = null;
-    
+
     private Hashtable netTcpDetails = null;
 
     private long lastCall = 0;
@@ -118,8 +118,62 @@ public class ProcReader {
         states = new Hashtable();
         netSockets = new Hashtable();
         netTcpDetails = new Hashtable();
-        
+
         update();
+    }
+
+    public static void main(String[] args) {
+
+        ProcReader reader = new ProcReader();
+        while (true) {
+            reader.update();
+            System.out.println("");
+            System.out.println("CPU Sys: " + reader.getCPUSys());
+            System.out.println("CPU Usr: " + reader.getCPUUsr());
+            System.out.println("CPU Nice: " + reader.getCPUNice());
+            System.out.println("CPU Idle: " + reader.getCPUIdle());
+            System.out.println("CPU Usage: " + reader.getCPUUsage());
+            System.out.println("");
+            System.out.println("Pages in: " + reader.getPagesIn());
+            System.out.println("Pages out: " + reader.getPagesOut());
+            System.out.println("");
+            System.out.println("Mem usage: " + reader.getMemUsage());
+            System.out.println("Mem used: " + reader.getMemUsed());
+            System.out.println("Mem free: " + reader.getMemFree());
+            System.out.println("");
+            System.out.println("Disk total: " + reader.getDiskTotal());
+            System.out.println("Disk used: " + reader.getDiskUsed());
+            System.out.println("Disk free: " + reader.getDiskFree());
+            System.out.println("Disk usage: " + reader.getDiskUsage());
+            System.out.println("Disk IO: " + reader.getDiskIO());
+            System.out.println("");
+            System.out.println("Processes: " + reader.getNoProcesses());
+            System.out.println("Load1: " + reader.getLoad1());
+            System.out.println("Load5: " + reader.getLoad5());
+            System.out.println("Load15: " + reader.getLoad15());
+            System.out.println("");
+            System.out.println("MAC: " + reader.getMacAddress());
+            System.out.println("Net IFS");
+            String netIfs[] = reader.getNetInterfaces();
+            if (netIfs != null) {
+                for (int i = 0; i < netIfs.length; i++)
+                    System.out.print(netIfs[i] + " ");
+                System.out.println("");
+                System.out.println("Net in");
+                for (int i = 0; i < netIfs.length; i++)
+                    System.out.print(reader.getNetIn(netIfs[i]) + " ");
+                System.out.println("");
+                System.out.println("Net out");
+                for (int i = 0; i < netIfs.length; i++)
+                    System.out.print(reader.getNetOut(netIfs[i]) + " ");
+                System.out.println("");
+            }
+            System.out.println("");
+            try {
+                Thread.sleep(1000);
+            } catch (Exception e) {
+            }
+        }
     }
 
     private void addNetInterface(String netInterface) {
@@ -141,8 +195,8 @@ public class ProcReader {
 
     public synchronized void update() {
 
-    	cnt++;
-    	
+        cnt++;
+
         long newCall = System.currentTimeMillis();
         double diffCall = (newCall - lastCall) / 1000.0; // in seconds
 
@@ -217,9 +271,9 @@ public class ProcReader {
                 parser.parseAux(line);
                 long dcUsr = 0, dcSys = 0, dcNice = 0, dcIdle = 0;
                 line = parser.nextAuxToken(); // cpu usr
-                try {               	
+                try {
                     dcUsr = Long.parseLong(line);
-                  
+
                 } catch (Exception e) {
                     dcUsr = -1;
                 }
@@ -241,7 +295,7 @@ public class ProcReader {
                 } catch (Exception e) {
                     dcIdle = -1;
                 }
-                
+
                 double tmpUsr = diffWithOverflowCheck(dcUsr, dcpuUsr) / diffCall;
                 double tmpSys = (diffWithOverflowCheck(dcSys, dcpuSys)) / diffCall;
                 double tmpIdle = (diffWithOverflowCheck(dcIdle, dcpuIdle)) / diffCall;
@@ -318,9 +372,9 @@ public class ProcReader {
                         if (str == null) break;
                         str = parser.nextToken(" \t\n"); // skip tps
                         str = parser.nextToken(" \t\n"); // skip KB read /
-                                                            // sec
+                        // sec
                         str = parser.nextToken(" \t\n"); // skip KB write /
-                                                            // sec
+                        // sec
                         str = parser.nextToken(" \t\n"); // blk read / sec
                         long l = 0;
                         try {
@@ -338,13 +392,13 @@ public class ProcReader {
                         }
                         if (l >= 0.0) blkWrite += l;
                     }
-                    
-                    double dRead = (diffWithOverflowCheck(blkRead, dblkRead)) /diffCall;
-					double dWrite = (diffWithOverflowCheck(blkWrite, dblkWrite)) /diffCall;
+
+                    double dRead = (diffWithOverflowCheck(blkRead, dblkRead)) / diffCall;
+                    double dWrite = (diffWithOverflowCheck(blkWrite, dblkWrite)) / diffCall;
                     diskIO = "" + (dRead + dWrite);
                     //ddiskIO = blkRead + blkWrite;
-                	dblkRead = blkRead;
-					dblkWrite = blkWrite;
+                    dblkRead = blkRead;
+                    dblkWrite = blkWrite;
                 }
             } else if (line != null) {
                 str = parser.nextToken(" \t\n");
@@ -359,9 +413,9 @@ public class ProcReader {
                         if (str == null) break;
                         str = parser.nextToken(" \t\n"); // skip tps
                         str = parser.nextToken(" \t\n"); // skip KB read /
-                                                            // sec
+                        // sec
                         str = parser.nextToken(" \t\n"); // skip KB write /
-                                                            // sec
+                        // sec
                         str = parser.nextToken(" \t\n"); // blk read / sec
                         long l = 0;
                         try {
@@ -379,13 +433,13 @@ public class ProcReader {
                         }
                         if (l >= 0) blkWrite += l;
                     }
-                    double dRead = (diffWithOverflowCheck(blkRead, dblkRead)) /diffCall;
-					double dWrite = (diffWithOverflowCheck(blkWrite, dblkWrite)) /diffCall;
-					diskIO = ""+(dRead + dWrite);
-					ddiskIO = blkRead + blkWrite;
+                    double dRead = (diffWithOverflowCheck(blkRead, dblkRead)) / diffCall;
+                    double dWrite = (diffWithOverflowCheck(blkWrite, dblkWrite)) / diffCall;
+                    diskIO = "" + (dRead + dWrite);
+                    ddiskIO = blkRead + blkWrite;
 
-					dblkRead = blkRead;
-					dblkWrite = blkWrite;
+                    dblkRead = blkRead;
+                    dblkWrite = blkWrite;
                 }
             }
         }
@@ -426,17 +480,17 @@ public class ProcReader {
                 parser.parseAux(line);
                 swapFree = parser.nextAuxToken();
             }
-            
-            
+
+
             line = parser.nextLine();
         }
-        
+
         double dst = Double.valueOf(swapTotal).doubleValue();
         double dsf = Double.valueOf(swapFree).doubleValue();
         double dsu = dst - dsf;
 
-        swapUsed = ""+dsu;
-        swapUsage = ""+(1.0 - dsu/dst)*100;
+        swapUsed = "" + dsu;
+        swapUsage = "" + (1.0 - dsu / dst) * 100;
 
         memFree = "" + (dmemFree / 1024.0);
         memUsed = "" + ((dmemTotal - dmemFree) / 1024.0);
@@ -498,7 +552,7 @@ public class ProcReader {
             diskTotal = "" + (size / (1024.0 * 1024.0)); // total size (GB)
             diskUsed = "" + (used / (1024.0 * 1024.0)); // used size (GB)
             diskFree = "" + (available / (1024.0 * 1024.0)); // free size
-                                                                // (GB)
+            // (GB)
             diskUsage = "" + (usage * 1.0 / nr); // usage (%)
         } else { // read from /proc/ide
             String files[] = parser.listFiles("/proc/ide");
@@ -517,29 +571,29 @@ public class ProcReader {
             diskTotal = "" + (size / (1024.0 * 1024.0)); // disk total (GB)
             diskFree = diskTotal;
         }
-        
-        /** 
-         * old version
-         * 
-        String[] files = parser.listFiles("/proc");
-        processesNo = null;
-        if (files != null && files.length != 0) {
-            int nr = 0;
-            for (int i = 0; i < files.length; i++) {
-                char[] chars = files[i].toCharArray();
-                boolean isProc = true;
-                for (int j = 0; j < chars.length; j++)
-                    if (!Character.isDigit(chars[j])) {
-                        isProc = false;
-                        break;
-                    }
-                if (isProc) nr++;
-            }
-            processesNo = "" + nr;
-        }
-        */
 
-        /** 
+        /**
+         * old version
+         *
+         String[] files = parser.listFiles("/proc");
+         processesNo = null;
+         if (files != null && files.length != 0) {
+         int nr = 0;
+         for (int i = 0; i < files.length; i++) {
+         char[] chars = files[i].toCharArray();
+         boolean isProc = true;
+         for (int j = 0; j < chars.length; j++)
+         if (!Character.isDigit(chars[j])) {
+         isProc = false;
+         break;
+         }
+         if (isProc) nr++;
+         }
+         processesNo = "" + nr;
+         }
+         */
+
+        /**
          * new version
          */
         output = exec.executeCommandReality("ps -e -A -o state", "");
@@ -548,7 +602,7 @@ public class ProcReader {
             line = parser.nextLine();
             processesNo = null;
             int pNo = 0;
-            
+
             states.put("D", new Integer(0));
             states.put("R", new Integer(0));
             states.put("S", new Integer(0));
@@ -561,10 +615,10 @@ public class ProcReader {
                     continue;
                 }
                 Enumeration e = states.keys();
-                while(e.hasMoreElements()){
-                    String key = (String)e.nextElement();
-                    if(line.startsWith(key)){
-                        int value = ((Integer)states.get(key)).intValue();
+                while (e.hasMoreElements()) {
+                    String key = (String) e.nextElement();
+                    if (line.startsWith(key)) {
+                        int value = ((Integer) states.get(key)).intValue();
                         value++;
                         pNo++;
                         states.put(key, new Integer(value));
@@ -575,14 +629,14 @@ public class ProcReader {
             processesNo = "" + pNo;
         }
 
-        /** 
+        /**
          * run netstat
          */
         output = exec.executeCommandReality("netstat -an", "");
         if (output != null && !output.equals("")) {
             parser.parse(output);
             line = parser.nextLine();
-            
+
             netSockets.put("tcp", new Integer(0));
             netSockets.put("udp", new Integer(0));
             netSockets.put("unix", new Integer(0));
@@ -600,8 +654,8 @@ public class ProcReader {
             netTcpDetails.put("LISTEN", new Integer(0));
             netTcpDetails.put("CLOSING", new Integer(0));
             netTcpDetails.put("UNKNOWN", new Integer(0));
-            
-            try{
+
+            try {
                 String key = null;
                 int value = 0;
                 while (line != null) {
@@ -609,47 +663,47 @@ public class ProcReader {
                         line = parser.nextLine();
                         continue;
                     }
-                    if(line.startsWith("tcp")){            
+                    if (line.startsWith("tcp")) {
                         key = "tcp";
-                        value = ((Integer)netSockets.get(key)).intValue();
+                        value = ((Integer) netSockets.get(key)).intValue();
                         value++;
                         netSockets.put(key, new Integer(value));
-                        StringTokenizer st = new StringTokenizer(line, " []"); 
-                        while(st.hasMoreTokens()){
+                        StringTokenizer st = new StringTokenizer(line, " []");
+                        while (st.hasMoreTokens()) {
                             String element = st.nextToken();
                             key = element;
-                            if(netTcpDetails.containsKey(element)){
-                                value = ((Integer)netTcpDetails.get(key)).intValue();
+                            if (netTcpDetails.containsKey(element)) {
+                                value = ((Integer) netTcpDetails.get(key)).intValue();
                                 value++;
                                 netTcpDetails.put(key, new Integer(value));
                             }
                         }
                     }
-                    if(line.startsWith("udp")){
+                    if (line.startsWith("udp")) {
                         key = "udp";
-                        value = ((Integer)netSockets.get(key)).intValue();
+                        value = ((Integer) netSockets.get(key)).intValue();
                         value++;
                         netSockets.put(key, new Integer(value));
                     }
-                    if(line.startsWith("unix")){
+                    if (line.startsWith("unix")) {
                         key = "unix";
-                        value = ((Integer)netSockets.get(key)).intValue();
+                        value = ((Integer) netSockets.get(key)).intValue();
                         value++;
                         netSockets.put(key, new Integer(value));
                     }
-                    if(line.startsWith("icm")){
+                    if (line.startsWith("icm")) {
                         key = "icm";
-                        value = ((Integer)netSockets.get(key)).intValue();
+                        value = ((Integer) netSockets.get(key)).intValue();
                         value++;
                         netSockets.put(key, new Integer(value));
                     }
                     line = parser.nextLine();
                 }
-            }catch (Exception e) {
+            } catch (Exception e) {
             }
         }
-        
-        
+
+
         parser.parseFromFile("/proc/loadavg");
         load1 = load5 = load15 = null;
         line = parser.nextToken(" \t\n"); // load1
@@ -702,7 +756,7 @@ public class ProcReader {
                             d = -1;
                         }
                         if (oldReceived >= 0 && d >= 0) {
-                        	double in = (diffWithOverflowCheck(d,oldReceived)) / diffCall;
+                            double in = (diffWithOverflowCheck(d, oldReceived)) / diffCall;
                             //double in = (d - oldReceived) / diffCall;
                             in = in / (1024.0 * 1024.0);
                             oldReceived = d;
@@ -739,7 +793,7 @@ public class ProcReader {
                             d = -1;
                         }
                         if (oldSent >= 0 && d >= 0) {
-                        	double out = (diffWithOverflowCheck(d, oldSent)) / diffCall;
+                            double out = (diffWithOverflowCheck(d, oldSent)) / diffCall;
                             //double out = (d - oldSent) / diffCall;
                             out = out / (1024.0 * 1024.0);
                             oldSent = d;
@@ -788,7 +842,7 @@ public class ProcReader {
                             d = -1;
                         }
                         if (oldReceived >= 0 && d >= 0) {
-                        	double in = (diffWithOverflowCheck(d, oldReceived)) / diffCall;
+                            double in = (diffWithOverflowCheck(d, oldReceived)) / diffCall;
                             //double in = (d - oldReceived) / diffCall;
                             in = in / (1024.0 * 1024.0);
                             oldReceived = d;
@@ -823,10 +877,10 @@ public class ProcReader {
                             d = Long.parseLong(line);
                         } catch (Exception e) {
                             d = -1;
-                        }                                            
-                        
+                        }
+
                         if (oldSent >= 0 && d >= 0) {
-                        	double out = (diffWithOverflowCheck(d, oldSent)) / diffCall;
+                            double out = (diffWithOverflowCheck(d, oldSent)) / diffCall;
                             //double out = (d - oldSent) / diffCall;
                             out = out / (1024.0 * 1024.0);
                             oldSent = d;
@@ -861,7 +915,7 @@ public class ProcReader {
         hm.put(ApMonMonitoringConstants.LSYS_CPU_SYS, cpuSys);
         hm.put(ApMonMonitoringConstants.LSYS_CPU_IDLE, cpuIdle);
         hm.put(ApMonMonitoringConstants.LSYS_CPU_USAGE, cpuUsage);
-        
+
         hm.put(ApMonMonitoringConstants.LSYS_MEM_FREE, memFree);
         hm.put(ApMonMonitoringConstants.LSYS_MEM_USED, memUsed);
         hm.put(ApMonMonitoringConstants.LSYS_MEM_USAGE, memUsage);
@@ -881,7 +935,7 @@ public class ProcReader {
     public synchronized HashMap getHashedValues() {
         return hm;
     }
-    
+
     public synchronized String getMacAddress() {
 
         if (hwAddress != null) hwAddress = hwAddress.trim();
@@ -1013,15 +1067,15 @@ public class ProcReader {
         if (load5 != null) load5 = load5.trim();
         return load5;
     }
-    
+
     public synchronized Hashtable getProcessesState() {
         return states;
     }
-    
+
     public synchronized Hashtable getNetSockets() {
         return netSockets;
     }
-    
+
     public synchronized Hashtable getTcpDetails() {
         return netTcpDetails;
     }
@@ -1055,85 +1109,31 @@ public class ProcReader {
         }
         return null;
     }
-    
+
     public void stopIt() {
-    	exec.stopIt();
+        exec.stopIt();
     }
-    
+
     /**
-     * Computes the difference between the new value and the old value of a 
+     * Computes the difference between the new value and the old value of a
      * counter, considering the case when the counter reaches its maximum
      * value and is reset. We assume the counter has 32 bits.
      */
     public long diffWithOverflowCheck(long newVal, long oldVal) {
 
         if (newVal >= oldVal) {
-                return newVal - oldVal;
+            return newVal - oldVal;
         } else {
-                long vmax;
-                long p32 = 1L << 32;
-                long p64 = 1L << 64;
-                if (oldVal < p32)
-                        vmax = p32;  // 32 bits
-                else
-                        vmax = p64;  // 64 bits
-                              
-                return newVal - oldVal + vmax;
-        }
-    }
-    
-    public static void main(String[] args) {
+            long vmax;
+            long p32 = 1L << 32;
+            long p64 = 1L << 64;
+            if (oldVal < p32)
+                vmax = p32;  // 32 bits
+            else
+                vmax = p64;  // 64 bits
 
-        ProcReader reader = new ProcReader();
-        while (true) {
-            reader.update();
-            System.out.println("");
-            System.out.println("CPU Sys: " + reader.getCPUSys());
-            System.out.println("CPU Usr: " + reader.getCPUUsr());
-            System.out.println("CPU Nice: " + reader.getCPUNice());
-            System.out.println("CPU Idle: " + reader.getCPUIdle());
-            System.out.println("CPU Usage: " + reader.getCPUUsage());
-            System.out.println("");
-            System.out.println("Pages in: " + reader.getPagesIn());
-            System.out.println("Pages out: " + reader.getPagesOut());
-            System.out.println("");
-            System.out.println("Mem usage: " + reader.getMemUsage());
-            System.out.println("Mem used: " + reader.getMemUsed());
-            System.out.println("Mem free: " + reader.getMemFree());
-            System.out.println("");
-            System.out.println("Disk total: " + reader.getDiskTotal());
-            System.out.println("Disk used: " + reader.getDiskUsed());
-            System.out.println("Disk free: " + reader.getDiskFree());
-            System.out.println("Disk usage: " + reader.getDiskUsage());
-            System.out.println("Disk IO: " + reader.getDiskIO());
-            System.out.println("");
-            System.out.println("Processes: " + reader.getNoProcesses());
-            System.out.println("Load1: " + reader.getLoad1());
-            System.out.println("Load5: " + reader.getLoad5());
-            System.out.println("Load15: " + reader.getLoad15());
-            System.out.println("");
-            System.out.println("MAC: " + reader.getMacAddress());
-            System.out.println("Net IFS");
-            String netIfs[] = reader.getNetInterfaces();
-            if (netIfs != null) {
-                for (int i = 0; i < netIfs.length; i++)
-                    System.out.print(netIfs[i] + " ");
-                System.out.println("");
-                System.out.println("Net in");
-                for (int i = 0; i < netIfs.length; i++)
-                    System.out.print(reader.getNetIn(netIfs[i]) + " ");
-                System.out.println("");
-                System.out.println("Net out");
-                for (int i = 0; i < netIfs.length; i++)
-                    System.out.print(reader.getNetOut(netIfs[i]) + " ");
-                System.out.println("");
-            }
-            System.out.println("");
-            try {
-                Thread.sleep(1000);
-            } catch (Exception e) {
-            }
+            return newVal - oldVal + vmax;
         }
     }
-   
+
 }

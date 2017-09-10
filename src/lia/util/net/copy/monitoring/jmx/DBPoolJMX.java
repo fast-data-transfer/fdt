@@ -5,17 +5,10 @@
  */
 package lia.util.net.copy.monitoring.jmx;
 
-import java.util.Arrays;
-
-import javax.management.MBeanAttributeInfo;
-import javax.management.MBeanInfo;
-import javax.management.MBeanNotificationInfo;
-import javax.management.MBeanOperationInfo;
-import javax.management.MBeanParameterInfo;
-import javax.management.NotCompliantMBeanException;
-import javax.management.StandardMBean;
-
 import lia.util.net.common.DirectByteBufferPool;
+
+import javax.management.*;
+import java.util.Arrays;
 
 /**
  * Class DBPoolJMX; just to test the JMX. Nothing intelligent, for the moment
@@ -148,6 +141,7 @@ public class DBPoolJMX extends StandardMBean implements DBPoolJMXMBean {
 
     /**
      * Operation exposed for management
+     *
      * @return long
      */
     public long totalAllocated() {

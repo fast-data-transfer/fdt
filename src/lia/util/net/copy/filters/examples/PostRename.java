@@ -14,12 +14,12 @@ import java.util.logging.Logger;
  */
 public class PostRename implements Postprocessor {
 
+    public static final String PREFIX = "prefix";
+    public static final String DEFAULT_PREFIX = "RENAMED_";
     /**
      * Logger used by this class
      */
     private static final Logger logger = Logger.getLogger(PostRename.class.getName());
-    public static final String PREFIX = "prefix";
-    public static final String DEFAULT_PREFIX = "RENAMED_";
 
     public void postProcessFileList(ProcessorInfo processorInfo, Subject peerSubject, Throwable downCause, String downMessage) throws Exception {
         logger.log(Level.INFO, " [ PostRename ] Subject: " + peerSubject);

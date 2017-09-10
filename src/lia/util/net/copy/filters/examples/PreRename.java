@@ -14,12 +14,12 @@ import java.util.logging.Logger;
  */
 public class PreRename implements Preprocessor {
 
+    public static final String PREFIX = "prefix";
+    public static final String DEFAULT_PREFIX = "NEW_FILE_";
     /**
      * Logger used by this class
      */
     private static final Logger logger = Logger.getLogger(PreRename.class.getName());
-    public static final String PREFIX = "prefix";
-    public static final String DEFAULT_PREFIX = "NEW_FILE_";
 
     public void preProcessFileList(ProcessorInfo processorInfo, Subject peerSubject) {
         logger.log(Level.INFO, " [ PreRename ] Subject: " + peerSubject);

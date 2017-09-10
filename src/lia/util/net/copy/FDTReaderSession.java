@@ -33,40 +33,25 @@ import java.util.logging.Logger;
  */
 public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
+    public static final long END_RCV_WAIT_DELAY = TimeUnit.SECONDS.toNanos(120);
     /**
      * Logger used by this class
      */
     private static final Logger logger = Logger.getLogger(FDTReaderSession.class.getName());
-
     private static final DiskReaderManager diskManager = DiskReaderManager.getInstance();
-
     private static final Config config = Config.getInstance();
-
-    private final TreeMap<Integer, ArrayList<DiskReaderTask>> readersMap;
-
-    public final BlockingQueue<FileBlock> fileBlockQueue;
-
-    private volatile ExecutorService execService;
-
-    private String remoteDir;
-
-    private boolean recursive;
-
-    private final boolean isFileList;
-
-    private int totalFileBlocks = 0;
-
-    private ProcessorInfo processorInfo;
-
-    private int readersCount = 1;
-
     private static final int MAX_TAKE_POLL_ITER = Config.getMaxTakePollIter();
-
+    public final BlockingQueue<FileBlock> fileBlockQueue;
+    private final TreeMap<Integer, ArrayList<DiskReaderTask>> readersMap;
+    private final boolean isFileList;
     private final AtomicBoolean finalCleaupExecuted = new AtomicBoolean(false);
-
     private final AtomicBoolean finishNotifiedExecuted = new AtomicBoolean(false);
-
-    public static final long END_RCV_WAIT_DELAY = TimeUnit.SECONDS.toNanos(120);
+    private volatile ExecutorService execService;
+    private String remoteDir;
+    private boolean recursive;
+    private int totalFileBlocks = 0;
+    private ProcessorInfo processorInfo;
+    private int readersCount = 1;
 
     /**
      * LOCAL SESSION - look in the Config

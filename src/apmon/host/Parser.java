@@ -106,7 +106,7 @@ public class Parser {
     public boolean hasMoreAuxTokens() {
         return (auxSt != null && auxSt.hasMoreTokens());
     }
-    
+
     public String nextAuxToken() {
 
         if (auxSt == null)

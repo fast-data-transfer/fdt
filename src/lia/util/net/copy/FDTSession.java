@@ -37,135 +37,81 @@ import java.util.logging.Logger;
 public abstract class FDTSession extends IOSession implements ControlChannelNotifier, Comparable<FDTSession>,
         Accountable, LisaCtrlNotifier {
 
+    public static final short SERVER = 0;
+    public static final short CLIENT = 1;
+    public static final short COORDINATOR = 2;
+    public static final int UNINITIALIZED = 0; // I think only OOM can do this
+    public static final int STARTED = 1 << 0;
+    public static final int INIT_CONF_SENT = 1 << 1;
+    public static final int INIT_CONF_RCV = 1 << 2;
+    public static final int FINAL_CONF_SENT = 1 << 3;
+    public static final int FINAL_CONF_RCV = 1 << 4;
+    public static final int START_SENT = 1 << 5;
+    public static final int START_RCV = 1 << 6;
+    public static final int TRANSFERING = 1 << 7;
+    public static final int END_SENT = 1 << 8;
+    public static final int END_RCV = 1 << 8;
+    public static final int COORDINATOR_MSG_RCVD = 1 << 9;
+    public static final int LIST_FILES_MSG_RCVD = 1 << 10;
+    protected static final String[] FDT_SESION_STATES = {"UNINITIALIZED", "STARTED", "INIT_CONF_SENT",
+            "INIT_CONF_RCV", "FINAL_CONF_SENT", "FINAL_CONF_RCV", "START_SENT", "START_RCV", "TRANSFERING", "END_SENT",
+            "END_RCV"};
     /**
      * Logger used by this class
      */
     private static final Logger logger = Logger.getLogger(FDTSession.class.getName());
-
     private static final String LISA_RATE_LIMIT_CMD = "limit";
-
     private static final Config config = Config.getInstance();
-
-    public static final short SERVER = 0;
-
-    public static final short CLIENT = 1;
-
-    public static final short COORDINATOR = 2;
-
-    public static final int UNINITIALIZED = 0; // I think only OOM can do this
-
-    public static final int STARTED = 1 << 0;
-
-    public static final int INIT_CONF_SENT = 1 << 1;
-
-    public static final int INIT_CONF_RCV = 1 << 2;
-
-    public static final int FINAL_CONF_SENT = 1 << 3;
-
-    public static final int FINAL_CONF_RCV = 1 << 4;
-
-    public static final int START_SENT = 1 << 5;
-
-    public static final int START_RCV = 1 << 6;
-
-    public static final int TRANSFERING = 1 << 7;
-
-    public static final int END_SENT = 1 << 8;
-
-    public static final int END_RCV = 1 << 8;
-
-    public static final int COORDINATOR_MSG_RCVD = 1 << 9;
-
-    public static final int LIST_FILES_MSG_RCVD = 1 << 10;
-
-    protected AtomicLong totalProcessedBytes;
-
-    protected AtomicLong totalUtilBytes;
-
-    protected String monID;
-
-    // should be 0 in case everything works fine and !=0 in case of an error
-    protected short currentStatus;
-
-    protected ServerSocketChannel ssc;
-
-    protected ServerSocket ss;
-
-    protected Selector sel;
-
-    protected SocketChannel sc;
-
-    protected Socket s;
-
-    ExecutorService executor;
-
-    protected static final String[] FDT_SESION_STATES = {"UNINITIALIZED", "STARTED", "INIT_CONF_SENT",
-            "INIT_CONF_RCV", "FINAL_CONF_SENT", "FINAL_CONF_RCV", "START_SENT", "START_RCV", "TRANSFERING", "END_SENT",
-            "END_RCV"};
-
-    protected Map<Integer, LinkedList<FileSession>> partitionsMap;
-
     /**
      * can be either SERVER, either CLIENT
      */
     protected final short role; // for the moment could be boolean ... but never know for future extensions, e.g third
-
-    // party transfers!
-
     protected final Object protocolLock = new Object();
-
-    protected ControlChannel controlChannel;
-
     //to keep the order in which they were added use a LinkedHashMap
     protected final Map<UUID, FileSession> fileSessions = new LinkedHashMap<UUID, FileSession>();
-
     //to keep the order in which they were added use a LinkedHashMap
     protected final Map<UUID, byte[]> md5Sums = new LinkedHashMap<UUID, byte[]>();
-
     protected final boolean isNetTest;
-
-    protected Set<UUID> finishedSessions = new TreeSet<UUID>();
-
-    protected TCPTransportProvider transportProvider;
-
-    private final Object lock = new Object();
-
-    protected AtomicBoolean postProcessingDone = new AtomicBoolean(false);
-
     protected final Object ctrlNotifLock = new Object();
+    protected final boolean customLog;
+    final FDTSessionMonitoringTask monitoringTask;
+    final ScheduledFuture<?> monitoringTaskFuture;
+    private final Object lock = new Object();
+    protected AtomicLong totalProcessedBytes;
+    protected AtomicLong totalUtilBytes;
 
-    // keeps the history of the states
-    private volatile int historyState;
-
-    // current state of the session
-    private volatile int currentState;
-
-    // control thread started
-    AtomicBoolean ctrlThreadStarted = new AtomicBoolean(false);
-
+    // party transfers!
+    protected String monID;
+    // should be 0 in case everything works fine and !=0 in case of an error
+    protected short currentStatus;
+    protected ServerSocketChannel ssc;
+    protected ServerSocket ss;
+    protected Selector sel;
+    protected SocketChannel sc;
+    protected Socket s;
+    protected Map<Integer, LinkedList<FileSession>> partitionsMap;
+    protected ControlChannel controlChannel;
+    protected Set<UUID> finishedSessions = new TreeSet<UUID>();
+    protected TCPTransportProvider transportProvider;
+    protected AtomicBoolean postProcessingDone = new AtomicBoolean(false);
     // use fixed block size for network I/O ?
     protected boolean useFixedBlockSize = config.useFixedBlocks();
-
     // do not try to write on the writer peer
     protected boolean localLoop = config.localLoop();
-
     protected int transferPort;
-
     // is loop ?
     protected boolean isLoop = config.loop();
-
     protected String writeMode = config.getWriteMode();
-
     // rateLimit ?
     protected AtomicLong rateLimit = new AtomicLong(-1);
-
     protected AtomicLong rateLimitDelay = new AtomicLong(300L);
-
-    final FDTSessionMonitoringTask monitoringTask;
-
-    final ScheduledFuture<?> monitoringTaskFuture;
-
-    protected final boolean customLog;
+    ExecutorService executor;
+    // control thread started
+    AtomicBoolean ctrlThreadStarted = new AtomicBoolean(false);
+    // keeps the history of the states
+    private volatile int historyState;
+    // current state of the session
+    private volatile int currentState;
 
     public FDTSession(short role, int transferPort) throws Exception {
         super();
@@ -220,17 +166,6 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         monitoringTask.startSession();
     }
 
-    final void startControlThread() {
-        if (ctrlThreadStarted.compareAndSet(false, true)) {
-            new Thread(this.controlChannel, "Control channel for [ " + config.getHostName() + ":" + transferPort
-                    + " ]").start();
-        }
-    }
-
-    public String getMonID() {
-        return monID;
-    }
-
     public FDTSession(ControlChannel controlChannel, short role) throws Exception {
         // it is possible to throw a NPE?
         super(controlChannel.fdtSessionID());
@@ -281,6 +216,57 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         monitoringTaskFuture = monitoringService.scheduleWithFixedDelay(monitoringTask, 1, 5, TimeUnit.SECONDS);
 
         monitoringTask.startSession();
+    }
+
+    public static List<String> getListOfFiles() {
+        File[] filesList = new File(config.getListFilesFrom()).listFiles();
+        List<String> listOfFiles = new ArrayList<>();
+
+        if (filesList != null) {
+            for (File fileInDir : filesList) {
+                if (fileInDir.canRead()) {
+                    listOfFiles.add(getFileListEntry(fileInDir));
+                }
+            }
+        }
+        return listOfFiles;
+    }
+
+    private static String getFileListEntry(File fileInDir) {
+
+        StringBuilder sb = new StringBuilder();
+        try {
+            PosixFileAttributes fa = Files.readAttributes(fileInDir.toPath(), PosixFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            sb.append(fa.isDirectory() ? "d" : fa.isSymbolicLink() ? "l" : fa.isRegularFile() ? "f" : "-");
+            sb.append(fileInDir.canRead() ? "r" : "-");
+            sb.append(fileInDir.canWrite() ? "w" : "-");
+            sb.append(fileInDir.canExecute() ? "x" : "-");
+            sb.append("\t");
+            sb.append(fa.owner());
+            sb.append(fa.owner().getName().length() < 4 ? "\t\t" : "\t");
+            sb.append(fa.group());
+            sb.append(fa.group().getName().length() < 4 ? "\t\t" : "\t");
+            sb.append(fa.size());
+            sb.append(String.valueOf(fa.size()).length() < 4 ? "\t\t" : "\t");
+            sb.append(fa.lastModifiedTime().toString());
+            sb.append("\t");
+            sb.append(fa.isDirectory() ? fileInDir.getName() + "/" : fileInDir.getName());
+        } catch (IOException e) {
+            logger.log(Level.WARNING, "Failed to get file attributes", e);
+        }
+        logger.info(sb.toString());
+        return sb.toString();
+    }
+
+    final void startControlThread() {
+        if (ctrlThreadStarted.compareAndSet(false, true)) {
+            new Thread(this.controlChannel, "Control channel for [ " + config.getHostName() + ":" + transferPort
+                    + " ]").start();
+        }
+    }
+
+    public String getMonID() {
+        return monID;
     }
 
     public FDTSessionMonitoringTask getMonitoringTask() {
@@ -476,9 +462,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             if (remoteTransferPort > 0) {
                 FDTSession session = FDTSessionManager.getInstance().addFDTClientSession(remoteTransferPort);
                 ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, session.controlChannel.fdtSessionID().toString()));
-            }
-            else
-            {
+            } else {
                 ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, "-1"));
             }
         } catch (Exception ex) {
@@ -740,46 +724,6 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
     public boolean isNetTest() {
         return isNetTest;
-    }
-
-    public static List<String> getListOfFiles() {
-        File[] filesList = new File(config.getListFilesFrom()).listFiles();
-        List<String> listOfFiles = new ArrayList<>();
-
-        if (filesList != null) {
-            for (File fileInDir : filesList) {
-                if (fileInDir.canRead()) {
-                    listOfFiles.add(getFileListEntry(fileInDir));
-                }
-            }
-        }
-        return listOfFiles;
-    }
-
-    private static String getFileListEntry(File fileInDir) {
-
-        StringBuilder sb = new StringBuilder();
-        try {
-            PosixFileAttributes fa = Files.readAttributes(fileInDir.toPath(), PosixFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-            sb.append(fa.isDirectory() ? "d" : fa.isSymbolicLink() ? "l" : fa.isRegularFile() ? "f" : "-");
-            sb.append(fileInDir.canRead() ? "r" : "-");
-            sb.append(fileInDir.canWrite() ? "w" : "-");
-            sb.append(fileInDir.canExecute() ? "x" : "-");
-            sb.append("\t");
-            sb.append(fa.owner());
-            sb.append(fa.owner().getName().length() < 4 ? "\t\t" : "\t");
-            sb.append(fa.group());
-            sb.append(fa.group().getName().length() < 4 ? "\t\t" : "\t");
-            sb.append(fa.size());
-            sb.append(String.valueOf(fa.size()).length() < 4 ? "\t\t" : "\t");
-            sb.append(fa.lastModifiedTime().toString());
-            sb.append("\t");
-            sb.append(fa.isDirectory() ? fileInDir.getName() + "/" : fileInDir.getName());
-        } catch (IOException e) {
-            logger.log(Level.WARNING, "Failed to get file attributes", e);
-        }
-        logger.info(sb.toString());
-        return sb.toString();
     }
 
 }

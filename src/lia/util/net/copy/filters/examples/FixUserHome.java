@@ -1,25 +1,24 @@
 package lia.util.net.copy.filters.examples;
-import java.util.Iterator;
-import java.util.Map;
-
-import javax.security.auth.Subject;
 
 import lia.util.net.copy.FileSession;
 import lia.util.net.copy.filters.Preprocessor;
 import lia.util.net.copy.filters.ProcessorInfo;
 
+import javax.security.auth.Subject;
+import java.util.Iterator;
+import java.util.Map;
+
 /**
- * 
  * Simple example which replaces the file names on the writer side
  *
  * @author ramiro
  */
 public class FixUserHome implements Preprocessor {
 
-    
+
     /**
-     * @param processorInfo 
-     * @param peerSubject  - not used 
+     * @param processorInfo
+     * @param peerSubject   - not used
      */
     public void preProcessFileList(ProcessorInfo processorInfo, Subject peerSubject) throws Exception {
 
@@ -32,7 +31,7 @@ public class FixUserHome implements Preprocessor {
 
         System.out.println("FixUserHome for user '" + userName + "' and $HOME '" + userHome + "' ");
 
-        for (Iterator<Map.Entry<String, FileSession>> iterator = fileSessionMap.entrySet().iterator(); iterator.hasNext();) {
+        for (Iterator<Map.Entry<String, FileSession>> iterator = fileSessionMap.entrySet().iterator(); iterator.hasNext(); ) {
             Map.Entry<String, FileSession> entry = iterator.next();
             final String key = entry.getKey();
             final FileSession fileSession = entry.getValue();
@@ -41,11 +40,11 @@ public class FixUserHome implements Preprocessor {
 
             final String fName = fileSession.fileName();
             // final String newFName = destDirName.replace("~", "/home/ramiro") + fName.substring(dLen);
-            
+
             //
             // TODO - Check if needs to be replaced. 
             //
-            
+
             final String newFName = destDirName.replace("~", userHome) + fName.substring(dLen);
             // file separator + ~
             System.out.println(" ----> OLD: " + fName + " <--->  NEW: " + newFName + " <--- ");

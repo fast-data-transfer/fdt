@@ -47,15 +47,6 @@ public class FDTServer extends AbstractFDTCloseable {
 
     UUID fdtSessionID;
 
-    static final class FDTServerMonitorTask implements Runnable {
-
-        public void run() {
-            // TODO Later
-        }
-    }
-
-
-
     public FDTServer(int port) throws Exception {
         hasToRun = new AtomicBoolean(true);
 
@@ -88,19 +79,6 @@ public class FDTServer extends AbstractFDTCloseable {
         System.out.println("READY");
     }
 
-    /**
-     * Safe to call multiple times; will return false if the server was already signaled to stop
-     * </br>
-     * <p>
-     * <b>Note:</b> Invoking this method acts as a signal for the server. Any ongoing transfers will continue until they finish
-     * </p>
-     *
-     * @return true if server was signaled to stop
-     */
-    public boolean stopServer() {
-        return hasToRun.compareAndSet(true, false);
-    }
-
     public static final boolean filterSourceAddress(java.net.Socket socket) {
         /**
          * check if remote client is allowed (based on optional filter specified in command line) if the address does
@@ -119,6 +97,24 @@ public class FDTServer extends AbstractFDTCloseable {
         }
         return true;
 
+    }
+
+    public static final void main(String[] args) throws Exception {
+        FDTServer jncs = new FDTServer(config.getPort());
+        jncs.doWork();
+    }
+
+    /**
+     * Safe to call multiple times; will return false if the server was already signaled to stop
+     * </br>
+     * <p>
+     * <b>Note:</b> Invoking this method acts as a signal for the server. Any ongoing transfers will continue until they finish
+     * </p>
+     *
+     * @return true if server was signaled to stop
+     */
+    public boolean stopServer() {
+        return hasToRun.compareAndSet(true, false);
     }
 
     public UUID getFdtSessionID() {
@@ -193,11 +189,6 @@ public class FDTServer extends AbstractFDTCloseable {
         }
     }
 
-    public static final void main(String[] args) throws Exception {
-        FDTServer jncs = new FDTServer(config.getPort());
-        jncs.doWork();
-    }
-
     public void run() {
 
         try {
@@ -216,6 +207,13 @@ public class FDTServer extends AbstractFDTCloseable {
     protected void internalClose() {
         // TODO Auto-generated method stub
 
+    }
+
+    static final class FDTServerMonitorTask implements Runnable {
+
+        public void run() {
+            // TODO Later
+        }
     }
 
 }

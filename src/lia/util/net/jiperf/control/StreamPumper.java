@@ -3,26 +3,21 @@
  */
 package lia.util.net.jiperf.control;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 
 /**
- * 
- * This will be kept for history :). 
+ * This will be kept for history :).
  * The entire package lia.util.net.jiperf is the very first version of FDT. It
  * started as an Iperf-like test for Java.
- * 
+ *
  * @author ramiro
  */
 public class StreamPumper implements Runnable {
 
+    private static final int SIZE = 1024;
     private BufferedReader in;
     private StreamConsumer consumer = null;
     private PrintWriter out = new PrintWriter(System.out);
-    private static final int SIZE = 1024;
 
     public StreamPumper(InputStream in, PrintWriter writer) {
         this(in);
@@ -52,7 +47,7 @@ public class StreamPumper implements Runnable {
                 consumeLine(s);
                 if (out != null) {
                     out.println(s);
-		    out.println("<DONE>");
+                    out.println("<DONE>");
                     out.flush();
                 }
 

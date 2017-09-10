@@ -3,6 +3,8 @@
  */
 package lia.util.net.copy;
 
+import lia.util.net.common.FileChannelProvider;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
@@ -11,46 +13,32 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.FileChannelProvider;
-
 /**
  * Wrapper class over a current file which is being written
- * 
+ *
  * @author ramiro
  */
 public class FileWriterSession extends FileSession {
 
-    @Override
-    public String toString() {
-        return "FileWriterSession [tmpCopyFile=" + tmpCopyFile + ", file=" + file + ", partitionID=" + partitionID + ", sessionID=" + sessionID
-                + ", sessionSize=" + sessionSize + "]";
-    }
-
     private static final Logger logger = Logger.getLogger(FileSession.class.getName());
-
+    protected final boolean noLock;
+    protected final boolean noTmp;
+    protected volatile FileLock fLock = null;
     private volatile boolean channelInitialized;
-
     private volatile File tmpCopyFile;
-
     private String openMode = "rw";
 
-    protected volatile FileLock fLock = null;
-
-    protected final boolean noLock;
-
-    protected final boolean noTmp;
-
     public FileWriterSession(UUID uid,
-            FDTSession fdtSession,
-            String fileName,
-            long size,
-            long lastModified,
-            boolean isLoop,
-            String writeMode,
-            boolean noTmp,
-            boolean noLock,
-            FileChannelProvider fcp) throws IOException {
-        
+                             FDTSession fdtSession,
+                             String fileName,
+                             long size,
+                             long lastModified,
+                             boolean isLoop,
+                             String writeMode,
+                             boolean noTmp,
+                             boolean noLock,
+                             FileChannelProvider fcp) throws IOException {
+
         super(uid, fdtSession, fileName, isLoop, fcp);
         this.noTmp = noTmp;
 
@@ -99,15 +87,21 @@ public class FileWriterSession extends FileSession {
 
     public static FileWriterSession fromFileWriterSession(FileWriterSession other) throws IOException {
         return new FileWriterSession(other.sessionID,
-                                     other.fdtSession,
-                                     other.fileName,
-                                     other.sessionSize(),
-                                     other.lastModified,
-                                     other.isLoop,
-                                     other.openMode,
-                                     other.noTmp,
-                                     other.noLock,
-                                     other.fileChannelProvider);
+                other.fdtSession,
+                other.fileName,
+                other.sessionSize(),
+                other.lastModified,
+                other.isLoop,
+                other.openMode,
+                other.noTmp,
+                other.noLock,
+                other.fileChannelProvider);
+    }
+
+    @Override
+    public String toString() {
+        return "FileWriterSession [tmpCopyFile=" + tmpCopyFile + ", file=" + file + ", partitionID=" + partitionID + ", sessionID=" + sessionID
+                + ", sessionSize=" + sessionSize + "]";
     }
 
     public FileChannel getChannel() throws Exception {
@@ -147,14 +141,14 @@ public class FileWriterSession extends FileSession {
 
                     }
                 }
-                
+
                 try {
                     partitionID = this.fileChannelProvider.getPartitionID(this.tmpCopyFile);
                 } catch (Throwable t) {
                     logger.log(Level.WARNING, " [ FileWriterSession ] cannot determine partition id for: " + this.tmpCopyFile, t);
                 }
-                
-                final FileChannel lfc = this.fileChannelProvider.getFileChannel(tmpCopyFile, openMode); 
+
+                final FileChannel lfc = this.fileChannelProvider.getFileChannel(tmpCopyFile, openMode);
 
                 if (!noLock && !isNull) {
                     try {
@@ -177,8 +171,8 @@ public class FileWriterSession extends FileSession {
                         logger.log(Level.FINE, "[ FileWriterSession ] Not using file lock for: " + tmpCopyFile);
                     }
                 }
-                
-                fileChannel = lfc; 
+
+                fileChannel = lfc;
                 channelInitialized = true;
             } catch (Exception ex) {
                 close(null, ex);

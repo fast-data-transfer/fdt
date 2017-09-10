@@ -3,20 +3,20 @@
  */
 package lia.util.net.copy.transport.internal;
 
+import lia.util.net.common.Utils;
+import lia.util.net.copy.transport.FDTKeyAttachement;
+import lia.util.net.copy.transport.internal.SelectionManager.SelectionTask;
+
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import lia.util.net.common.Utils;
-import lia.util.net.copy.transport.FDTKeyAttachement;
-import lia.util.net.copy.transport.internal.SelectionManager.SelectionTask;
-
 /**
  * This class is used in conjunction with SelectionManager to handle the NIO event readiness It is a wrapper over
  * {@link SelectionKey} with
- * 
+ *
  * @author ramiro
  */
 public class FDTSelectionKey {
@@ -28,9 +28,7 @@ public class FDTSelectionKey {
     protected final SelectionTask selectionTask;
 
     protected final SocketChannel channel;
-
-    volatile SelectionKey selectionKey;
-
+    protected final UUID fdtSessionID;
     final SelectionHandler handler;
 
     final int interests;
@@ -40,14 +38,10 @@ public class FDTSelectionKey {
     final AtomicBoolean registered;
 
     final AtomicBoolean renewed;
-
-    protected final UUID fdtSessionID;
-
     public int opCount;
-
-    private volatile FDTKeyAttachement attachment;
-
+    volatile SelectionKey selectionKey;
     int MSS = -1;
+    private volatile FDTKeyAttachement attachment;
 
     FDTSelectionKey(UUID fdtSessionID, SocketChannel channel, int interests, SelectionHandler handler, FDTKeyAttachement attachement, Selector selector, SelectionTask selectionTask) {
         this.channel = channel;
@@ -84,9 +78,9 @@ public class FDTSelectionKey {
 
     /**
      * Should be called to renew the this interest for I/O readiness
-     * 
+     *
      * @return true, if the renewal was successful ( if the key is already registered if will remain register and this
-     *         function will return false)
+     * function will return false)
      */
     public boolean renewInterest() {
 
@@ -101,7 +95,7 @@ public class FDTSelectionKey {
 
     /**
      * Cancels the I/O readiness interests. It can be called multiple times.
-     * 
+     *
      * @return true, only the first time when it is called, and false for any other subsequent calls
      */
     public boolean cancel() {
@@ -126,13 +120,14 @@ public class FDTSelectionKey {
                     selectionKey.cancel();
                 } catch (Throwable t) {
                 }
-                
+
                 try {
-                    if(selectionKey.selector() != null) {
+                    if (selectionKey.selector() != null) {
                         //just for cleanup - otherwise stalled sockets
                         renewInterest();
                     }
-                }catch(Throwable t) {}
+                } catch (Throwable t) {
+                }
             }
 
             final FDTKeyAttachement attach = attachment();
@@ -157,12 +152,12 @@ public class FDTSelectionKey {
 
     /**
      * Same functionality provided by NIO's SelectionKey
-     * 
+     *
      * @param attachement
      */
-    public final FDTKeyAttachement attach(FDTKeyAttachement o) {
+    public final FDTKeyAttachement attach(FDTKeyAttachement attachement) {
         FDTKeyAttachement ret = this.attachment;
-        this.attachment = o;
+        this.attachment = attachement;
         return ret;
     }
 
@@ -172,8 +167,7 @@ public class FDTSelectionKey {
 
     /**
      * Same functionality provided by NIO's SelectionKey
-     * 
-     * @param attachement
+     *
      */
     public final FDTKeyAttachement attachment() {
         return attachment;

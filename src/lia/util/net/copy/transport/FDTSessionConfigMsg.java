@@ -10,30 +10,31 @@ import java.util.Arrays;
 import java.util.UUID;
 
 /**
- * The config msg between FDT peers. 
+ * The config msg between FDT peers.
+ *
  * @author ramiro
  */
 public class FDTSessionConfigMsg implements Serializable {
 
     private static final long serialVersionUID = 691756564099111644L;
-    
-    
-    public String   destinationDir;
-    public String   destinationIP;
-    public int   destinationPort;
-    public boolean  recursive;
-    
+
+
+    public String destinationDir;
+    public String destinationIP;
+    public int destinationPort;
+    public boolean recursive;
+
     //future? use
     public String dirOffset;
 
     public String sourceIP;
-    
-    public UUID[]   fileIDs;
+
+    public UUID[] fileIDs;
     public String[] fileLists;
     public String[] remappedFileLists;
-    public long[]   fileSizes;
-    public long[]   lastModifTimes;
-    
+    public long[] fileSizes;
+    public long[] lastModifTimes;
+
     public FDTSessionConfigMsg() {
 
     }

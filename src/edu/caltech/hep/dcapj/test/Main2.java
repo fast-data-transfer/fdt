@@ -1,13 +1,11 @@
 package edu.caltech.hep.dcapj.test;
 
-import edu.caltech.hep.dcapj.io.*;
-import edu.caltech.hep.dcapj.nio.*;
-import edu.caltech.hep.dcapj.dCacheFile;
 import edu.caltech.hep.dcapj.dCapLayer;
+import edu.caltech.hep.dcapj.io.dCacheFileInputStream;
 
-import java.io.*;
-import java.nio.*;
-import java.nio.channels.*;
+import java.io.FileOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 
 public class Main2 {
 

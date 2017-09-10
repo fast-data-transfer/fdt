@@ -34,72 +34,44 @@ import java.util.logging.Logger;
  */
 public final class Utils {
 
+    public static final char ZERO = '0';
+    public static final int VALUE_2_STRING_NO_UNIT = 1;
+    public static final int VALUE_2_STRING_UNIT = 2;
+    public static final int VALUE_2_STRING_SHORT_UNIT = 3;
     /**
      * Logger used by this class
      */
     private static final Logger logger = Logger.getLogger(Utils.class.getName());
-
     private static final ScheduledThreadPoolExecutor scheduledExecutor = getSchedExecService("FDT Monitoring ThPool",
             5, Thread.MIN_PRIORITY);
-    public static final char ZERO = '0';
-
+    private static final int AV_PROCS;
+    private static final long KILO_BIT = 1000;
+    public static final long MEGA_BIT = KILO_BIT * 1000;
+    private static final long GIGA_BIT = MEGA_BIT * 1000;
+    private static final long TERA_BIT = GIGA_BIT * 1000;
+    private static final long PETA_BIT = TERA_BIT * 1000;
+    private static final long KILO_BYTE = 1024;
+    public static final long MEGA_BYTE = KILO_BYTE * 1024;
+    private static final long GIGA_BYTE = MEGA_BYTE * 1024;
+    private static final long TERA_BYTE = GIGA_BYTE * 1024;
+    private static final long PETA_BYTE = TERA_BYTE * 1024;
+    private static final long[] BYTE_MULTIPLIERS = new long[]{KILO_BYTE, MEGA_BYTE, GIGA_BYTE, TERA_BYTE, PETA_BYTE};
+    private static final String[] BYTE_SUFIXES = new String[]{"KB", "MB", "GB", "TB", "PB"};
+    private static final long[] BIT_MULTIPLIERS = new long[]{KILO_BIT, MEGA_BIT, GIGA_BIT, TERA_BIT, PETA_BIT};
+    private static final String[] BIT_SUFIXES = new String[]{"Kb", "Mb", "Gb", "Tb", "Pb"};
+    private static final int URL_CONNECTION_TIMEOUT = 20 * 1000;
+    private static final Object lock = new Object();
+    private static final long SECONDS_IN_MINUTE = TimeUnit.MINUTES.toSeconds(1);
+    private static final long SECONDS_IN_HOUR = TimeUnit.HOURS.toSeconds(1);
+    private static final long SECONDS_IN_DAY = TimeUnit.DAYS.toSeconds(1);
+    private static final String[] SELECTION_KEY_OPS_NAMES = {"OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE"};
+    private static final int[] SELECTION_KEY_OPS_VALUES = {SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT,
+            SelectionKey.OP_READ, SelectionKey.OP_WRITE};
     /**
      * reference to the monitor reporting api, initialized in the constructor of {@link FDT}
      */
     private static ApMon apmon = null;
-
     private static boolean apmonInitied = false;
-
-    public static final int VALUE_2_STRING_NO_UNIT = 1;
-
-    public static final int VALUE_2_STRING_UNIT = 2;
-
-    public static final int VALUE_2_STRING_SHORT_UNIT = 3;
-
-    private static final int AV_PROCS;
-
-    private static final long KILO_BIT = 1000;
-
-    public static final long MEGA_BIT = KILO_BIT * 1000;
-
-    private static final long GIGA_BIT = MEGA_BIT * 1000;
-
-    private static final long TERA_BIT = GIGA_BIT * 1000;
-
-    private static final long PETA_BIT = TERA_BIT * 1000;
-
-    private static final long KILO_BYTE = 1024;
-
-    public static final long MEGA_BYTE = KILO_BYTE * 1024;
-
-    private static final long GIGA_BYTE = MEGA_BYTE * 1024;
-
-    private static final long TERA_BYTE = GIGA_BYTE * 1024;
-
-    private static final long PETA_BYTE = TERA_BYTE * 1024;
-
-    private static final long[] BYTE_MULTIPLIERS = new long[]{KILO_BYTE, MEGA_BYTE, GIGA_BYTE, TERA_BYTE, PETA_BYTE};
-
-    private static final String[] BYTE_SUFIXES = new String[]{"KB", "MB", "GB", "TB", "PB"};
-
-    private static final long[] BIT_MULTIPLIERS = new long[]{KILO_BIT, MEGA_BIT, GIGA_BIT, TERA_BIT, PETA_BIT};
-
-    private static final String[] BIT_SUFIXES = new String[]{"Kb", "Mb", "Gb", "Tb", "Pb"};
-
-    private static final int URL_CONNECTION_TIMEOUT = 20 * 1000;
-
-    private static final Object lock = new Object();
-
-    private static final long SECONDS_IN_MINUTE = TimeUnit.MINUTES.toSeconds(1);
-
-    private static final long SECONDS_IN_HOUR = TimeUnit.HOURS.toSeconds(1);
-
-    private static final long SECONDS_IN_DAY = TimeUnit.DAYS.toSeconds(1);
-
-    private static final String[] SELECTION_KEY_OPS_NAMES = {"OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE"};
-
-    private static final int[] SELECTION_KEY_OPS_VALUES = {SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT,
-            SelectionKey.OP_READ, SelectionKey.OP_WRITE};
 
     //
     // END this should not be here any more after FDT will use only Java6
@@ -1210,9 +1182,7 @@ public final class Utils {
                 String downloadUrl = getDownloadURL(jsonObject);
                 downloadFDT(fos, downloadUrl);
                 // try to check the version
-            }
-            else
-            {
+            } else {
                 downloadFDT(fos, updateURL);
             }
             jf = new JarFile(tmpUpdateFile);
@@ -1232,9 +1202,7 @@ public final class Utils {
                 }
                 logger.info("Remote FDT version: " + remoteVersion + " Local FDT version: " + currentVersion
                         + ". Update available.");
-            }
-            else
-            {
+            } else {
                 logger.info("Skipped version checking.");
             }
 
@@ -1301,14 +1269,10 @@ public final class Utils {
 
     private static void downloadFDT(FileOutputStream fos, String downloadURL) throws IOException {
         InputStream downInputStream;
-        if (!downloadURL.endsWith("fdt.jar"))
-        {
-            if(!downloadURL.endsWith("/"))
-            {
+        if (!downloadURL.endsWith("fdt.jar")) {
+            if (!downloadURL.endsWith("/")) {
                 downloadURL = downloadURL + "/fdt.jar";
-            }
-            else
-            {
+            } else {
                 downloadURL = downloadURL + "fdt.jar";
             }
         }
@@ -1740,22 +1704,20 @@ public final class Utils {
 
     public static ArrayBlockingQueue<Integer> getTransportPortsValue(Map<String, Object> configMap, String key, int defaultPortNo) {
         ArrayBlockingQueue<Integer> transportPorts = new ArrayBlockingQueue<>(10);
-        int i=0;
+        int i = 0;
         Object obj = configMap.get(key);
-        if (obj == null || obj.toString().isEmpty())
-        {
+        if (obj == null || obj.toString().isEmpty()) {
             transportPorts.add(defaultPortNo);
             return transportPorts;
         }
         String tp = obj.toString();
-            StringTokenizer stk=new StringTokenizer(tp,",");
-            String s[]=new String[10];
-            while(stk.hasMoreTokens())
-            {
-                s[i]=stk.nextToken();
-                transportPorts.add(Integer.parseInt(s[i]));
-                i++;
-            }
+        StringTokenizer stk = new StringTokenizer(tp, ",");
+        String s[] = new String[10];
+        while (stk.hasMoreTokens()) {
+            s[i] = stk.nextToken();
+            transportPorts.add(Integer.parseInt(s[i]));
+            i++;
+        }
         return transportPorts;
     }
 

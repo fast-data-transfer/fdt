@@ -32,25 +32,19 @@
 
 package apmon;
 
+import apmon.host.HostPropertiesMonitor;
+import apmon.host.Parser;
+import apmon.host.cmdExec;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.StringTokenizer;
-import java.util.Vector;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import apmon.host.HostPropertiesMonitor;
-import apmon.host.Parser;
-import apmon.host.cmdExec;
 
 /**
  * Separate thread which periodically checks the configuration file/URLs for changes and periodically sends datagrams
@@ -80,6 +74,248 @@ class BkThread extends Thread {
         this.apm = apm;
         this.monitor = new HostPropertiesMonitor();
         this.setDaemon(true);
+    }
+
+    public static Hashtable getCpuInfo() throws IOException, ApMonException {
+        if (osName.indexOf("Linux") < 0)
+            return null;
+
+        Hashtable info = new Hashtable();
+
+        BufferedReader in = null;
+        FileReader fr = null;
+        try {
+            fr = new FileReader("/proc/cpuinfo");
+            in = new BufferedReader(fr);
+            String line = null;
+            while ((line = in.readLine()) != null) {
+                StringTokenizer st = new StringTokenizer(line, ":");
+                if (line.startsWith("cpu MHz")) {
+                    st.nextToken();
+                    String freq_s = st.nextToken();
+                    if (freq_s == null)
+                        throw new ApMonException("Error reading CPU frequency from /proc/cpuinfo");
+                    info.put(ApMonMonitoringConstants.LGEN_CPU_MHZ, freq_s);
+                }
+                if (line.startsWith("vendor_id")) {
+                    st.nextToken();
+                    String vendor = st.nextToken();
+                    if (vendor == null)
+                        throw new ApMonException("Error reading CPU vendor_id from /proc/cpuinfo");
+                    info.put(ApMonMonitoringConstants.LGEN_CPU_VENDOR_ID, vendor);
+                }
+                if (line.startsWith("model") && !line.startsWith("model name")) {
+                    st.nextToken();
+                    String model = st.nextToken();
+                    if (model == null)
+                        throw new ApMonException("Error reading CPU model from /proc/cpuinfo");
+                    info.put(ApMonMonitoringConstants.LGEN_CPU_MODEL, model);
+                }
+                if (line.startsWith("cpu family")) {
+                    st.nextToken();
+                    String cpufam = st.nextToken();
+                    if (cpufam == null)
+                        throw new ApMonException("Error reading CPU family from /proc/cpuinfo");
+                    info.put(ApMonMonitoringConstants.LGEN_CPU_FAMILY, cpufam);
+                }
+                if (line.startsWith("model name")) {
+                    st.nextToken();
+                    String modelname = st.nextToken();
+                    if (modelname == null)
+                        throw new ApMonException("Error reading CPU model name from /proc/cpuinfo");
+                    info.put(ApMonMonitoringConstants.LGEN_CPU_MODEL_NAME, modelname);
+                }
+                if (line.startsWith("bogomips")) {
+                    st.nextToken();
+                    String bogomips = st.nextToken();
+                    if (bogomips == null)
+                        throw new ApMonException("Error reading CPU bogomips from /proc/cpuinfo");
+                    info.put(ApMonMonitoringConstants.LGEN_BOGOMIPS, bogomips);
+                }
+            }
+        } finally {
+            if (fr != null) {
+                try {
+                    fr.close();
+                } catch (Throwable ignore) {
+                }
+            }
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+        return info;
+    }
+
+    /**
+     * Returns the system boot time in milliseconds since the Epoch. Works only on Linux systems.
+     */
+    public static long getBootTime() throws IOException, ApMonException {
+        if (osName.indexOf("Linux") < 0)
+            return 0;
+
+        BufferedReader in = null;
+        FileReader fr = null;
+        try {
+            fr = new FileReader("/proc/stat");
+            in = new BufferedReader(fr);
+            String line = null;
+            while ((line = in.readLine()) != null) {
+                if (line.startsWith("btime"))
+                    break;
+            }
+
+            if (line == null)
+                throw new ApMonException("Error reading boot time from /proc/stat");
+
+            StringTokenizer st = new StringTokenizer(line);
+            st.nextToken();
+            String btime_s = st.nextToken();
+
+            if (btime_s == null)
+                throw new ApMonException("Error reading boot time from /proc/stat");
+
+            return (Long.parseLong(btime_s) * 1000);
+        } finally {
+            if (fr != null) {
+                try {
+                    fr.close();
+                } catch (Throwable ignore) {
+                }
+            }
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+    }
+
+    /* in days */
+    public static double getUpTime() throws IOException, ApMonException {
+        if (osName.indexOf("Linux") < 0)
+            return 0;
+
+        FileReader fr = null;
+        BufferedReader in = null;
+
+        try {
+            fr = new FileReader("/proc/uptime");
+            in = new BufferedReader(fr);
+            String line = in.readLine();
+            if (line == null)
+                throw new ApMonException("Error reading boot time from /proc/uptime");
+
+            StringTokenizer st = new StringTokenizer(line);
+            String up_time = st.nextToken();
+
+            if (up_time == null)
+                throw new ApMonException("Error reading optime from /proc/uptime");
+
+            return (Double.parseDouble(up_time)) / (3600 * 24);
+        } finally {
+            if (fr != null) {
+                try {
+                    fr.close();
+                } catch (Throwable ignore) {
+                }
+            }
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+
+    }
+
+    /**
+     * Returns the number of CPUs in the system
+     */
+    public static int getNumCPUs() throws IOException, ApMonException {
+        if (osName.indexOf("Linux") < 0)
+            return 0;
+
+        FileReader fr = null;
+        BufferedReader in = null;
+        try {
+            fr = new FileReader("/proc/stat");
+            in = new BufferedReader(fr);
+            String line = null;
+            int numCPUs = 0;
+            while ((line = in.readLine()) != null) {
+                if (line.startsWith("cpu") && Character.isDigit(line.charAt(3)))
+                    numCPUs++;
+            }
+
+            if (numCPUs == 0)
+                throw new ApMonException("Error reading CPU frequency from /proc/stat");
+
+            return numCPUs;
+        } finally {
+            if (fr != null) {
+                try {
+                    fr.close();
+                } catch (Throwable ignore) {
+                }
+            }
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+    }
+
+    public static void getNetConfig(Vector netInterfaces, Vector ips) throws IOException, ApMonException {
+        String line;
+        Parser parser = new Parser();
+        cmdExec exec = new cmdExec();
+
+        String output = exec.executeCommandReality("/sbin/ifconfig -a", "");
+        if (exec.isError())
+            output = null;
+        exec.stopIt();
+
+        String crtIfaceName = null;
+        if (output != null && !output.equals("")) {
+            parser.parse(output);
+            line = parser.nextLine();
+            while (line != null) {
+                if (line == null)
+                    break;
+                StringTokenizer lst = new StringTokenizer(line, " :\t");
+                if (line.startsWith(" ") || line.startsWith("\t")) {
+                    if (line.indexOf("inet") < 0) {
+                        line = parser.nextLine();
+                        continue;
+                    }
+
+                    lst.nextToken();
+                    lst.nextToken();
+                    String addr_t = lst.nextToken();
+                    if (!addr_t.equals("127.0.0.1")) {
+                        ips.add(addr_t);
+                        netInterfaces.add(crtIfaceName);
+                    }
+                } else {
+                    // get the name
+                    String netName = lst.nextToken();
+                    if (netName != null && !netName.startsWith("lo") && netName.indexOf("eth") != -1) {
+                        crtIfaceName = new String(netName);
+                    }
+                }
+
+                line = parser.nextLine();
+            }
+        }
+
     }
 
     void stopIt() {
@@ -185,7 +421,7 @@ class BkThread extends Thread {
             hm.putAll(hmJobDisk);
         }
 
-        for (Iterator it = hm.keySet().iterator(); it.hasNext();) {
+        for (Iterator it = hm.keySet().iterator(); it.hasNext(); ) {
             Long lParam = (Long) it.next();
             try {
                 if (isActive_Job(lParam)) {
@@ -210,7 +446,9 @@ class BkThread extends Thread {
         }
     }
 
-    /** Sends an UDP datagram with system monitoring information */
+    /**
+     * Sends an UDP datagram with system monitoring information
+     */
     void sendSysInfo() {
         double value = 0.0;
         Vector paramNames, paramValues;
@@ -230,7 +468,7 @@ class BkThread extends Thread {
         HashMap hms = monitor.getHashParams();
 
         if (hms != null) {
-            for (Iterator it = hms.keySet().iterator(); it.hasNext();) {
+            for (Iterator it = hms.keySet().iterator(); it.hasNext(); ) {
                 Long lParam = (Long) it.next();
                 try {
                     if (isActive_Sys(lParam)) {
@@ -712,244 +950,6 @@ class BkThread extends Thread {
                     crtTime = System.currentTimeMillis();
                     nextRecheck = crtTime + apm.getRecheckInterval() * 1000;
                 } // while
-            }
-        }
-
-    }
-
-    public static Hashtable getCpuInfo() throws IOException, ApMonException {
-        if (osName.indexOf("Linux") < 0)
-            return null;
-
-        Hashtable info = new Hashtable();
-
-        BufferedReader in = null;
-        FileReader fr = null;
-        try {
-            fr = new FileReader("/proc/cpuinfo");
-            in = new BufferedReader(fr);
-            String line = null;
-            while ((line = in.readLine()) != null) {
-                StringTokenizer st = new StringTokenizer(line, ":");
-                if (line.startsWith("cpu MHz")) {
-                    st.nextToken();
-                    String freq_s = st.nextToken();
-                    if (freq_s == null)
-                        throw new ApMonException("Error reading CPU frequency from /proc/cpuinfo");
-                    info.put(ApMonMonitoringConstants.LGEN_CPU_MHZ, freq_s);
-                }
-                if (line.startsWith("vendor_id")) {
-                    st.nextToken();
-                    String vendor = st.nextToken();
-                    if (vendor == null)
-                        throw new ApMonException("Error reading CPU vendor_id from /proc/cpuinfo");
-                    info.put(ApMonMonitoringConstants.LGEN_CPU_VENDOR_ID, vendor);
-                }
-                if (line.startsWith("model") && !line.startsWith("model name")) {
-                    st.nextToken();
-                    String model = st.nextToken();
-                    if (model == null)
-                        throw new ApMonException("Error reading CPU model from /proc/cpuinfo");
-                    info.put(ApMonMonitoringConstants.LGEN_CPU_MODEL, model);
-                }
-                if (line.startsWith("cpu family")) {
-                    st.nextToken();
-                    String cpufam = st.nextToken();
-                    if (cpufam == null)
-                        throw new ApMonException("Error reading CPU family from /proc/cpuinfo");
-                    info.put(ApMonMonitoringConstants.LGEN_CPU_FAMILY, cpufam);
-                }
-                if (line.startsWith("model name")) {
-                    st.nextToken();
-                    String modelname = st.nextToken();
-                    if (modelname == null)
-                        throw new ApMonException("Error reading CPU model name from /proc/cpuinfo");
-                    info.put(ApMonMonitoringConstants.LGEN_CPU_MODEL_NAME, modelname);
-                }
-                if (line.startsWith("bogomips")) {
-                    st.nextToken();
-                    String bogomips = st.nextToken();
-                    if (bogomips == null)
-                        throw new ApMonException("Error reading CPU bogomips from /proc/cpuinfo");
-                    info.put(ApMonMonitoringConstants.LGEN_BOGOMIPS, bogomips);
-                }
-            }
-        } finally {
-            if (fr != null) {
-                try {
-                    fr.close();
-                } catch (Throwable ignore) {
-                }
-            }
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (Throwable ignore) {
-                }
-            }
-        }
-        return info;
-    }
-
-    /** Returns the system boot time in milliseconds since the Epoch. Works only on Linux systems. */
-    public static long getBootTime() throws IOException, ApMonException {
-        if (osName.indexOf("Linux") < 0)
-            return 0;
-
-        BufferedReader in = null;
-        FileReader fr = null;
-        try {
-            fr = new FileReader("/proc/stat");
-            in = new BufferedReader(fr);
-            String line = null;
-            while ((line = in.readLine()) != null) {
-                if (line.startsWith("btime"))
-                    break;
-            }
-
-            if (line == null)
-                throw new ApMonException("Error reading boot time from /proc/stat");
-
-            StringTokenizer st = new StringTokenizer(line);
-            st.nextToken();
-            String btime_s = st.nextToken();
-
-            if (btime_s == null)
-                throw new ApMonException("Error reading boot time from /proc/stat");
-
-            return (Long.parseLong(btime_s) * 1000);
-        } finally {
-            if (fr != null) {
-                try {
-                    fr.close();
-                } catch (Throwable ignore) {
-                }
-            }
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (Throwable ignore) {
-                }
-            }
-        }
-    }
-
-    /* in days */
-    public static double getUpTime() throws IOException, ApMonException {
-        if (osName.indexOf("Linux") < 0)
-            return 0;
-
-        FileReader fr = null;
-        BufferedReader in = null;
-
-        try {
-            fr = new FileReader("/proc/uptime");
-            in = new BufferedReader(fr);
-            String line = in.readLine();
-            if (line == null)
-                throw new ApMonException("Error reading boot time from /proc/uptime");
-
-            StringTokenizer st = new StringTokenizer(line);
-            String up_time = st.nextToken();
-
-            if (up_time == null)
-                throw new ApMonException("Error reading optime from /proc/uptime");
-
-            return (Double.parseDouble(up_time)) / (3600 * 24);
-        } finally {
-            if (fr != null) {
-                try {
-                    fr.close();
-                } catch (Throwable ignore) {
-                }
-            }
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (Throwable ignore) {
-                }
-            }
-        }
-
-    }
-
-    /** Returns the number of CPUs in the system */
-    public static int getNumCPUs() throws IOException, ApMonException {
-        if (osName.indexOf("Linux") < 0)
-            return 0;
-
-        FileReader fr = null;
-        BufferedReader in = null;
-        try {
-            fr = new FileReader("/proc/stat");
-            in = new BufferedReader(fr);
-            String line = null;
-            int numCPUs = 0;
-            while ((line = in.readLine()) != null) {
-                if (line.startsWith("cpu") && Character.isDigit(line.charAt(3)))
-                    numCPUs++;
-            }
-
-            if (numCPUs == 0)
-                throw new ApMonException("Error reading CPU frequency from /proc/stat");
-
-            return numCPUs;
-        } finally {
-            if (fr != null) {
-                try {
-                    fr.close();
-                } catch (Throwable ignore) {
-                }
-            }
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (Throwable ignore) {
-                }
-            }
-        }
-    }
-
-    public static void getNetConfig(Vector netInterfaces, Vector ips) throws IOException, ApMonException {
-        String line;
-        Parser parser = new Parser();
-        cmdExec exec = new cmdExec();
-
-        String output = exec.executeCommandReality("/sbin/ifconfig -a", "");
-        if (exec.isError())
-            output = null;
-        exec.stopIt();
-
-        String crtIfaceName = null;
-        if (output != null && !output.equals("")) {
-            parser.parse(output);
-            line = parser.nextLine();
-            while (line != null) {
-                if (line == null)
-                    break;
-                StringTokenizer lst = new StringTokenizer(line, " :\t");
-                if (line.startsWith(" ") || line.startsWith("\t")) {
-                    if (line.indexOf("inet") < 0) {
-                        line = parser.nextLine();
-                        continue;
-                    }
-
-                    lst.nextToken();
-                    lst.nextToken();
-                    String addr_t = lst.nextToken();
-                    if (!addr_t.equals("127.0.0.1")) {
-                        ips.add(addr_t);
-                        netInterfaces.add(crtIfaceName);
-                    }
-                } else {
-                    // get the name
-                    String netName = lst.nextToken();
-                    if (netName != null && !netName.startsWith("lo") && netName.indexOf("eth") != -1) {
-                        crtIfaceName = new String(netName);
-                    }
-                }
-
-                line = parser.nextLine();
             }
         }
 

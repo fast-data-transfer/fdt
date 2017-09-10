@@ -49,15 +49,15 @@ public class FDTSessionManager extends AbstractFDTCloseable implements ControlCh
     private volatile String lastDownMsg;
     private volatile Throwable lastDownCause;
 
-    public static FDTSessionManager getInstance() {
-        return _thisInstanceManager;
-    }
-
     private FDTSessionManager() {
         lock = new ReentrantLock();
         isSessionMapEmpty = lock.newCondition();
         fdtSessionMap = new ConcurrentHashMap<>();
         inited = new AtomicBoolean(false);
+    }
+
+    public static FDTSessionManager getInstance() {
+        return _thisInstanceManager;
     }
 
     public void addFDTClientSession(ControlChannel controlChannel) throws Exception {
