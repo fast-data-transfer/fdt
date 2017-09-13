@@ -1,6 +1,7 @@
 package lia.util.net.common;
 
 import apmon.ApMon;
+import lia.gsi.FDTGSIServer;
 import lia.util.net.copy.FDT;
 import lia.util.net.copy.FDTServer;
 import lia.util.net.copy.FDTSessionManager;
@@ -1803,6 +1804,10 @@ public final class Utils {
     }
 
     public static void waitAndWork(ExecutorService executor, ServerSocket ss, Selector sel, Config config) throws Exception {
+        if (config.isGSIModeEnabled()) {
+            FDTGSIServer gsiServer = new FDTGSIServer(config.getGSIPort());
+            gsiServer.start();
+        }
         waitForTask(executor, ss, sel);
 
         int transferPort = getFDTTransferPort(config);
