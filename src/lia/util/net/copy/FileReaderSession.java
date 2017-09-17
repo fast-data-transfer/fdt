@@ -5,6 +5,7 @@ package lia.util.net.copy;
 
 import lia.util.net.common.FileChannelProvider;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.UUID;
@@ -29,7 +30,7 @@ public class FileReaderSession extends FileSession {
         this.file = this.fileChannelProvider.getFile(fileName);
 
         if (!fileName.startsWith(FileSession.DEV_ZERO_FILENAME) && !file.exists()) {
-            throw new IOException("No such file: " + fileName);
+            throw new FileNotFoundException("No such file: " + fileName);
         }
 
         sessionSize = file.length();

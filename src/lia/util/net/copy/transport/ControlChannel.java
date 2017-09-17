@@ -245,6 +245,9 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         Utils.initLogger(config.getLogLevel(), null, new Properties());
         myName = " ControlThread for ( " + fdtSessionID + " ) " + controlSocket.getInetAddress() + ":"
                 + controlSocket.getPort();
+        if (Utils.isTransferPort(localPort)) {
+            config.registerTransferPortForSession(localPort, fdtSessionID.toString());
+        }
         logger.log(Level.INFO, "NEW CONTROL stream for " + fdtSessionID + " initialized ");
 
         final long localKA = Config.getInstance().getKeepAliveDelay(TimeUnit.NANOSECONDS);
@@ -429,6 +432,10 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
             }
         }
         return null;
+    }
+
+    public void sendFailureMsg() throws Exception {
+        sendAllMsgs();
     }
 
     private void sendAllMsgs() throws Exception {

@@ -10,6 +10,7 @@ import lia.util.net.copy.transport.*;
 import lia.util.net.copy.transport.internal.SelectionManager;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -78,7 +79,14 @@ public class FDT {
         } else {
             if (config.getHostName() != null) { // role == client
                 config.setRemoteTransferPort(Utils.getFDTTransferPort(config));
-                FDTSessionManager.getInstance().addFDTClientSession(config.getRemoteTransferPort());
+                try {
+                    FDTSessionManager.getInstance().addFDTClientSession(config.getRemoteTransferPort());
+                }
+                catch (FileNotFoundException ex)
+                {
+                    ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
+                    cc.sendCtrlMessage(new CtrlMsg(CtrlMsg.FILE_NOT_FOUND, ex.getMessage()));
+                }
             } else { // is server
                 if (!DirectByteBufferPool.initInstance(config.getByteBufferSize(), Config.getMaxTakePollIter())) {
                     // this is really wrong ... I cannot be already initialized

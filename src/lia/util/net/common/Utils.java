@@ -1775,7 +1775,9 @@ public final class Utils {
                     loggingProps.remove("handlers");
                 }
 
-                loggingProps.put("handlers", "java.util.logging.FileHandler");
+                loggingProps.put("handlers", "java.util.logging.FileHandler,java.util.logging.ConsoleHandler");
+                loggingProps.put("java.util.logging.ConsoleHandler.level", "FINEST");
+                loggingProps.put("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
                 loggingProps.put("java.util.logging.FileHandler.level", "FINEST");
                 loggingProps.put("java.util.logging.FileHandler.formatter", "java.util.logging.SimpleFormatter");
                 loggingProps.put("java.util.logging.FileHandler.pattern", "" + logFile);
@@ -1868,5 +1870,9 @@ public final class Utils {
             throw new Exception(t);
         }
 
+    }
+
+    public static boolean isTransferPort(int localPort) {
+        return Config.getInstance().getRemoteTransferPorts().contains(localPort);
     }
 }

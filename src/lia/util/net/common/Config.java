@@ -38,7 +38,7 @@ public class Config {
             "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb"};
     public static final String[] VALUE_CMDLINE_ARGS = {"-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters",
             "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d",
-            "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka"};
+            "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka", "-tp"};
     public static final String POSSIBLE_VALUE_CMDLINE_ARGS[] = {"-enable_apmon", "-lisafdtclient", "-lisafdtserver",
             "-f", "-F", "-h", "-H", "--help", "-help," + "-u", "-U", "--update", "-update"};
     /**
@@ -153,6 +153,7 @@ public class Config {
     private int destPort;
     private int remoteTransferPort;
     private ArrayBlockingQueue<Integer> transportPorts;
+    private final List<Object> tp;
     private String[] fileList;
     private String[] remappedFileList;
     private String destDir;
@@ -290,6 +291,7 @@ public class Config {
 
         portNo = Utils.getIntValue(configMap, "-p", DEFAULT_PORT_NO);
         transportPorts = Utils.getTransportPortsValue(configMap, "-tp", DEFAULT_PORT_NO);
+        tp = Arrays.asList(transportPorts.toArray());
         isCoordinatorMode = Boolean.getBoolean("coordinator");
         isThirdPartyCopyAgent = (configMap.get("-agent") != null);
 
@@ -899,6 +901,10 @@ public class Config {
 
     public int getRemoteTransferPort() {
         return remoteTransferPort;
+    }
+
+    public List<Object> getRemoteTransferPorts() {
+        return tp;
     }
 
     public void setRemoteTransferPort(int remoteTransferPort) {

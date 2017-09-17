@@ -12,7 +12,7 @@ import lia.util.net.copy.filters.ProcessorInfo;
 import lia.util.net.copy.transport.*;
 
 import java.io.File;
-import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -249,7 +249,9 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         for (final String fName : newFileList) {
             if (!new File(fName).exists()) {
                 logger.warning("File listed in file list does not exist! " + fName);
-                throw new IOException("File does not exist! " + fName);
+                controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.FILE_NOT_FOUND, fName));
+                controlChannel.sendFailureMsg();
+                throw new FileNotFoundException("File does not exist! " + fName);
             }
             if (new File(fName).isFile()) {
                 FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);

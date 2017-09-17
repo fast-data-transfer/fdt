@@ -53,6 +53,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     public static final int END_RCV = 1 << 8;
     public static final int COORDINATOR_MSG_RCVD = 1 << 9;
     public static final int LIST_FILES_MSG_RCVD = 1 << 10;
+    public static final int MISSING_FILE = 1 << 11;
     protected static final String[] FDT_SESION_STATES = {"UNINITIALIZED", "STARTED", "INIT_CONF_SENT",
             "INIT_CONF_RCV", "FINAL_CONF_SENT", "FINAL_CONF_RCV", "START_SENT", "START_RCV", "TRANSFERING", "END_SENT",
             "END_RCV"};
@@ -429,6 +430,11 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
                             handleGetRemoteTransferPortMessage(ctrlMsg);
                             break;
                         }
+                        case CtrlMsg.FILE_NOT_FOUND: {
+                            setCurrentState(MISSING_FILE);
+                            handleFileNotFound(ctrlMsg);
+                            break;
+                        }
                         default: {
                             FDTProcolException fpe = new FDTProcolException("Illegal CtrlMsg tag [ " + ctrlMsg.tag + " ]");
                             fpe.fillInStackTrace();
@@ -443,6 +449,10 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         } catch (Throwable t) {
             close("Got exception trying to process", t);
         }
+    }
+
+    private void handleFileNotFound(CtrlMsg ctrlMsg) {
+        logger.log(Level.WARNING, "[ FDTSession ] [ handleFileNotFound File not found:  ( " + ctrlMsg.message.toString() + " )");
     }
 
     private void handleCoordinatorMessage(CtrlMsg ctrlMsg) {
