@@ -586,6 +586,9 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
                             Thread.dumpStack();
                         }
                     } else {
+                        if (downCause == null) {
+                            logger.log(Level.INFO, fs.fileName + " STATUS: OK");
+                        }
                         if (logger.isLoggable(Level.FINE)) {
                             logger.log(Level.FINE, " [ FDTSession ] [ HANDLED ] The fileSession [ " + sessionID
                                     + " ] added to finised sessions list");
@@ -600,6 +603,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             }
 
             if (downCause != null) {
+                logger.log(Level.WARNING, fs.fileName + " STATUS: FAILED");
                 close("the file session: " + sessionID + " / " + fs.fileName + " finished with errors: "
                         + downCause.getMessage(), downCause);
             }
