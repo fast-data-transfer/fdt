@@ -1,16 +1,16 @@
 package edu.caltech.hep.dcapj.io;
 
-import java.io.*;
-import java.nio.*;
-import java.nio.channels.*;
-import edu.caltech.hep.dcapj.*;
-import edu.caltech.hep.dcapj.nio.*;
 import edu.caltech.hep.dcapj.dCacheFile;
 import edu.caltech.hep.dcapj.nio.dCacheFileChannel;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+
 /**
  * Use this file to open a dCache file for writing.
- * 
+ *
  * @author Kamran Soomro
  */
 public class dCacheFileOutputStream extends FileOutputStream {
@@ -19,9 +19,8 @@ public class dCacheFileOutputStream extends FileOutputStream {
     /**
      * Create a dCacheFileOutputStream object using the specified file as the
      * underlying {@link dCacheFile}.
-     * 
-     * @throws Exception
-     *             If the file already exists or an error occurred
+     *
+     * @throws Exception If the file already exists or an error occurred
      */
     public dCacheFileOutputStream(dCacheFile file) throws Exception {
         super(file);
@@ -31,9 +30,8 @@ public class dCacheFileOutputStream extends FileOutputStream {
 
     /**
      * Open the specified file for writing.
-     * 
-     * @throws Exception
-     *             If the file already exists or an error occurred
+     *
+     * @throws Exception If the file already exists or an error occurred
      */
     public dCacheFileOutputStream(String file) throws Exception {
         this(new dCacheFile(file, dCacheFile.Mode.WRITE_ONLY));
@@ -42,32 +40,29 @@ public class dCacheFileOutputStream extends FileOutputStream {
     /**
      * Writes <code>bytes.length</code> bytes from the specified byte array to
      * this file output stream.
-     * 
-     * @throws IOException
-     *             If an error occurred
+     *
+     * @throws IOException If an error occurred
      */
     public void write(byte bytes[]) throws IOException {
-    	ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
         _file.write(buffer, -1);
     }
 
     /**
      * Writes <code>len</code> bytes from the specified byte array starting at
      * offset <code>off</code> to this file output stream.
-     * 
-     * @throws IOException
-     *             If an error occurred
+     *
+     * @throws IOException If an error occurred
      */
     public void write(byte bytes[], int off, int len) throws IOException {
-    	ByteBuffer buffer = ByteBuffer.wrap(bytes, off, len);
+        ByteBuffer buffer = ByteBuffer.wrap(bytes, off, len);
         _file.write(buffer, -1);
     }
 
     /**
      * Close this output stream.
-     * 
-     * @throws IOException
-     *             If an error occurred
+     *
+     * @throws IOException If an error occurred
      */
     public void close() throws IOException {
         _file.close();

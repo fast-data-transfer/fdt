@@ -3,31 +3,29 @@
  */
 package lia.util.net.copy;
 
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
-
 import lia.util.net.common.AbstractFDTCloseable;
+
+import java.util.UUID;
 
 /**
  * Base class for all sessions inside FDT which are performing I/O.
- * 
+ *
  * @author ramiro
  */
 public abstract class IOSession extends AbstractFDTCloseable {
 
     /**
-     * the one and only session identifier
-     */
-    protected final UUID sessionID;
-    /**
      * starting time in millis since Epoch
      */
     public final long startTimeMillis;
     /**
-     * start time in as returned by {@link System#nanoTime()} which usually represents the JVM (or OS) uptime in nanoseconds 
+     * start time in as returned by {@link System#nanoTime()} which usually represents the JVM (or OS) uptime in nanoseconds
      */
     public final long startTimeNanos;
-
+    /**
+     * the one and only session identifier
+     */
+    protected final UUID sessionID;
     /**
      * how many bytes should be transferred
      * As per JLS -- reads and writes will be atomic; as we offer only get()/set() everything should be atomic
@@ -39,10 +37,8 @@ public abstract class IOSession extends AbstractFDTCloseable {
     }
 
     /**
-     * @param sessionID
-     *            UUID representing this session's identifier
-     * @throws NullPointerException
-     *             if sessionID is null
+     * @param sessionID UUID representing this session's identifier
+     * @throws NullPointerException if sessionID is null
      */
     public IOSession(UUID sessionID) {
         if (sessionID == null) {

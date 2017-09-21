@@ -1,102 +1,93 @@
-
 package ch.ethz.ssh2.transport;
+
+import ch.ethz.ssh2.Connection;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import ch.ethz.ssh2.Connection;
-
 /**
  * ClientServerHello.
- * 
+ *
  * @author Christian Plattner, plattner@inf.ethz.ch
  * @version $Id: ClientServerHello.java,v 1.8 2006/08/02 11:57:12 cplattne Exp $
  */
-public class ClientServerHello
-{
-	String server_line;
-	String client_line;
+public class ClientServerHello {
+    String server_line;
+    String client_line;
 
-	String server_versioncomment;
+    String server_versioncomment;
 
-	public final static int readLineRN(InputStream is, byte[] buffer) throws IOException
-	{
-		int pos = 0;
-		boolean need10 = false;
-		int len = 0;
-		while (true)
-		{
-			int c = is.read();
-			if (c == -1)
-				throw new IOException("Premature connection close");
+    public ClientServerHello(InputStream bi, OutputStream bo) throws IOException {
+        client_line = "SSH-2.0-" + Connection.identification;
 
-			buffer[pos++] = (byte) c;
+        bo.write((client_line + "\r\n").getBytes());
+        bo.flush();
 
-			if (c == 13)
-			{
-				need10 = true;
-				continue;
-			}
+        byte[] serverVersion = new byte[512];
 
-			if (c == 10)
-				break;
+        for (int i = 0; i < 50; i++) {
+            int len = readLineRN(bi, serverVersion);
 
-			if (need10 == true)
-				throw new IOException("Malformed line sent by the server, the line does not end correctly.");
+            server_line = new String(serverVersion, 0, len);
 
-			len++;
-			if (pos >= buffer.length)
-				throw new IOException("The server sent a too long line.");
-		}
+            if (server_line.startsWith("SSH-"))
+                break;
+        }
 
-		return len;
-	}
+        if (server_line.startsWith("SSH-") == false)
+            throw new IOException(
+                    "Malformed server identification string. There was no line starting with 'SSH-' amongst the first 50 lines.");
 
-	public ClientServerHello(InputStream bi, OutputStream bo) throws IOException
-	{
-		client_line = "SSH-2.0-" + Connection.identification;
+        if (server_line.startsWith("SSH-1.99-"))
+            server_versioncomment = server_line.substring(9);
+        else if (server_line.startsWith("SSH-2.0-"))
+            server_versioncomment = server_line.substring(8);
+        else
+            throw new IOException("Server uses incompatible protocol, it is not SSH-2 compatible.");
+    }
 
-		bo.write((client_line + "\r\n").getBytes());
-		bo.flush();
+    public final static int readLineRN(InputStream is, byte[] buffer) throws IOException {
+        int pos = 0;
+        boolean need10 = false;
+        int len = 0;
+        while (true) {
+            int c = is.read();
+            if (c == -1)
+                throw new IOException("Premature connection close");
 
-		byte[] serverVersion = new byte[512];
+            buffer[pos++] = (byte) c;
 
-		for (int i = 0; i < 50; i++)
-		{
-			int len = readLineRN(bi, serverVersion);
+            if (c == 13) {
+                need10 = true;
+                continue;
+            }
 
-			server_line = new String(serverVersion, 0, len);
+            if (c == 10)
+                break;
 
-			if (server_line.startsWith("SSH-"))
-				break;
-		}
+            if (need10 == true)
+                throw new IOException("Malformed line sent by the server, the line does not end correctly.");
 
-		if (server_line.startsWith("SSH-") == false)
-			throw new IOException(
-					"Malformed server identification string. There was no line starting with 'SSH-' amongst the first 50 lines.");
+            len++;
+            if (pos >= buffer.length)
+                throw new IOException("The server sent a too long line.");
+        }
 
-		if (server_line.startsWith("SSH-1.99-"))
-			server_versioncomment = server_line.substring(9);
-		else if (server_line.startsWith("SSH-2.0-"))
-			server_versioncomment = server_line.substring(8);
-		else
-			throw new IOException("Server uses incompatible protocol, it is not SSH-2 compatible.");
-	}
+        return len;
+    }
 
-	/**
-	 * @return Returns the client_versioncomment.
-	 */
-	public byte[] getClientString()
-	{
-		return client_line.getBytes();
-	}
+    /**
+     * @return Returns the client_versioncomment.
+     */
+    public byte[] getClientString() {
+        return client_line.getBytes();
+    }
 
-	/**
-	 * @return Returns the server_versioncomment.
-	 */
-	public byte[] getServerString()
-	{
-		return server_line.getBytes();
-	}
+    /**
+     * @return Returns the server_versioncomment.
+     */
+    public byte[] getServerString() {
+        return server_line.getBytes();
+    }
 }

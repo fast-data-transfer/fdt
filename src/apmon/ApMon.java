@@ -32,42 +32,20 @@
 
 package apmon;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.SocketException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.UnknownHostException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Map;
-import java.util.Random;
-import java.util.StringTokenizer;
-import java.util.Vector;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
-import java.util.logging.LogManager;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-
 import apmon.host.cmdExec;
 
+import java.io.*;
+import java.net.*;
+import java.util.*;
+import java.util.logging.*;
+
 /**
- * Data structure used for sending monitoring data to a MonaLisa module. 
+ * Data structure used for sending monitoring data to a MonaLisa module.
  * The data is packed in UDP datagrams, in XDR format.
  * A datagram has the following structure:
  * - header which contains the ApMon version and the password for the MonALISA
- * host and has the following syntax: v:<ApMon_version>p:<password> 
- * - cluster name (string) 
+ * host and has the following syntax: v:<ApMon_version>p:<password>
+ * - cluster name (string)
  * - node name (string)
  * - number of parameters (int)
  * - for each parameter: name (string), value type (int), value
@@ -78,233 +56,85 @@ import apmon.host.cmdExec;
  * 2) multiple parameters in a packet (with the function sendParameters())
  * <BR>
  * ApMon can be configured to send periodically datagrams with monitoring information
- * concerning the current application or the whole system. Some of the monitoring 
+ * concerning the current application or the whole system. Some of the monitoring
  * information is only available on Linux systems.
  */
 
 public class ApMon {
 
-    static final String APMON_VERSION = "2.2.7";
-
     public static final int MAX_DGRAM_SIZE = 8192;
-
-    /** < Maximum UDP datagram size. */
+    /**
+     * < Maximum UDP datagram size.
+     */
     public static final int XDR_STRING = 0;
-
-    /** < Used to code the string data type */
+    /**
+     * < Used to code the string data type
+     */
     public static final int XDR_INT32 = 2;
-
-    /** < Used to code the 4 bytes integer data type */
+    /**
+     * < Used to code the 4 bytes integer data type
+     */
     public static final int XDR_REAL32 = 4;
-
-    /** < Used to code the 4 bytes real data type */
+    /**
+     * < Used to code the 4 bytes real data type
+     */
     public static final int XDR_REAL64 = 5;
-
-    /** < Used to code the 8 bytes real data type */
+    /**
+     * < Used to code the 8 bytes real data type
+     */
     public static final int DEFAULT_PORT = 8884;
-
-    /** < The default port on which MonALISA listens */
-
-    /** Time interval (in sec) at which job monitoring datagrams are sent. */
+    /**
+     * Time interval (in sec) at which job monitoring datagrams are sent.
+     */
     public static final int JOB_MONITOR_INTERVAL = 20;
 
-    /** Time interval (in sec) at which system monitoring datagams are sent. */
+    /** < The default port on which MonALISA listens */
+    /**
+     * Time interval (in sec) at which system monitoring datagams are sent.
+     */
     public static final int SYS_MONITOR_INTERVAL = 20;
-
-    /** Time interval (in sec) at which the configuration files are checked for changes. */
+    /**
+     * Time interval (in sec) at which the configuration files are checked for changes.
+     */
     public static final int RECHECK_INTERVAL = 600;
-
-    /** The maxim number of mesages that will be sent to MonALISA */
+    /**
+     * The maxim number of mesages that will be sent to MonALISA
+     */
     public static final int MAX_MSG_RATE = 20;
-
     /**
      * The number of time intervals at which ApMon sends general system monitoring information (considering the time
      * intervals at which ApMon sends system monitoring information).
      */
     public static final int GEN_MONITOR_INTERVALS = 100;
-
-    /** Constant that indicates this object was initialized from a file. */
+    static final String APMON_VERSION = "2.2.7";
+    /**
+     * Constant that indicates this object was initialized from a file.
+     */
     static final int FILE_INIT = 1;
 
-    /** Constant that indicates this object was initialized from a list. */
+    /**
+     * Constant that indicates this object was initialized from a list.
+     */
     static final int LIST_INIT = 2;
 
-    /** Constant that indicates this object was initialized directly. */
+    /**
+     * Constant that indicates this object was initialized directly.
+     */
     static final int DIRECT_INIT = 3;
-
-    /** The initialization source (can be a file or a list). */
-    Object initSource = null;
-
-    /** The initialization type (from file / list / directly). */
-    int initType;
-
-    /**
-     * The configuration file and the URLs are checked for changes at this numer of seconds (if the network connections
-     * are good).
-     */
-    long recheckInterval = RECHECK_INTERVAL;
-
-    /**
-     * If the configuraion URLs cannot be reloaded, the interval until the next attempt will be increased. This is the
-     * actual value of the interval that is used by ApMon
-     */
-    long crtRecheckInterval = RECHECK_INTERVAL;
-
-    String clusterName;
-
-    /** < The name of the monitored cluster. */
-    String nodeName;
-
-    /** < The name of the monitored node. */
-
-    Vector destAddresses;
-
-    /** < The IP addresses where the results will be sent. */
-    Vector destPorts;
-
-    /** < The ports where the destination hosts listen. */
-    Vector destPasswds;
-
-    /** < The Passwdords used for the destination hosts. */
-
-    byte[] buf;
-
-    /** < The buffer which holds the message data (encoded in XDR). */
-    int dgramSize;
-
-    /** < The size of the data inside the datagram */
-
-    /**
-     * Hashtable which holds theinitialization resources (Files, URLs) that must be periodically checked for changes,
-     * and their latest modification times
-     */
-    Hashtable confResources;
-
-    ByteArrayOutputStream baos;
-
-    DatagramSocket dgramSocket;
-
-    /**
-     * The background thread which performs operations like checking the configuration file/URLs for changes and sending
-     * datagrams with monitoring information.
-     */
-    BkThread bkThread = null;
-
-    /** Is true if the background thread was started. */
-    boolean bkThreadStarted = false;
-
-    /** Protects the variables that hold the settings for the background thread. */
-    Object mutexBack = new Object();
-
-    /** Used for the wait/notify mechanism in the background thread. */
-    Object mutexCond = new Object();
-
-    /** Indicates if any of the settings for the background thread was changed. */
-    boolean condChanged = false;
-
-    /** These flags indicate changes in the monitoring configuration. */
-    boolean recheckChanged, jobMonChanged, sysMonChanged;
-
-    /**
-     * If this flag is set to true, when the value of a parameter cannot be read from proc/, ApMon will not attempt to
-     * include that value in the next datagrams.
-     */
-    boolean autoDisableMonitoring = true;
-
-    /** If this flag is true, the configuration file / URLs are periodically rechecked for changes. */
-    boolean confCheck = false;
-
-    /**
-     * If this flag is true, packets with system information taken from /proc are periodically sent to MonALISA
-     */
-    boolean sysMonitoring = false;
-
-    /**
-     * If this flag is true, packets with job information taken from /proc are periodically sent to MonALISA
-     */
-    boolean jobMonitoring = false;
-
-    /**
-     * If this flag is true, packets with general system information taken from /proc are periodically sent to MonALISA
-     */
-    boolean genMonitoring = false;
-
-    /** Job/System monitoring information obtained from /proc is sent at these time intervals */
-    long jobMonitorInterval = JOB_MONITOR_INTERVAL;
-
-    long sysMonitorInterval = SYS_MONITOR_INTERVAL;
-
-    int maxMsgRate = MAX_MSG_RATE;
-
-    /**
-     * General system monitoring information is sent at a time interval equal to genMonitorIntervals *
-     * sysMonitorInterval.
-     */
-    int genMonitorIntervals = GEN_MONITOR_INTERVALS;
-
-    /**
-     * Hashtables that associate the names of the parameters included in the monitoring datagrams and flags that
-     * indicate whether they are active or not.
-     */
-    long sysMonitorParams, jobMonitorParams, genMonitorParams;
-
-    /**
-     * The time when the last datagram with job monitoring information was sent (in milliseconds since the Epoch).
-     */
-    long lastJobInfoSend;
-
-    /**
-     * The time when the last datagram with job monitoring information was sent (in milliseconds since the Epoch).
-     */
-    long lastSysInfoSend;
-
-    /** The last value for "utime" for the current process that was read from proc/ (only on Linux). */
-    double lastUtime;
-
-    /** The last value for "stime" for the current process that was read from proc/ (only on Linux). */
-    double lastStime;
-
-    // long appPID;
-
-    /** The name of the host on which ApMon currently runs. */
-    String myHostname = null;
-
-    /** The IP address of the host on which ApMon currently runs. */
-    String myIP = null;
-
-    /** The number of CPUs on the machine that runs ApMon. */
-    int numCPUs;
-
-    /** The names of the network interfaces on this machine. */
-    Vector netInterfaces = new Vector();
-
-    /** The IPs of this machine. */
-    Vector allMyIPs = new Vector();
-
-    /** the cluster name that will be included in the monitoring datagrams */
-    String sysClusterName = "ApMon_userSend";
-
-    /** the node name that will be included in the monitoring datagrams */
-    String sysNodeName = null;
-
-    Vector monJobs = new Vector();
-
-    Hashtable sender = new Hashtable();
-
-    private static Logger logger = Logger.getLogger("apmon");
-
     static String osName = System.getProperty("os.name");
-
-    /** Java type -> XDR Type mapping **/
+    private static Logger logger = Logger.getLogger("apmon");
+    /**
+     * Java type -> XDR Type mapping
+     **/
     private static Map mValueTypes = new HashMap();
 
     static {
 
         try {
             LogManager logManager = LogManager.getLogManager();
-            
+
             //check if LogManager is already defined
-            if(logManager.getProperty("handlers") == null) {
+            if (logManager.getProperty("handlers") == null) {
                 try {
                     FileHandler fh = null;
                     try {
@@ -317,17 +147,17 @@ public class ApMon {
                     logger.setUseParentHandlers(false);
                     logger.addHandler(fh);
                     logger.setLevel(Level.INFO);
-                }catch(Throwable t) {
+                } catch (Throwable t) {
                     System.err.println("[ ApMon ] [ static init ] [ logging ] Unable to load default logger props. Cause:");
                     t.printStackTrace();
                 }
             } else {
-                if(logger.isLoggable(Level.FINE)) {
+                if (logger.isLoggable(Level.FINE)) {
                     logger.log(Level.FINE, "[ ApMon ] [ static init ] [ logging ] uses predefined logging properties");
                 }
             }
-            
-        } catch(Throwable t) {
+
+        } catch (Throwable t) {
             System.err.println("[ ApMon ] [ static init ] [ logging ] Unable to check/load default logger props. Cause:");
             t.printStackTrace();
         }
@@ -341,14 +171,187 @@ public class ApMon {
     }
 
     /**
+     * don't allow a user to send more than MAX_MSG messages per second, in average
+     */
+    protected long prvTime = 0;
+    protected double prvSent = 0;
+    protected double prvDrop = 0;
+    protected long crtTime = 0;
+    protected long crtSent = 0;
+    protected long crtDrop = 0;
+    protected double hWeight = Math.exp(-5.0 / 60.0);
+
+    /** < The size of the data inside the datagram */
+    /**
+     * The initialization source (can be a file or a list).
+     */
+    Object initSource = null;
+    /**
+     * The initialization type (from file / list / directly).
+     */
+    int initType;
+    /**
+     * The configuration file and the URLs are checked for changes at this numer of seconds (if the network connections
+     * are good).
+     */
+    long recheckInterval = RECHECK_INTERVAL;
+    /**
+     * If the configuraion URLs cannot be reloaded, the interval until the next attempt will be increased. This is the
+     * actual value of the interval that is used by ApMon
+     */
+    long crtRecheckInterval = RECHECK_INTERVAL;
+    String clusterName;
+    /**
+     * < The name of the monitored cluster.
+     */
+    String nodeName;
+    /**
+     * < The name of the monitored node.
+     */
+
+    Vector destAddresses;
+    /**
+     * < The IP addresses where the results will be sent.
+     */
+    Vector destPorts;
+    /**
+     * < The ports where the destination hosts listen.
+     */
+    Vector destPasswds;
+    /**
+     * < The Passwdords used for the destination hosts.
+     */
+
+    byte[] buf;
+    /**
+     * < The buffer which holds the message data (encoded in XDR).
+     */
+    int dgramSize;
+    /**
+     * Hashtable which holds theinitialization resources (Files, URLs) that must be periodically checked for changes,
+     * and their latest modification times
+     */
+    Hashtable confResources;
+    ByteArrayOutputStream baos;
+    DatagramSocket dgramSocket;
+    /**
+     * The background thread which performs operations like checking the configuration file/URLs for changes and sending
+     * datagrams with monitoring information.
+     */
+    BkThread bkThread = null;
+    /**
+     * Is true if the background thread was started.
+     */
+    boolean bkThreadStarted = false;
+    /**
+     * Protects the variables that hold the settings for the background thread.
+     */
+    Object mutexBack = new Object();
+    /**
+     * Used for the wait/notify mechanism in the background thread.
+     */
+    Object mutexCond = new Object();
+    /**
+     * Indicates if any of the settings for the background thread was changed.
+     */
+    boolean condChanged = false;
+    /**
+     * These flags indicate changes in the monitoring configuration.
+     */
+    boolean recheckChanged, jobMonChanged, sysMonChanged;
+    /**
+     * If this flag is set to true, when the value of a parameter cannot be read from proc/, ApMon will not attempt to
+     * include that value in the next datagrams.
+     */
+    boolean autoDisableMonitoring = true;
+    /**
+     * If this flag is true, the configuration file / URLs are periodically rechecked for changes.
+     */
+    boolean confCheck = false;
+    /**
+     * If this flag is true, packets with system information taken from /proc are periodically sent to MonALISA
+     */
+    boolean sysMonitoring = false;
+
+    // long appPID;
+    /**
+     * If this flag is true, packets with job information taken from /proc are periodically sent to MonALISA
+     */
+    boolean jobMonitoring = false;
+    /**
+     * If this flag is true, packets with general system information taken from /proc are periodically sent to MonALISA
+     */
+    boolean genMonitoring = false;
+    /**
+     * Job/System monitoring information obtained from /proc is sent at these time intervals
+     */
+    long jobMonitorInterval = JOB_MONITOR_INTERVAL;
+    long sysMonitorInterval = SYS_MONITOR_INTERVAL;
+    int maxMsgRate = MAX_MSG_RATE;
+    /**
+     * General system monitoring information is sent at a time interval equal to genMonitorIntervals *
+     * sysMonitorInterval.
+     */
+    int genMonitorIntervals = GEN_MONITOR_INTERVALS;
+    /**
+     * Hashtables that associate the names of the parameters included in the monitoring datagrams and flags that
+     * indicate whether they are active or not.
+     */
+    long sysMonitorParams, jobMonitorParams, genMonitorParams;
+    /**
+     * The time when the last datagram with job monitoring information was sent (in milliseconds since the Epoch).
+     */
+    long lastJobInfoSend;
+    /**
+     * The time when the last datagram with job monitoring information was sent (in milliseconds since the Epoch).
+     */
+    long lastSysInfoSend;
+    /**
+     * The last value for "utime" for the current process that was read from proc/ (only on Linux).
+     */
+    double lastUtime;
+    /**
+     * The last value for "stime" for the current process that was read from proc/ (only on Linux).
+     */
+    double lastStime;
+    /**
+     * The name of the host on which ApMon currently runs.
+     */
+    String myHostname = null;
+    /**
+     * The IP address of the host on which ApMon currently runs.
+     */
+    String myIP = null;
+    /**
+     * The number of CPUs on the machine that runs ApMon.
+     */
+    int numCPUs;
+    /**
+     * The names of the network interfaces on this machine.
+     */
+    Vector netInterfaces = new Vector();
+    /**
+     * The IPs of this machine.
+     */
+    Vector allMyIPs = new Vector();
+    /**
+     * the cluster name that will be included in the monitoring datagrams
+     */
+    String sysClusterName = "ApMon_userSend";
+    /**
+     * the node name that will be included in the monitoring datagrams
+     */
+    String sysNodeName = null;
+    Vector monJobs = new Vector();
+    Hashtable sender = new Hashtable();
+
+    /**
      * Initializes an ApMon object from a configuration file.
-     * 
-     * @param filename
-     *            The name of the file which contains the addresses and the ports of the destination hosts (see README
-     *            for details about the structure of this file).
-     * @throws ApMonException
-     *             ,
-     *             SocketException, IOException
+     *
+     * @param filename The name of the file which contains the addresses and the ports of the destination hosts (see README
+     *                 for details about the structure of this file).
+     * @throws ApMonException ,
+     *                        SocketException, IOException
      */
     public ApMon(String filename) throws ApMonException, SocketException, IOException {
 
@@ -359,7 +362,90 @@ public class ApMon {
         initSenderRef();
     }
 
-    /** Add a job pid to monitorized jobs vector */
+    /**
+     * Initializes an ApMon object from a list with URLs.
+     *
+     * @param destList The list with URLs. the ports of the destination hosts (see README for details about the structure of
+     *                   this file).
+     * @throws ApMonException ,
+     *                        SocketException, IOException
+     */
+    public ApMon(Vector destList) throws ApMonException, SocketException, IOException {
+        initType = LIST_INIT;
+        initMonitoring();
+        initSource = destList;
+        initialize(destList, true);
+        initSenderRef();
+    }
+
+    /**
+     * Initializes an ApMon data structure, using arrays instead of a file.
+     *
+     * @param destAddresses Array that contains the hostnames or IP addresses of the destination hosts.
+     * @param destPorts     The ports where the MonaLisa modules listen on the destination hosts.
+     * @throws ApMonException ,
+     *                        SocketException, IOException
+     */
+    public ApMon(Vector destAddresses, Vector destPorts) throws ApMonException, SocketException, IOException {
+        this.initType = DIRECT_INIT;
+        arrayInit(destAddresses, destPorts, null);
+        initSenderRef();
+    }
+
+    /**
+     * Initializes an ApMon data structure, using arrays instead of a file.
+     *
+     * @param destAddresses Array that contains the hostnames or IP addresses of the destination hosts.
+     * @param destPorts     The ports where the MonaLisa modules listen on the destination hosts.
+     * @param destPasswds   The passwords for the destination hosts.
+     * @throws ApMonException ,
+     *                        SocketException, IOException
+     */
+    public ApMon(Vector destAddresses, Vector destPorts, Vector destPasswds) throws ApMonException, SocketException, IOException {
+        this.initType = DIRECT_INIT;
+        initMonitoring();
+        arrayInit(destAddresses, destPorts, destPasswds);
+        initSenderRef();
+    }
+
+    /**
+     * Sets the ApMon loglevel. The possible values are: "FATAL", "WARNING", "INFO", "FINE", "DEBUG".
+     */
+    public static void setLogLevel(String newLevel_s) {
+        int i;
+        String levels_s[] = {
+                "FATAL", "WARNING", "INFO", "FINE", "DEBUG"
+        };
+        Level levels[] = {
+                Level.SEVERE, Level.WARNING, Level.INFO, Level.FINE, Level.FINEST
+        };
+
+        for (i = 0; i < 5; i++)
+            if (newLevel_s.equals(levels_s[i]))
+                break;
+
+        if (i >= 5) {
+            logger.warning("[ setLogLevel() ] Invalid level value: " + newLevel_s);
+            return;
+        }
+
+        logger.info("Setting logging level to " + newLevel_s);
+        logger.setLevel(levels[i]);
+    }
+
+    // * Supported in Sun JRE >1.5 (returns -1 in prior versions)
+    public static int getPID() {
+        try {
+            final java.lang.management.RuntimeMXBean rt = java.lang.management.ManagementFactory.getRuntimeMXBean();
+            return Integer.parseInt(rt.getName().split("@")[0]);
+        } catch (Throwable t) {
+            return -1;
+        }
+    }
+
+    /**
+     * Add a job pid to monitorized jobs vector
+     */
     public void addJobToMonitor(int pid, String workDir, String clusterName, String nodeName) {
         MonitoredJob job = new MonitoredJob(pid, workDir, clusterName, nodeName);
         if (!monJobs.contains(job))
@@ -368,7 +454,9 @@ public class ApMon {
             logger.warning("Job <" + job + "> already exsist.");
     }
 
-    /** Remove a pid form monitorized jobs vector */
+    /**
+     * Remove a pid form monitorized jobs vector
+     */
     public void removeJobToMonitor(int pid) {
         int i;
         for (i = 0; i < monJobs.size(); i++) {
@@ -380,7 +468,9 @@ public class ApMon {
         }
     }
 
-    /** This is used to set the cluster and node name for the system-related monitored data. */
+    /**
+     * This is used to set the cluster and node name for the system-related monitored data.
+     */
     public void setMonitorClusterNode(String cName, String nName) {
         if (cName != null)
             sysClusterName = cName;
@@ -390,16 +480,13 @@ public class ApMon {
 
     /**
      * Initializes an ApMon object from a configuration file.
-     * 
-     * @param filename
-     *            The name of the file which contains the addresses and the ports of the destination hosts (see README
-     *            for details about the structure of this file).
-     * @param firstTime
-     *            If it is true, all the initializations will be done (the object is being constructed now). Else, only
-     *            some structures will be reinitialized.
-     * @throws ApMonException
-     *             ,
-     *             SocketException, IOException
+     *
+     * @param filename  The name of the file which contains the addresses and the ports of the destination hosts (see README
+     *                  for details about the structure of this file).
+     * @param firstTime If it is true, all the initializations will be done (the object is being constructed now). Else, only
+     *                  some structures will be reinitialized.
+     * @throws ApMonException ,
+     *                        SocketException, IOException
      */
     void initialize(String filename, boolean firstTime) throws ApMonException, SocketException, IOException {
         Vector destAddresses = new Vector();
@@ -429,33 +516,12 @@ public class ApMon {
 
     /**
      * Initializes an ApMon object from a list with URLs.
-     * 
-     * @param initSource
-     *            The list with URLs. the ports of the destination hosts (see README for details about the structure of
-     *            this file).
-     * @throws ApMonException
-     *             ,
-     *             SocketException, IOException
-     */
-    public ApMon(Vector destList) throws ApMonException, SocketException, IOException {
-        initType = LIST_INIT;
-        initMonitoring();
-        initSource = destList;
-        initialize(destList, true);
-        initSenderRef();
-    }
-
-    /**
-     * Initializes an ApMon object from a list with URLs.
-     * 
-     * @param initSource
-     *            The list with URLs.
-     * @param firstTime
-     *            If it is true, all the initializations will be done (the object is being constructed now). Else, only
-     *            some structures will be reinitialized.
-     * @throws ApMonException
-     *             ,
-     *             SocketException, IOException
+     *
+     * @param destList The list with URLs.
+     * @param firstTime  If it is true, all the initializations will be done (the object is being constructed now). Else, only
+     *                   some structures will be reinitialized.
+     * @throws ApMonException ,
+     *                        SocketException, IOException
      */
     void initialize(Vector destList, boolean firstTime) throws ApMonException, SocketException, IOException {
         int i;
@@ -496,63 +562,16 @@ public class ApMon {
     }
 
     /**
-     * Initializes an ApMon data structure, using arrays instead of a file.
-     * 
-     * @param nDestinations
-     *            The number of destination hosts where the results will be sent.
-     * @param destAddresses
-     *            Array that contains the hostnames or IP addresses of the destination hosts.
-     * @param destPorts
-     *            The ports where the MonaLisa modules listen on the destination hosts.
-     * @throws ApMonException
-     *             ,
-     *             SocketException, IOException
-     */
-    public ApMon(Vector destAddresses, Vector destPorts) throws ApMonException, SocketException, IOException {
-        this.initType = DIRECT_INIT;
-        arrayInit(destAddresses, destPorts, null);
-        initSenderRef();
-    }
-
-    /**
-     * Initializes an ApMon data structure, using arrays instead of a file.
-     * 
-     * @param nDestinations
-     *            The number of destination hosts where the results will be sent.
-     * @param destAddresses
-     *            Array that contains the hostnames or IP addresses of the destination hosts.
-     * @param destPorts
-     *            The ports where the MonaLisa modules listen on the destination hosts.
-     * @param destPasswds
-     *            The passwords for the destination hosts.
-     * @throws ApMonException
-     *             ,
-     *             SocketException, IOException
-     */
-    public ApMon(Vector destAddresses, Vector destPorts, Vector destPasswds) throws ApMonException, SocketException, IOException {
-        this.initType = DIRECT_INIT;
-        initMonitoring();
-        arrayInit(destAddresses, destPorts, destPasswds);
-        initSenderRef();
-    }
-
-    /**
      * Parses a configuration file which contains addresses, ports and passwords for the destination hosts and puts the
      * results in the vectors given as parameters.
-     * 
-     * @param filename
-     *            The name of the configuration file.
-     * @param destAddresses
-     *            Will contain the destination addresses.
-     * @param destPorts
-     *            Will contain the ports from the destination hosts.
-     * @param destPasswds
-     *            Will contain the passwords for the destination hosts.
-     * @param confRes
-     *            Will contain the configuration resources (file, URLs).
-     * @throws IOException
-     *             ,
-     *             ApMonException
+     *
+     * @param filename      The name of the configuration file.
+     * @param destAddresses Will contain the destination addresses.
+     * @param destPorts     Will contain the ports from the destination hosts.
+     * @param destPasswds   Will contain the passwords for the destination hosts.
+     * @param confRes       Will contain the configuration resources (file, URLs).
+     * @throws IOException ,
+     *                     ApMonException
      */
     void loadFile(String filename, Vector destAddresses, Vector destPorts, Vector destPasswds, Hashtable confRes) throws IOException, ApMonException {
         String line, tmp;
@@ -586,15 +605,11 @@ public class ApMon {
     /**
      * Parses a web page which contains addresses, ports and passwords for the destination hosts and puts the results in
      * the vectors given as parameters.
-     * 
-     * @param destAddresses
-     *            Will contain the destination addresses.
-     * @param destPorts
-     *            Will contain the ports from the destination hosts.
-     * @param destPasswds
-     *            Will contain the passwords for the destination hosts.
-     * @param confRes
-     *            Will contain the configuration resources (file, URLs).
+     *
+     * @param destAddresses Will contain the destination addresses.
+     * @param destPorts     Will contain the ports from the destination hosts.
+     * @param destPasswds   Will contain the passwords for the destination hosts.
+     * @param confRes       Will contain the configuration resources (file, URLs).
      */
     void loadURL(String url, Vector destAddresses, Vector destPorts, Vector destPasswds, Hashtable confRes) throws IOException, ApMonException {
 
@@ -639,15 +654,11 @@ public class ApMon {
     /**
      * Parses a line from a (local or remote) configuration file and adds the address and the port to the vectors that
      * are given as parameters.
-     * 
-     * @param line
-     *            The line to be parsed.
-     * @param destAddresses
-     *            Contains destination addresses.
-     * @param destPorts
-     *            Contains the ports from the destination hosts.
-     * @param destPasswds
-     *            Contains the passwords for the destination hosts.
+     *
+     * @param line          The line to be parsed.
+     * @param destAddresses Contains destination addresses.
+     * @param destPorts     Contains the ports from the destination hosts.
+     * @param destPasswds   Contains the passwords for the destination hosts.
      */
     void addToDestinations(String line, Vector destAddresses, Vector destPorts, Vector destPasswds) {
         String addr;
@@ -682,18 +693,12 @@ public class ApMon {
 
     /**
      * Internal method used to initialize an ApMon data structure.
-     * 
-     * @param nDestinations
-     *            The number of destination hosts where the results will be sent.
-     * @param destAddresses
-     *            Array that contains the hostnames or IP addresses of the destination hosts.
-     * @param destPorts
-     *            The ports where the MonaLisa modules listen on the destination hosts.
-     * @param destPasswds
-     *            The passwords for the destination hosts.
-     * @throws ApMonException
-     *             ,
-     *             SocketException, IOException
+     *
+     * @param destAddresses Array that contains the hostnames or IP addresses of the destination hosts.
+     * @param destPorts     The ports where the MonaLisa modules listen on the destination hosts.
+     * @param destPasswds   The passwords for the destination hosts.
+     * @throws ApMonException ,
+     *                        SocketException, IOException
      */
 
     void arrayInit(Vector destAddresses, Vector destPorts, Vector destPasswds) throws ApMonException, SocketException, IOException {
@@ -702,21 +707,14 @@ public class ApMon {
 
     /**
      * Internal method used to initialize an ApMon data structure.
-     * 
-     * @param nDestinations
-     *            The number of destination hosts where the results will be sent.
-     * @param destAddresses
-     *            Array that contains the hostnames or IP addresses of the destination hosts.
-     * @param destPorts
-     *            The ports where the MonaLisa modules listen on the destination hosts.
-     * @param destPasswds
-     *            The passwords for the destination hosts.
-     * @param firstTime
-     *            If it is true, all the initializations will be done (the object is being constructed now). Else, only
-     *            some of the data structures will be reinitialized.
-     * @throws ApMonException
-     *             ,
-     *             SocketException, IOException
+     *
+     * @param destAddresses Array that contains the hostnames or IP addresses of the destination hosts.
+     * @param destPorts     The ports where the MonaLisa modules listen on the destination hosts.
+     * @param destPasswds   The passwords for the destination hosts.
+     * @param firstTime     If it is true, all the initializations will be done (the object is being constructed now). Else, only
+     *                      some of the data structures will be reinitialized.
+     * @throws ApMonException ,
+     *                        SocketException, IOException
      */
     void arrayInit(Vector destAddresses, Vector destPorts, Vector destPasswds, boolean firstTime) throws ApMonException, SocketException, IOException {
 
@@ -798,27 +796,23 @@ public class ApMon {
         setConfRecheck(confCheck, recheckInterval);
     }
 
-    /** For backward compatibility. */
+    /**
+     * For backward compatibility.
+     */
     public void sendTimedParameters(String clusterName, String nodeName, int nParams, Vector paramNames, Vector valueTypes, Vector paramValues, int timestamp) throws ApMonException, UnknownHostException, SocketException, IOException {
         sendTimedParameters(clusterName, nodeName, nParams, paramNames, paramValues, timestamp);
     }
 
     /**
      * Sends a set of parameters and thier values to the MonALISA module.
-     * 
-     * @param clusterName
-     *            The name of the cluster that is monitored.
-     * @param nodeName
-     *            The name of the node from the cluster from which the value was taken.
-     * @param paramNames
-     *            Vector with the names of the parameters.
-     * @param paramValues
-     *            Vector with the values of the parameters.
-     * @throws ApMonException
-     *             ,
-     *             UnknownHostException, SocketException
-     * @param timestamp
-     *            The user's timestamp
+     *
+     * @param clusterName The name of the cluster that is monitored.
+     * @param nodeName    The name of the node from the cluster from which the value was taken.
+     * @param paramNames  Vector with the names of the parameters.
+     * @param paramValues Vector with the values of the parameters.
+     * @param timestamp   The user's timestamp
+     * @throws ApMonException ,
+     *                        UnknownHostException, SocketException
      */
     public void sendTimedParameters(String clusterName, String nodeName, int nParams, Vector paramNames, Vector paramValues, int timestamp) throws ApMonException, UnknownHostException, SocketException, IOException {
 
@@ -832,7 +826,7 @@ public class ApMon {
             this.clusterName = clusterName;
 
             if (nodeName != null)
-                /** the user provided a name */
+            /** the user provided a name */
                 this.nodeName = new String(nodeName);
             else {
                 /** set the node name to the node's IP */
@@ -908,50 +902,44 @@ public class ApMon {
         } // synchronized
     }
 
-    /** For backward compatibility. */
+    /**
+     * For backward compatibility.
+     */
     public void sendParameters(String clusterName, String nodeName, int nParams, Vector paramNames, Vector valueTypes, Vector paramValues) throws ApMonException, UnknownHostException, SocketException, IOException {
         sendParameters(clusterName, nodeName, nParams, paramNames, paramValues);
     }
 
     /**
      * Sends a set of parameters and thier values to the MonALISA module.
-     * 
-     * @param clusterName
-     *            The name of the cluster that is monitored.
-     * @param nodeName
-     *            The name of the node from the cluster from which the value was taken.
-     * @param paramNames
-     *            Vector with the names of the parameters.
-     * @param paramValues
-     *            Vector with the values of the parameters.
-     * @throws ApMonException
-     *             ,
-     *             UnknownHostException, SocketException
+     *
+     * @param clusterName The name of the cluster that is monitored.
+     * @param nodeName    The name of the node from the cluster from which the value was taken.
+     * @param paramNames  Vector with the names of the parameters.
+     * @param paramValues Vector with the values of the parameters.
+     * @throws ApMonException ,
+     *                        UnknownHostException, SocketException
      */
     public void sendParameters(String clusterName, String nodeName, int nParams, Vector paramNames, Vector paramValues) throws ApMonException, UnknownHostException, SocketException, IOException {
         sendTimedParameters(clusterName, nodeName, nParams, paramNames, paramValues, -1);
     }
 
-    /** For backward compatibility. */
+    /**
+     * For backward compatibility.
+     */
     public void sendParameter(String clusterName, String nodeName, String paramName, int valueType, Object paramValue) throws ApMonException, UnknownHostException, SocketException, IOException {
         sendParameter(clusterName, nodeName, paramName, paramValue);
     }
 
     /**
      * Sends a parameter and its value to the MonALISA module.
-     * 
-     * @param clusterName
-     *            The name of the cluster that is monitored. If it is NULL, we keep the same cluster and node name as in
-     *            the previous datagram.
-     * @param nodeName
-     *            The name of the node from the cluster from which the value was taken.
-     * @param paramName
-     *            The name of the parameter.
-     * @param paramValue
-     *            The value of the parameter.
-     * @throws ApMonException
-     *             ,
-     *             UnknownHostException, SocketException
+     *
+     * @param clusterName The name of the cluster that is monitored. If it is NULL, we keep the same cluster and node name as in
+     *                    the previous datagram.
+     * @param nodeName    The name of the node from the cluster from which the value was taken.
+     * @param paramName   The name of the parameter.
+     * @param paramValue  The value of the parameter.
+     * @throws ApMonException ,
+     *                        UnknownHostException, SocketException
      */
     public void sendParameter(String clusterName, String nodeName, String paramName, Object paramValue) throws ApMonException, UnknownHostException, SocketException, IOException {
         Vector paramNames = new Vector();
@@ -962,28 +950,24 @@ public class ApMon {
         sendParameters(clusterName, nodeName, 1, paramNames, paramValues);
     }
 
-    /** For backward compatibility. */
+    /**
+     * For backward compatibility.
+     */
     public void sendTimedParameter(String clusterName, String nodeName, String paramName, int valueType, Object paramValue, int timestamp) throws ApMonException, UnknownHostException, SocketException, IOException {
         sendTimedParameter(clusterName, nodeName, paramName, paramValue, timestamp);
     }
 
     /**
      * Sends a parameter and its value to the MonALISA module.
-     * 
-     * @param clusterName
-     *            The name of the cluster that is monitored. If it is NULL, we keep the same cluster and node name as in
-     *            the previous datagram.
-     * @param nodeName
-     *            The name of the node from the cluster from which the value was taken.
-     * @param paramName
-     *            The name of the parameter.
-     * @param paramValue
-     *            The value of the parameter.
-     * @throws ApMonException
-     *             ,
-     *             UnknownHostException, SocketException
-     * @param timestamp
-     *            The user's timestamp
+     *
+     * @param clusterName The name of the cluster that is monitored. If it is NULL, we keep the same cluster and node name as in
+     *                    the previous datagram.
+     * @param nodeName    The name of the node from the cluster from which the value was taken.
+     * @param paramName   The name of the parameter.
+     * @param paramValue  The value of the parameter.
+     * @param timestamp   The user's timestamp
+     * @throws ApMonException ,
+     *                        UnknownHostException, SocketException
      */
     public void sendTimedParameter(String clusterName, String nodeName, String paramName, Object paramValue, int timestamp) throws ApMonException, UnknownHostException, SocketException, IOException {
         Vector paramNames = new Vector();
@@ -996,19 +980,14 @@ public class ApMon {
 
     /**
      * Sends an integer parameter and its value to the MonALISA module.
-     * 
-     * @param clusterName
-     *            The name of the cluster that is monitored. If it is NULL, we keep the same cluster and node name as in
-     *            the previous datagram.
-     * @param nodeName
-     *            The name of the node from the cluster from which the value was taken.
-     * @param paramName
-     *            The name of the parameter.
-     * @param paramValue
-     *            The value of the parameter.
-     * @throws ApMonException
-     *             ,
-     *             UnknownHostException, SocketException
+     *
+     * @param clusterName The name of the cluster that is monitored. If it is NULL, we keep the same cluster and node name as in
+     *                    the previous datagram.
+     * @param nodeName    The name of the node from the cluster from which the value was taken.
+     * @param paramName   The name of the parameter.
+     * @param paramValue  The value of the parameter.
+     * @throws ApMonException ,
+     *                        UnknownHostException, SocketException
      */
     public void sendParameter(String clusterName, String nodeName, String paramName, int paramValue) throws ApMonException, UnknownHostException, SocketException, IOException {
         sendParameter(clusterName, nodeName, paramName, new Integer(paramValue));
@@ -1016,21 +995,15 @@ public class ApMon {
 
     /**
      * Sends an integer parameter and its value to the MonALISA module.
-     * 
-     * @param clusterName
-     *            The name of the cluster that is monitored. If it is NULL, we keep the same cluster and node name as in
-     *            the previous datagram.
-     * @param nodeName
-     *            The name of the node from the cluster from which the value was taken.
-     * @param paramName
-     *            The name of the parameter.
-     * @param paramValue
-     *            The value of the parameter.
-     * @throws ApMonException
-     *             ,
-     *             UnknownHostException, SocketException
-     * @param timestamp
-     *            The user's timestamp
+     *
+     * @param clusterName The name of the cluster that is monitored. If it is NULL, we keep the same cluster and node name as in
+     *                    the previous datagram.
+     * @param nodeName    The name of the node from the cluster from which the value was taken.
+     * @param paramName   The name of the parameter.
+     * @param paramValue  The value of the parameter.
+     * @param timestamp   The user's timestamp
+     * @throws ApMonException ,
+     *                        UnknownHostException, SocketException
      */
     public void sendTimedParameter(String clusterName, String nodeName, String paramName, int paramValue, int timestamp) throws ApMonException, UnknownHostException, SocketException, IOException {
         sendTimedParameter(clusterName, nodeName, paramName, new Integer(paramValue), timestamp);
@@ -1038,19 +1011,14 @@ public class ApMon {
 
     /**
      * Sends a parameter of type double and its value to the MonALISA module.
-     * 
-     * @param clusterName
-     *            The name of the cluster that is monitored. If it is NULL,we keep the same cluster and node name as in
-     *            the previous datagram.
-     * @param nodeName
-     *            The name of the node from the cluster from which the value was taken.
-     * @param paramName
-     *            The name of the parameter.
-     * @param paramValue
-     *            The value of the parameter.
-     * @throws ApMonException
-     *             ,
-     *             UnknownHostException, SocketException
+     *
+     * @param clusterName The name of the cluster that is monitored. If it is NULL,we keep the same cluster and node name as in
+     *                    the previous datagram.
+     * @param nodeName    The name of the node from the cluster from which the value was taken.
+     * @param paramName   The name of the parameter.
+     * @param paramValue  The value of the parameter.
+     * @throws ApMonException ,
+     *                        UnknownHostException, SocketException
      */
     public void sendParameter(String clusterName, String nodeName, String paramName, double paramValue) throws ApMonException, UnknownHostException, SocketException, IOException {
 
@@ -1059,21 +1027,15 @@ public class ApMon {
 
     /**
      * Sends an integer parameter and its value to the MonALISA module.
-     * 
-     * @param clusterName
-     *            The name of the cluster that is monitored. If it is NULL, we keep the same cluster and node name as in
-     *            the previous datagram.
-     * @param nodeName
-     *            The name of the node from the cluster from which the value was taken.
-     * @param paramName
-     *            The name of the parameter.
-     * @param paramValue
-     *            The value of the parameter.
-     * @throws ApMonException
-     *             ,
-     *             UnknownHostException, SocketException
-     * @param timestamp
-     *            The user's timestamp
+     *
+     * @param clusterName The name of the cluster that is monitored. If it is NULL, we keep the same cluster and node name as in
+     *                    the previous datagram.
+     * @param nodeName    The name of the node from the cluster from which the value was taken.
+     * @param paramName   The name of the parameter.
+     * @param paramValue  The value of the parameter.
+     * @param timestamp   The user's timestamp
+     * @throws ApMonException ,
+     *                        UnknownHostException, SocketException
      */
     public void sendTimedParameter(String clusterName, String nodeName, String paramName, double paramValue, int timestamp) throws ApMonException, UnknownHostException, SocketException, IOException {
 
@@ -1093,7 +1055,7 @@ public class ApMon {
     /**
      * Encodes in the XDR format the data from a ApMon structure. Must be called before sending the data over the
      * newtork.
-     * 
+     *
      * @throws ApMonException
      */
     void encodeParams(int nParams, Vector paramNames, Vector paramValues, int timestamp) throws ApMonException {
@@ -1174,12 +1136,10 @@ public class ApMon {
 
     /**
      * Settings for the periodical configuration rechecking feature.
-     * 
-     * @param confRecheck
-     *            If it is true, the configuration rechecking is enabled.
-     * @param interval
-     *            The time interval at which the verifications are done. The interval will be automatically increased if
-     *            ApMon cannot connect to the configuration URLs.
+     *
+     * @param confCheck If it is true, the configuration rechecking is enabled.
+     * @param interval    The time interval at which the verifications are done. The interval will be automatically increased if
+     *                    ApMon cannot connect to the configuration URLs.
      */
     public void setConfRecheck(boolean confCheck, long interval) {
         int val = -1;
@@ -1230,18 +1190,6 @@ public class ApMon {
     }
 
     /**
-     * Returns the actual value of the time interval (in seconds) between two recheck operations for the configuration
-     * file/URLs.
-     */
-    long getCrtRecheckInterval() {
-        long val;
-        synchronized (mutexBack) {
-            val = this.crtRecheckInterval;
-        }
-        return val;
-    }
-
-    /**
      * Sets the value of the time interval (in seconds) between two recheck operations for the configuration file/URLs.
      * If the value is negative, the configuration rechecking is
      * turned off.
@@ -1253,6 +1201,18 @@ public class ApMon {
             setConfRecheck(false, val);
     }
 
+    /**
+     * Returns the actual value of the time interval (in seconds) between two recheck operations for the configuration
+     * file/URLs.
+     */
+    long getCrtRecheckInterval() {
+        long val;
+        synchronized (mutexBack) {
+            val = this.crtRecheckInterval;
+        }
+        return val;
+    }
+
     void setCrtRecheckInterval(long val) {
         synchronized (mutexBack) {
             crtRecheckInterval = val;
@@ -1261,11 +1221,9 @@ public class ApMon {
 
     /**
      * Settings for the job monitoring feature.
-     * 
-     * @param sysMonitoring
-     *            If it is true, the job monitoring is enabled.
-     * @param interval
-     *            The time interval at which the job monitoring datagrams are sent.
+     *
+     * @param jobMonitoring If it is true, the job monitoring is enabled.
+     * @param interval      The time interval at which the job monitoring datagrams are sent.
      */
     public void setJobMonitoring(boolean jobMonitoring, long interval) {
         int val = -1;
@@ -1299,7 +1257,9 @@ public class ApMon {
         }
     }
 
-    /** Returns the value of the interval at which the job monitoring datagrams are sent. */
+    /**
+     * Returns the value of the interval at which the job monitoring datagrams are sent.
+     */
     public long getJobMonitorInterval() {
         long val;
         synchronized (mutexBack) {
@@ -1308,7 +1268,9 @@ public class ApMon {
         return val;
     }
 
-    /** Returns true if the job monitoring is enabled and false otherwise. */
+    /**
+     * Returns true if the job monitoring is enabled and false otherwise.
+     */
     public boolean getJobMonitoring() {
         boolean val;
         synchronized (mutexBack) {
@@ -1319,11 +1281,9 @@ public class ApMon {
 
     /**
      * Settings for the system monitoring feature.
-     * 
-     * @param sysMonitoring
-     *            If it is true, the system monitoring is enabled.
-     * @param interval
-     *            The time interval at which the system monitoring datagrams are sent.
+     *
+     * @param sysMonitoring If it is true, the system monitoring is enabled.
+     * @param interval      The time interval at which the system monitoring datagrams are sent.
      */
     public void setSysMonitoring(boolean sysMonitoring, long interval) {
         int val = -1;
@@ -1359,7 +1319,9 @@ public class ApMon {
         }
     }
 
-    /** Returns the value of the interval at which the system monitoring datagrams are sent. */
+    /**
+     * Returns the value of the interval at which the system monitoring datagrams are sent.
+     */
     public long getSysMonitorInterval() {
         long val;
         synchronized (mutexBack) {
@@ -1369,7 +1331,9 @@ public class ApMon {
         return val;
     }
 
-    /** Returns true if the job monitoring is enabled and false otherwise. */
+    /**
+     * Returns true if the job monitoring is enabled and false otherwise.
+     */
     public boolean getSysMonitoring() {
         boolean val;
         synchronized (mutexBack) {
@@ -1380,13 +1344,11 @@ public class ApMon {
 
     /**
      * Settings for the general system monitoring feature.
-     * 
-     * @param genMonitoring
-     *            If it is true, the general system monitoring is enabled.
-     * @param interval
-     *            The number of time intervals at which the general system monitoring datagrams are sent (a
-     *            "time interval" is the time interval between two subsequent system
-     *            monitoring datagrams).
+     *
+     * @param genMonitoring If it is true, the general system monitoring is enabled.
+     * @param nIntervals      The number of time intervals at which the general system monitoring datagrams are sent (a
+     *                      "time interval" is the time interval between two subsequent system
+     *                      monitoring datagrams).
      */
     public void setGenMonitoring(boolean genMonitoring, int nIntervals) {
 
@@ -1409,7 +1371,9 @@ public class ApMon {
         }
     }
 
-    /** Returns true if the general system monitoring is enabled and false otherwise. */
+    /**
+     * Returns true if the general system monitoring is enabled and false otherwise.
+     */
     public boolean getGenMonitoring() {
         boolean val;
         synchronized (mutexBack) {
@@ -1453,7 +1417,9 @@ public class ApMon {
         return new Double(dVal);
     }
 
-    /** Enables or disables the background thread. */
+    /**
+     * Enables or disables the background thread.
+     */
     void setBackgroundThread(boolean val) {
         boolean stoppedThread = false;
 
@@ -1494,31 +1460,6 @@ public class ApMon {
     }
 
     /**
-     * Sets the ApMon loglevel. The possible values are: "FATAL", "WARNING", "INFO", "FINE", "DEBUG".
-     */
-    public static void setLogLevel(String newLevel_s) {
-        int i;
-        String levels_s[] = {
-                "FATAL", "WARNING", "INFO", "FINE", "DEBUG"
-        };
-        Level levels[] = {
-                Level.SEVERE, Level.WARNING, Level.INFO, Level.FINE, Level.FINEST
-        };
-
-        for (i = 0; i < 5; i++)
-            if (newLevel_s.equals(levels_s[i]))
-                break;
-
-        if (i >= 5) {
-            logger.warning("[ setLogLevel() ] Invalid level value: " + newLevel_s);
-            return;
-        }
-
-        logger.info("Setting logging level to " + newLevel_s);
-        logger.setLevel(levels[i]);
-    }
-
-    /**
      * This sets the maxim number of messages that are send to MonALISA in one second. Default, this number is 50.
      */
     public void setMaxMsgRate(int maxRate) {
@@ -1547,7 +1488,9 @@ public class ApMon {
         setBackgroundThread(false);
     }
 
-    /** Initializes the data structures used to configure the monitoring part of ApMon. */
+    /**
+     * Initializes the data structures used to configure the monitoring part of ApMon.
+     */
     void initMonitoring() {
         autoDisableMonitoring = true;
         sysMonitoring = false;
@@ -1776,13 +1719,9 @@ public class ApMon {
 
     /**
      * Displays the names, values and types of a set of parameters.
-     * 
-     * @param paramNames
-     *            Vector with the parameters' names.
-     * @param valueTypes
-     *            Vector of Integers which represent the value types of the parameters.
-     * @param paramValues
-     *            Vector with the values of the parameters.
+     *
+     * @param paramNames  Vector with the parameters' names.
+     * @param paramValues Vector with the values of the parameters.
      */
     String printParameters(Vector paramNames, Vector paramValues) {
         int i;
@@ -1793,21 +1732,6 @@ public class ApMon {
         }
         return res.toString();
     }
-
-    /** don't allow a user to send more than MAX_MSG messages per second, in average */
-    protected long prvTime = 0;
-
-    protected double prvSent = 0;
-
-    protected double prvDrop = 0;
-
-    protected long crtTime = 0;
-
-    protected long crtSent = 0;
-
-    protected long crtDrop = 0;
-
-    protected double hWeight = Math.exp(-5.0 / 60.0);
 
     /**
      * Decide if the current datagram should be sent. This decision is based on the number of messages previously sent.
@@ -1850,16 +1774,6 @@ public class ApMon {
 
     public String getMyHostname() {
         return myHostname;
-    }
-    
-    // * Supported in Sun JRE >1.5 (returns -1 in prior versions)
-    public static int getPID() {
-        try {
-            final java.lang.management.RuntimeMXBean rt = java.lang.management.ManagementFactory.getRuntimeMXBean();
-            return Integer.parseInt(rt.getName().split("@")[0]);
-        } catch (Throwable t) {
-            return -1;
-        }
     }
 
 }

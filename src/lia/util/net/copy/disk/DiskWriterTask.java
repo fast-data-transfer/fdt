@@ -3,6 +3,12 @@
  */
 package lia.util.net.copy.disk;
 
+import lia.util.net.common.Utils;
+import lia.util.net.copy.FDTSession;
+import lia.util.net.copy.FDTSessionManager;
+import lia.util.net.copy.FileBlock;
+import lia.util.net.copy.FileSession;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
@@ -14,12 +20,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import lia.util.net.common.Utils;
-import lia.util.net.copy.FDTSession;
-import lia.util.net.copy.FDTSessionManager;
-import lia.util.net.copy.FileBlock;
-import lia.util.net.copy.FileSession;
 
 /**
  * per partition DiskWriterTask .... ( there may be more than one writer per
@@ -34,32 +34,19 @@ public class DiskWriterTask extends GenericDiskTask {
     private static final DiskWriterManager dwm = DiskWriterManager.getInstance();
 
     private static final FDTSessionManager fsm = FDTSessionManager.getInstance();
-
-    private final Lock countersRLock;
-
-    private final Lock countersWLock;
-
-    long sTime;
-
-    long sTimeWrite;
-
-    long sTimeFinish;
-
-    long finishTime;
-
-    public long dtTake;
-
-    public long dtWrite;
-
-    public long dtFinishSession;
-
-    public long dtTotal;
-
     final BlockingQueue<FileBlock> queue;
-
+    private final Lock countersRLock;
+    private final Lock countersWLock;
     private final AtomicBoolean hasToRun;
-
     private final boolean doNotForceOnClose;
+    public long dtTake;
+    public long dtWrite;
+    public long dtFinishSession;
+    public long dtTotal;
+    long sTime;
+    long sTimeWrite;
+    long sTimeFinish;
+    long finishTime;
 
     DiskWriterTask(int partitionID, int writerID, BlockingQueue<FileBlock> queue) {
         super(partitionID, writerID);
@@ -288,7 +275,7 @@ public class DiskWriterTask extends GenericDiskTask {
                                         if (logger.isLoggable(Level.FINER)) {
                                             logger.log(Level.FINER,
                                                     "CLOSE - Not enforcing flush - " + fileSession.getFile()
-                                                    + " closing without forcing the channel");
+                                                            + " closing without forcing the channel");
                                         }
                                     } else {
                                         fileSession.getChannel().force(true);
@@ -358,8 +345,8 @@ public class DiskWriterTask extends GenericDiskTask {
                     logger.log(
                             Level.SEVERE,
                             myName
-                            + " ... Got InterruptedException Exception writing to file [  ( fileSession is null ) ] offset: "
-                            + ((fileBlock == null) ? " fileBlock is null" : "" + fileBlock.fileOffset), ie);
+                                    + " ... Got InterruptedException Exception writing to file [  ( fileSession is null ) ] offset: "
+                                    + ((fileBlock == null) ? " fileBlock is null" : "" + fileBlock.fileOffset), ie);
                 } else {
                     logger.log(Level.SEVERE, myName + " ... Got InterruptedException Exception writing to file [  ( "
                             + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: "
@@ -371,8 +358,8 @@ public class DiskWriterTask extends GenericDiskTask {
                     logger.log(
                             Level.SEVERE,
                             myName
-                            + " ... Got GeneralException Exception writing to file [  ( fileSession is null ) ] offset: "
-                            + ((fileBlock == null) ? " fileBlock is null" : "" + fileBlock.fileOffset), t);
+                                    + " ... Got GeneralException Exception writing to file [  ( fileSession is null ) ] offset: "
+                                    + ((fileBlock == null) ? " fileBlock is null" : "" + fileBlock.fileOffset), t);
                 } else {
                     logger.log(Level.SEVERE, myName + " ... Got GeneralException Exception writing to file [  ( "
                             + fileSession.sessionID() + " ): " + fileSession.fileName() + " ] offset: "

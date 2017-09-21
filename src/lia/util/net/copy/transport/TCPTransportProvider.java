@@ -3,32 +3,6 @@
  */
 package lia.util.net.copy.transport;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import lia.util.net.common.AbstractFDTIOEntity;
 import lia.util.net.common.Config;
 import lia.util.net.common.DirectByteBufferPool;
@@ -39,44 +13,46 @@ import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import lia.util.net.copy.transport.internal.SelectionHandler;
 import lia.util.net.copy.transport.internal.SelectionManager;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * The base class for all read/write over the wire, and also has the "SpeedLimiter" incorporated, or not :)
- * 
+ *
  * @author ramiro
  */
 public abstract class TCPTransportProvider extends AbstractFDTIOEntity implements SelectionHandler, SpeedLimiter {
 
-    private static final Logger logger = Logger.getLogger(TCPTransportProvider.class.getName());
-
-    private static final Config config = Config.getInstance();
-
     protected static final SelectionManager selectionManager = SelectionManager.getInstance();
-
+    private static final Logger logger = Logger.getLogger(TCPTransportProvider.class.getName());
+    private static final Config config = Config.getInstance();
     protected final Lock speedLimitLock = new ReentrantLock(true);
 
     protected final Condition isAvailable = speedLimitLock.newCondition();
-
-    protected long availableBytes;
-
     // GuardedBy - this.closeLock
     protected final HashMap<SocketChannel, FDTSelectionKey> channels = new HashMap<SocketChannel, FDTSelectionKey>();
-
     protected final FDTSession fdtSession;
-
     protected final ExecutorService executor;
-
     protected final ArrayList<SocketTask> socketTasks = new ArrayList<SocketTask>();
-
     protected final BlockingQueue<FDTSelectionKey> selectionQueue;
-
-    protected InetAddress endPointAddress;
-
-    protected int port;
-
-    protected int numberOfStreams;
-
     public NetSessionMonitoringTask monitoringTask;
-
+    protected long availableBytes;
+    protected InetAddress endPointAddress;
+    protected int port;
+    protected int numberOfStreams;
     ScheduledFuture<?> monitoringTaskFuture;
 
     ScheduledFuture<?> limiterTask;
@@ -105,33 +81,6 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
         this.numberOfStreams = numberOfStreams;
     }
 
-    public final boolean useFixedBlockSize() {
-        return fdtSession.useFixedBlockSize();
-    }
-
-    public final boolean localLoop() {
-        return fdtSession.localLoop();
-    }
-
-    public final boolean isNetTest() {
-        return fdtSession.isNetTest();
-    }
-
-    public long getSize() {
-        return -1;
-    }
-
-    public long getNotifyDelay() {
-        return fdtSession.getRateLimitDelay();
-    }
-
-    public void notifyAvailableBytes(long available) {
-    }
-
-    public final long getRateLimit() {
-        return fdtSession.getRateLimit();
-    }
-
     private static final List<SocketChannel> tryToConnect(InetSocketAddress addr, int numberOfStreams, ByteBuffer connectCookie, final boolean sendCookie) throws Exception {
 
         if (addr == null) {
@@ -153,8 +102,8 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
 
             tmpSelector = Selector.open();
 
-            final int bSockConn = config.getBulkSockConnect();
-            final long bSockConnWait = config.getBulkSockConnectWait();
+            final int bSockConn = Config.getBulkSockConnect();
+            final long bSockConnWait = Config.getBulkSockConnectWait();
 
             logger.log(Level.FINER, " bSockConn: " + bSockConn + " bSockConnWait: " + bSockConnWait);
             int cCounter = 0;
@@ -180,14 +129,14 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
                 tmpChannels.add(sc);
 
                 final Socket s = sc.socket();
-                
+
                 if (windowSize > 0) {
                     s.setSendBufferSize(windowSize);
                 }
                 final String sdpConfFlag = System.getProperty("com.sun.sdp.conf");
                 final boolean bSDP = (sdpConfFlag != null && !sdpConfFlag.isEmpty());
-                
-                if(!bSDP) {
+
+                if (!bSDP) {
                     try {
                         s.setKeepAlive(true);
                     } catch (Throwable t) {
@@ -201,7 +150,7 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
                         logger.log(Level.WARNING, "[ FDTServer ] [ AcceptableTask ] Cannot set traffic class for " + sc + "[ IPTOS_RELIABILITY (0x04) | IPTOS_THROUGHPUT (0x08) | IPTOS_LOWDELAY (0x10) ] Will ignore the error. Contact your sys admin.", t);
                     }
                 }
-                
+
                 if (!sc.isBlocking()) {
                     sc.register(tmpSelector, SelectionKey.OP_CONNECT | SelectionKey.OP_WRITE);
                 } else {
@@ -235,7 +184,7 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
                 }
                 Set<SelectionKey> selectedKeys = tmpSelector.selectedKeys();
 
-                for (Iterator<SelectionKey> it = selectedKeys.iterator(); it.hasNext();) {
+                for (Iterator<SelectionKey> it = selectedKeys.iterator(); it.hasNext(); ) {
                     SelectionKey ssk = it.next();
                     it.remove();
                     SocketChannel sc = (SocketChannel) ssk.channel();
@@ -301,6 +250,33 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
         }
 
         return tmpChannels;
+    }
+
+    public final boolean useFixedBlockSize() {
+        return fdtSession.useFixedBlockSize();
+    }
+
+    public final boolean localLoop() {
+        return fdtSession.localLoop();
+    }
+
+    public final boolean isNetTest() {
+        return fdtSession.isNetTest();
+    }
+
+    public long getSize() {
+        return -1;
+    }
+
+    public long getNotifyDelay() {
+        return fdtSession.getRateLimitDelay();
+    }
+
+    public void notifyAvailableBytes(long available) {
+    }
+
+    public final long getRateLimit() {
+        return fdtSession.getRateLimit();
     }
 
     public int getNumberOfStreams() {

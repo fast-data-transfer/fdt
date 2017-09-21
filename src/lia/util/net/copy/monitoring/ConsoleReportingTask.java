@@ -3,6 +3,13 @@
  */
 package lia.util.net.copy.monitoring;
 
+import lia.util.net.common.Utils;
+import lia.util.net.copy.FDTSession;
+import lia.util.net.copy.disk.DiskReaderManager;
+import lia.util.net.copy.disk.DiskWriterManager;
+import lia.util.net.copy.monitoring.base.AbstractAccountableMonitoringTask;
+import lia.util.net.copy.transport.TCPTransportProvider;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -13,16 +20,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.Utils;
-import lia.util.net.copy.FDTSession;
-import lia.util.net.copy.disk.DiskReaderManager;
-import lia.util.net.copy.disk.DiskWriterManager;
-import lia.util.net.copy.monitoring.base.AbstractAccountableMonitoringTask;
-import lia.util.net.copy.transport.TCPTransportProvider;
-
 /**
  * This class is the only class which should report to the stdout
- * 
+ *
  * @author ramiro
  */
 public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
@@ -32,16 +32,11 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
     private static final DiskWriterManager diskWriterManager = DiskWriterManager.getInstance();
 
     private static final DiskReaderManager diskReaderManager = DiskReaderManager.getInstance();
-
+    private static final ConsoleReportingTask thisInstace = new ConsoleReportingTask();
     // private final DateFormat dateFormat = new SimpleDateFormat("dd/MM/yy HH:mm:ss");
     private final DateFormat dateFormat = new SimpleDateFormat("dd/MM HH:mm:ss");
-
     private final Set<FDTSession> oldReaderSessions = new TreeSet<FDTSession>();
-
     private final Set<FDTSession> oldWriterSessions = new TreeSet<FDTSession>();
-
-    private static final ConsoleReportingTask thisInstace = new ConsoleReportingTask();
-
     private final boolean customLog;
 
     private ConsoleReportingTask() {
@@ -57,7 +52,7 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
     }
 
     private final boolean reportStatus(final Set<FDTSession> currentSessionSet, final Set<FDTSession> oldSessionSet,
-            final String tag, final StringBuilder sb) {
+                                       final String tag, final StringBuilder sb) {
         boolean shouldReport = false;
 
         if (oldSessionSet.size() > 0) {
@@ -69,7 +64,7 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                 sb.append(oldSessionSet.size()).append(" active sessions:");
             }
 
-            for (Iterator<FDTSession> it = oldSessionSet.iterator(); it.hasNext();) {
+            for (Iterator<FDTSession> it = oldSessionSet.iterator(); it.hasNext(); ) {
                 final FDTSession fdtSession = it.next();
                 final TCPTransportProvider tcpTransportProvider = fdtSession.getTransportProvider();
 
@@ -79,7 +74,7 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                         logger.log(Level.WARNING,
                                 " [ ConsoleReportingTask ] The session: " + fdtSession
                                         .sessionID() + " is no longer "
-                                + "available, but canot remove trasport provider from monitoring queue. It's probably a BUG in FDT");
+                                        + "available, but canot remove trasport provider from monitoring queue. It's probably a BUG in FDT");
                         continue;
                     }
                     if (logger.isLoggable(Level.FINE)) {
@@ -161,12 +156,10 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                 || reportStatus(diskReaderManager.getSessions(), oldReaderSessions, "Net Out: ", sb));
 
         if (shouldReport) {
-            if (customLog) {
-                logger.info(sb.toString());
-            } else {
-                System.out.println(sb.toString());
-            }
+            logger.info(sb.toString());
+            System.out.println(sb.toString());
         }
+
     }
 
     @Override

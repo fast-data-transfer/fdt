@@ -3,15 +3,6 @@
  */
 package lia.util.net.copy.monitoring;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.locks.Lock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import lia.util.net.common.Config;
 import lia.util.net.common.DirectByteBufferPool;
 import lia.util.net.common.HeaderBufferPool;
@@ -20,90 +11,27 @@ import lia.util.net.copy.disk.DiskReaderManager;
 import lia.util.net.copy.disk.DiskWriterManager;
 import lia.util.net.copy.disk.DiskWriterTask;
 
+import java.util.*;
+import java.util.concurrent.locks.Lock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * Used for internal monitoring
  * It will log if the logging level if -printStats is enabled
- *  
+ *
  * @author ramiro
  */
 public class FDTInternalMonitoringTask implements Runnable {
 
     private static final Logger logger = Logger.getLogger(FDTInternalMonitoringTask.class.getName());
-
-    private static final class WriterAccountingContors {
-
-        private final Lock countersRLock;
-
-        boolean reportOk;
-
-        long lastDtTake;
-
-        long lastDtWrite;
-
-        long lastDtFinishSession;
-
-        long lastDtTotal;
-
-        double procWrite = 0;
-
-        double procFinish = 0;
-
-        double procTake = 0;
-
-        double procOther = 0;
-
-        WriterAccountingContors(final Lock lock) {
-            this.countersRLock = lock;
-            reportOk = false;
-        }
-    }
-
     private static final DiskWriterManager diskWriterManager = DiskWriterManager.getInstance();
-
     private static final DiskReaderManager diskReaderManager = DiskReaderManager.getInstance();
-
     private static final FDTInternalMonitoringTask _theInstance;
-
-    private static boolean initialized = false;
-
     private static final Config config = Config.getInstance();
-
     private static final Level STATS_LEVEL = config.getStatsLevel();
-
     private static final String EOL = System.getProperty("line.separator", "\n");
-
-    private static final String getNiceProcent(double value) {
-
-        int aux = (int) (value * 100.0);
-        if (value >= 1) {
-
-            if ((aux % 100) != 0) return aux / 100f + "%";
-
-            return (int) value + "%";
-        } else if (value < 1 && value > 0) { return aux / 100f + "%"; }
-
-        return value + "%";
-    }
-
-    //Params to monitor
-    int dbpool_total;
-
-    int dbpool_free;
-
-    int hpool_total;
-
-    int hpool_free;
-
-    int mon_queue_count;
-
-    int fdt_wdisk_ses_count;
-
-    int fdt_rdisk_ses_count;
-
-    //It's used from a single thread
-    StringBuilder sb = null;
-
-    HashMap<Integer, HashMap<Integer, WriterAccountingContors>> hmWriters;
+    private static boolean initialized = false;
 
     static {
         synchronized (FDTInternalMonitoringTask.class) {
@@ -113,10 +41,37 @@ public class FDTInternalMonitoringTask implements Runnable {
         }
     }
 
+    //Params to monitor
+    int dbpool_total;
+    int dbpool_free;
+    int hpool_total;
+    int hpool_free;
+    int mon_queue_count;
+    int fdt_wdisk_ses_count;
+    int fdt_rdisk_ses_count;
+    //It's used from a single thread
+    StringBuilder sb = null;
+    HashMap<Integer, HashMap<Integer, WriterAccountingContors>> hmWriters;
+
     //only one instance per application
     private FDTInternalMonitoringTask() {
         sb = new StringBuilder(2048);
         hmWriters = new HashMap<Integer, HashMap<Integer, WriterAccountingContors>>();
+    }
+
+    private static final String getNiceProcent(double value) {
+
+        int aux = (int) (value * 100.0);
+        if (value >= 1) {
+
+            if ((aux % 100) != 0) return aux / 100f + "%";
+
+            return (int) value + "%";
+        } else if (value < 1 && value > 0) {
+            return aux / 100f + "%";
+        }
+
+        return value + "%";
     }
 
     public static final FDTInternalMonitoringTask getInstance() {
@@ -153,7 +108,7 @@ public class FDTInternalMonitoringTask implements Runnable {
         sb.append(" Disk Writer Sessions: ").append(fdt_wdisk_ses_count).append(" Disk Reader Sessions: ").append(fdt_rdisk_ses_count);
         sb.append(EOL);
 
-        for (Iterator<Map.Entry<Integer, HashMap<Integer, WriterAccountingContors>>> it = hmWriters.entrySet().iterator(); it.hasNext();) {
+        for (Iterator<Map.Entry<Integer, HashMap<Integer, WriterAccountingContors>>> it = hmWriters.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Integer, HashMap<Integer, WriterAccountingContors>> entry = it.next();
 
             Integer id = entry.getKey();
@@ -230,7 +185,7 @@ public class FDTInternalMonitoringTask implements Runnable {
                             logger.log(Level.FINER, " The writer seem idle same time [ " + wac.lastDtTotal + " ] as in previous iteration ");
                         }
                     }
-                }finally {
+                } finally {
                     wac.countersRLock.unlock();
                 }
 
@@ -258,7 +213,7 @@ public class FDTInternalMonitoringTask implements Runnable {
         }//end for
 
         //check for dead writers
-        for (Iterator<Integer> it = hmWriters.keySet().iterator(); it.hasNext();) {
+        for (Iterator<Integer> it = hmWriters.keySet().iterator(); it.hasNext(); ) {
             Integer partitionID = it.next();
             if (!currentWriters.containsKey(partitionID)) {
                 it.remove();
@@ -280,13 +235,13 @@ public class FDTInternalMonitoringTask implements Runnable {
         fdtLisaParams.put("fdt_ses_rdisk", (double) fdt_rdisk_ses_count);
 
         //Writers accounting
-        for (Iterator<Map.Entry<Integer, HashMap<Integer, WriterAccountingContors>>> it = hmWriters.entrySet().iterator(); it.hasNext();) {
+        for (Iterator<Map.Entry<Integer, HashMap<Integer, WriterAccountingContors>>> it = hmWriters.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Integer, HashMap<Integer, WriterAccountingContors>> entry = it.next();
 
             Integer pid = entry.getKey();
             HashMap<Integer, WriterAccountingContors> wacMap = entry.getValue();
 
-            for (Iterator<Map.Entry<Integer, WriterAccountingContors>> iti = wacMap.entrySet().iterator(); iti.hasNext();) {
+            for (Iterator<Map.Entry<Integer, WriterAccountingContors>> iti = wacMap.entrySet().iterator(); iti.hasNext(); ) {
                 Map.Entry<Integer, WriterAccountingContors> ientry = iti.next();
 
                 Integer wID = ientry.getKey();
@@ -336,6 +291,34 @@ public class FDTInternalMonitoringTask implements Runnable {
             }
         } catch (Throwable t) {
             logger.log(Level.WARNING, " [ InternalMonitoring ] Got Exception ", t);
+        }
+    }
+
+    private static final class WriterAccountingContors {
+
+        private final Lock countersRLock;
+
+        boolean reportOk;
+
+        long lastDtTake;
+
+        long lastDtWrite;
+
+        long lastDtFinishSession;
+
+        long lastDtTotal;
+
+        double procWrite = 0;
+
+        double procFinish = 0;
+
+        double procTake = 0;
+
+        double procOther = 0;
+
+        WriterAccountingContors(final Lock lock) {
+            this.countersRLock = lock;
+            reportOk = false;
         }
     }
 

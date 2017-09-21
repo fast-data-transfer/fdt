@@ -1,42 +1,47 @@
 package edu.caltech.hep.dcapj;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import edu.caltech.hep.dcapj.util.IOCallback;
 import edu.caltech.hep.dcapj.util.ControlConnection;
+import edu.caltech.hep.dcapj.util.IOCallback;
 
 /**
  * This class should be called by the application before starting any IO
  * operation using dcapJ protocol
- * 
+ *
  * @author Faisal Khan
  */
 
 public class dCapLayer {
 
-    /** guards _initialized flag */
+    /**
+     * guards _initialized flag
+     */
     private static final Object initializedLock = new Object();
 
-	/** The IOCallback object that handles the mapping between session IDs and sessions. */
+    /**
+     * The IOCallback object that handles the mapping between session IDs and sessions.
+     */
     static IOCallback _dataConnectionCallback = null;
 
-    /** The ControlConnection object. */
+    /**
+     * The ControlConnection object.
+     */
     static ControlConnection _controlConnection = null;
 
-    /** The Config object. */
+    /**
+     * The Config object.
+     */
     static Config _conf = null;
-    
+
     private static volatile boolean _isInitialized = false;
-    
+
 
     /**
      * Initialize the library.
-     * 
-     * @throws Exception
-     *             If an error occurred
+     *
+     * @throws Exception If an error occurred
      */
     public static void initialize() throws Exception {
-        synchronized(initializedLock) {
+        synchronized (initializedLock) {
             if (!_isInitialized) {
                 _conf = new Config();
                 _dataConnectionCallback = new IOCallback();
@@ -47,13 +52,14 @@ public class dCapLayer {
     }
 
     public static final boolean isInitialized() {
-        synchronized(initializedLock) {
+        synchronized (initializedLock) {
             return _isInitialized;
         }
     }
-    
+
     /**
      * Get the IOCallback object.
+     *
      * @return The IOCallback object.
      */
     public static IOCallback getDataConnectionCallback() {
@@ -62,6 +68,7 @@ public class dCapLayer {
 
     /**
      * Gets the ControlConnection object.
+     *
      * @return The ControlConnection object.
      */
     public static ControlConnection getControlConnection() {
@@ -70,6 +77,7 @@ public class dCapLayer {
 
     /**
      * Gets the Config object.
+     *
      * @return The Config object.
      */
     public static Config getConfig() {
@@ -78,7 +86,6 @@ public class dCapLayer {
 
     /**
      * Close the library.
-     * 
      */
     public static void close() {
         _controlConnection.stop();

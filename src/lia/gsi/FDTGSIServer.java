@@ -3,22 +3,20 @@
  */
 package lia.gsi;
 
+import lia.util.net.copy.FDTSessionManager;
+import lia.util.net.copy.transport.ControlChannel;
+import org.ietf.jgss.GSSCredential;
+
+import javax.security.auth.Subject;
 import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.security.auth.Subject;
-
-import lia.util.net.copy.FDTSessionManager;
-import lia.util.net.copy.transport.ControlChannel;
-
-import org.ietf.jgss.GSSCredential;
-
 
 /**
- * This class will handle all the FDT GSI requests 
+ * This class will handle all the FDT GSI requests
  * It overrides handleConversation from the base class.
- * 
+ *
  * @author ramiro
  */
 public class FDTGSIServer extends GSIServer {
@@ -33,7 +31,7 @@ public class FDTGSIServer extends GSIServer {
     public FDTGSIServer(int port) throws Exception {
         this((String) null, (String) null, port);
     }
-   
+
     public FDTGSIServer(GSSCredential cred, int port) throws Exception {
         super(cred, port);
     }
@@ -45,10 +43,10 @@ public class FDTGSIServer extends GSIServer {
     public void start() {
         super.start();
     }
-    
+
     protected void handleConversation(GSIServer parent, Socket client, Subject peerSubject) {
         ControlChannel ct = null;
-        
+
         try {
             ct = new ControlChannel(parent, client, peerSubject, fdtSessionManager);
             fdtSessionManager.addFDTClientSession(ct);

@@ -4,6 +4,13 @@
 
 package lia.util.net.copy.transport;
 
+import lia.util.net.common.Config;
+import lia.util.net.common.DirectByteBufferPool;
+import lia.util.net.common.Utils;
+import lia.util.net.copy.FileBlock;
+import lia.util.net.copy.FileBlockConsumer;
+import lia.util.net.copy.transport.internal.FDTSelectionKey;
+
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.BlockingQueue;
@@ -12,16 +19,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.Config;
-import lia.util.net.common.DirectByteBufferPool;
-import lia.util.net.common.Utils;
-import lia.util.net.copy.FileBlock;
-import lia.util.net.copy.FileBlockConsumer;
-import lia.util.net.copy.transport.internal.FDTSelectionKey;
-
 /**
  * The one and (not the) only reader task for a channel
- * 
+ *
  * @author ramiro
  */
 public class SocketReaderTask extends SocketTask {
@@ -72,7 +72,7 @@ public class SocketReaderTask extends SocketTask {
 
                 boolean offered = false;
                 try {
-                    for (;;) {
+                    for (; ; ) {
                         offered = fileBlockConsumer.offer(fileBlock, 5, TimeUnit.SECONDS);
                         if (offered)
                             break;
@@ -128,7 +128,7 @@ public class SocketReaderTask extends SocketTask {
         }
 
         final ByteBuffer bpl = attach.payload();
-        for (;;) {
+        for (; ; ) {
             if (isClosed() || Thread.currentThread().isInterrupted())
                 break;
 
@@ -273,7 +273,7 @@ public class SocketReaderTask extends SocketTask {
         }
 
         try {
-            for (;;) {
+            for (; ; ) {
                 // use a local FDTSelKey for a little speed-up
                 FDTSelectionKey iSel = null;
                 fdtSelectionKeyRef.set(null);
@@ -302,7 +302,7 @@ public class SocketReaderTask extends SocketTask {
                 try {
                     if (!readData()) {
                         if (!isClosed()) {
-                            if(readyChannelsQueue.offer(fdtSelectionKeyRef.getAndSet(null))) {
+                            if (readyChannelsQueue.offer(fdtSelectionKeyRef.getAndSet(null))) {
                                 throw new FDTProcolException(" Unable to add selection key in the selection queue");
                             }
                         } else {

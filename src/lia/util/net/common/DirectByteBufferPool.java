@@ -3,24 +3,23 @@
  */
 package lia.util.net.common;
 
+import lia.util.net.copy.monitoring.jmx.DBPoolJMX;
+
+import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.management.ObjectName;
-
-import lia.util.net.copy.monitoring.jmx.DBPoolJMX;
-
 /**
- * 
  * The main pool of direct NIO buffers in FDT
- * 
+ *
  * @author ramiro
- * 
  */
-public class DirectByteBufferPool extends AbstractBPool{
+public class DirectByteBufferPool extends AbstractBPool {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final transient Logger logger = Logger.getLogger(DirectByteBufferPool.class.getName());
     ;
     //the list of ByteBuffer-s
@@ -58,7 +57,7 @@ public class DirectByteBufferPool extends AbstractBPool{
                 if (maxTakePollIter < 0) {
                     mMax = 0;
                 }
-                
+
                 _theInstance = new DirectByteBufferPool(buffSize, mMax, Config.TRACK_ALLOCATIONS);
 
                 initialized = true;
@@ -67,11 +66,11 @@ public class DirectByteBufferPool extends AbstractBPool{
                 try { // Register MBean in Platform MBeanServer
                     ManagementFactory.getPlatformMBeanServer().
                             // TODO Replace DBPoolJMX Constructor parameters with valid values
-                            registerMBean(new DBPoolJMX(_theInstance),
-                            new ObjectName("lia.util.net.copy.monitoring.jmx:type=DBPoolJMX"));
+                                    registerMBean(new DBPoolJMX(_theInstance),
+                                    new ObjectName("lia.util.net.copy.monitoring.jmx:type=DBPoolJMX"));
                 } catch (Throwable ex) {
                     logger.log(Level.WARNING, " Unable to init JMX monitoring for DirectByteBufferPool!", ex);
-                } 
+                }
 
                 return true;
             }

@@ -3,70 +3,47 @@
  */
 package lia.util.net.copy.disk;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import lia.util.net.common.Config;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.FileBlock;
 import lia.util.net.copy.monitoring.DiskWriterManagerMonitoringTask;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
- * 
  * The master of all the disk writer threads
- *  
+ *
  * @author ramiro
- * 
  */
 public class DiskWriterManager extends GenericDiskManager {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final transient Logger logger = Logger.getLogger(DiskWriterManager.class.getName());
 
     private static final Config config = Config.getInstance();
     private static int MAX_PARTITION_COUNT = Integer.getInteger("fdt.MAX_PARTITION_COUNT", 1000).intValue();
 
     private static int WRITER_QUEUE_MULTIPLY_FACTOR = Integer.getInteger("fdt.wQueueM", 20).intValue();
+    private static DiskWriterManager _thisInstance;
+    private static volatile boolean initialized = false;
     private final ExecutorService execService;
-
+    protected Exception finishException = null;
     /**
      * The map of DiskWriterTask-s per partition. The key is the partitionID.
      */
     ConcurrentHashMap<Integer, List<DiskWriterTask>> diskWritersMap = new ConcurrentHashMap<Integer, List<DiskWriterTask>>();
-
     /**
      * The map of the Queues for every partitionID
      */
     ConcurrentHashMap<Integer, BlockingQueue<FileBlock>> diskQueuesMap = new ConcurrentHashMap<Integer, BlockingQueue<FileBlock>>();
-
-    protected Exception finishException = null;
-
     private int writersPerPartionCount = 1;
-
-    private static DiskWriterManager _thisInstance;
-    private static volatile boolean initialized = false;
-
-    public static final DiskWriterManager getInstance() {
-        if (!initialized) {
-            synchronized (DiskWriterManager.class) {
-                if (!initialized) {
-                    _thisInstance = new DiskWriterManager();
-                    initialized = true;
-                }
-            }
-        }
-
-        return _thisInstance;
-    }
 
     private DiskWriterManager() {
         if (logger.isLoggable(Level.FINE)) {
@@ -98,6 +75,19 @@ public class DiskWriterManager extends GenericDiskManager {
         if (logger.isLoggable(Level.FINE)) {
             logger.log(Level.FINE, " \n\n --------> DiskWriterManager is instantiatied <--------------- \n\n");
         }
+    }
+
+    public static final DiskWriterManager getInstance() {
+        if (!initialized) {
+            synchronized (DiskWriterManager.class) {
+                if (!initialized) {
+                    _thisInstance = new DiskWriterManager();
+                    initialized = true;
+                }
+            }
+        }
+
+        return _thisInstance;
     }
 
     @Override

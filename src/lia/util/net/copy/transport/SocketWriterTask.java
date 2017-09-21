@@ -3,6 +3,14 @@
  */
 package lia.util.net.copy.transport;
 
+import lia.util.net.common.Config;
+import lia.util.net.common.DirectByteBufferPool;
+import lia.util.net.common.HeaderBufferPool;
+import lia.util.net.common.Utils;
+import lia.util.net.copy.FileBlock;
+import lia.util.net.copy.FileBlockProducer;
+import lia.util.net.copy.transport.internal.FDTSelectionKey;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
@@ -12,33 +20,24 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.Config;
-import lia.util.net.common.DirectByteBufferPool;
-import lia.util.net.common.HeaderBufferPool;
-import lia.util.net.common.Utils;
-import lia.util.net.copy.FileBlock;
-import lia.util.net.copy.FileBlockProducer;
-import lia.util.net.copy.transport.internal.FDTSelectionKey;
-
 /**
  * The one and (not the) only writer over a channel
- * 
+ *
  * @author ramiro
  */
 public class SocketWriterTask extends SocketTask {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final Logger logger = Logger.getLogger(SocketWriterTask.class.getName());
-
-    private final AtomicReference<FDTSelectionKey> fdtSelectionKeyRef = new AtomicReference<FDTSelectionKey>(null);
-
     // private static final int MSS_SIZE = 16 * 1024 * 1024;
     private static final int BUFF_LEN_SIZE = Config.NETWORK_BUFF_LEN_SIZE;
+    private final AtomicReference<FDTSelectionKey> fdtSelectionKeyRef = new AtomicReference<FDTSelectionKey>(null);
 
     // private static final int BUFF_LEN_SIZE = 16 * 1024 * 1024;
 
     // private static final int RETRY_IO_COUNT = Config.getInstance().getRetryIOCount();
-
     private final TCPSessionWriter master;
 
     private final FileBlockProducer fileBlockProducer;
@@ -79,7 +78,7 @@ public class SocketWriterTask extends SocketTask {
             bufferSize = mss;
         }
 
-        final boolean logFinest = logger.isLoggable(Level.FINEST); 
+        final boolean logFinest = logger.isLoggable(Level.FINEST);
         if (logFinest) {
             logger.log(Level.FINEST, "Using MSS: " + bufferSize + " for socket channel: " + sc);
         }
@@ -87,7 +86,7 @@ public class SocketWriterTask extends SocketTask {
         final DirectByteBufferPool dbPool = DirectByteBufferPool.getInstance();
         final HeaderBufferPool hbPool = HeaderBufferPool.getInstance();
 
-        for (;;) {
+        for (; ; ) {
             count = -1;
             if (!attach.hasBuffers()) {
                 if (isNetTest) {
@@ -350,7 +349,7 @@ public class SocketWriterTask extends SocketTask {
     private void recycleBuffers() {
         try {
             final FDTSelectionKey fdtSelectionKey = fdtSelectionKeyRef.getAndSet(null);
- 
+
             if (fdtSelectionKey != null) {
                 FDTWriterKeyAttachement attach = (FDTWriterKeyAttachement) fdtSelectionKey.attachment();
                 if (attach != null) {
@@ -397,7 +396,7 @@ public class SocketWriterTask extends SocketTask {
     public void run() {
 
         try {
-            for (;;) {
+            for (; ; ) {
                 fdtSelectionKeyRef.set(null);
                 FDTSelectionKey iSel = null;
                 while (iSel == null) {

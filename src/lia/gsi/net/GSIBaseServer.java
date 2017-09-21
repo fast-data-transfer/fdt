@@ -3,17 +3,7 @@
  */
 package lia.gsi.net;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.URL;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import lia.gsi.authz.LocalMappingAuthorization;
-
 import org.globus.gsi.GSIConstants;
 import org.globus.gsi.gssapi.GSSConstants;
 import org.globus.gsi.gssapi.net.GssSocket;
@@ -29,34 +19,43 @@ import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
 import org.ietf.jgss.GSSManager;
 
+import java.io.IOException;
+import java.net.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * This class provides the basics for writing various servers. <b>Note:</b> Sockets created by this server have a 5
  * minute default timeout. The timeout can be changed using the {@link #setTimeout(int) setTimeout()} function.
- * 
+ *
  * @author Adrian Muraru
  */
 public abstract class GSIBaseServer implements Runnable {
 
     private static final Logger logger = Logger.getLogger(GSIBaseServer.class.getName());
 
-    /** Socket timeout in milliseconds. */
+    /**
+     * Socket timeout in milliseconds.
+     */
     private static final int SO_TIMEOUT = Integer.getInteger("GSI_SO_TIMEOUT", 5 * 60 * 1000);
 
     protected volatile boolean accept;
 
     protected ServerSocket _server = null;
-
-    private Thread serverThread = null;
-
-    private boolean secure = true;
-
     protected String url = null;
-
     protected GSSCredential credentials = null;
-
     protected Integer gssMode = GSIConstants.MODE_SSL;
-
     protected int timeout = SO_TIMEOUT;
+    /**
+     * A handler for the deactivation framework.
+     */
+    protected AbstractServerDeactivator deactivator = null;
+    /**
+     * This method should be called by all subclasses.
+     */
+    String authzClassName;
+    private Thread serverThread = null;
+    private boolean secure = true;
 
     public GSIBaseServer() throws IOException {
         this(null, 0);
@@ -79,11 +78,6 @@ public abstract class GSIBaseServer implements Runnable {
         this.secure = secure;
         initialize();
     }
-
-    /**
-     * This method should be called by all subclasses.
-     */
-    String authzClassName;
 
     protected void initialize() {
 
@@ -112,15 +106,15 @@ public abstract class GSIBaseServer implements Runnable {
 
     }
 
+    public int getTimeout() {
+        return this.timeout;
+    }
+
     /**
      * Sets timeout for the created sockets. By default if not set, 5 minute timeout is used.
      */
     public void setTimeout(final int timeout) {
         this.timeout = timeout;
-    }
-
-    public int getTimeout() {
-        return this.timeout;
     }
 
     /**
@@ -178,7 +172,7 @@ public abstract class GSIBaseServer implements Runnable {
 
     /**
      * Returns url of this server
-     * 
+     *
      * @return url of this server
      */
     public String getURL() {
@@ -192,7 +186,7 @@ public abstract class GSIBaseServer implements Runnable {
 
     /**
      * Returns port of this server
-     * 
+     *
      * @return port number
      */
     public int getPort() {
@@ -201,7 +195,7 @@ public abstract class GSIBaseServer implements Runnable {
 
     /**
      * Returns hostname of this server
-     * 
+     *
      * @return hostname
      */
     public String getHostname() {
@@ -212,7 +206,7 @@ public abstract class GSIBaseServer implements Runnable {
      * Returns hostname of this server. The format of the host conforms to RFC 2732, i.e. for a literal IPv6 address,
      * this method will return the IPv6 address enclosed in square
      * brackets ('[' and ']').
-     * 
+     *
      * @return hostname
      */
     public String getHost() {
@@ -246,11 +240,11 @@ public abstract class GSIBaseServer implements Runnable {
                     error = true;
                     break;
                 }
-                
-                if(socket == null) {
+
+                if (socket == null) {
                     continue;
                 }
-                
+
                 try {
                     socket.setSoTimeout(getTimeout());
 
@@ -279,7 +273,7 @@ public abstract class GSIBaseServer implements Runnable {
                     }
                 }
             }
-            
+
         }
 
         logger.log(Level.WARNING, "server thread stopped");
@@ -340,11 +334,6 @@ public abstract class GSIBaseServer implements Runnable {
             return;
         Deactivator.unregisterDeactivation(deactivator);
     }
-
-    /**
-     * A handler for the deactivation framework.
-     */
-    protected AbstractServerDeactivator deactivator = null;
 
 }
 
