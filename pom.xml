@@ -239,8 +239,7 @@
 								<copy
 									file="${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
 									tofile="${project.build.directory}/fdt.jar" />
-								<echo file="${project.build.directory}/fdt" append="false">java
-									-jar fdt.jar "$@"</echo>
+								<echo file="${project.build.directory}/fdt" append="false">java -jar fdt.jar "$@"</echo>
 								<chmod file="${project.build.directory}/fdt" perm="ugo+rx" />
 							</target>
 							<filemode>755</filemode>
