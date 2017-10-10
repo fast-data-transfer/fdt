@@ -1,6 +1,11 @@
 title: Fast Data Transfer
-description: FDT is an Application for Efficient Data Transfers which is capable of reading and writing at disk speed over wide area networks (with standard TCP). It is written in Java, runs an all major platforms and it is easy to use.
-show_downloads: true
+description: FDT is an application for efficient data transfers, which is capable of reading and writing at disk speed over wide area networks (with standard TCP). It is written in Java, runs an all major platforms, and it is easy to use.
+show_downloads: false
+google_analytics:
+  theme: jekyll-theme-cayman
+  gems:
+      - jekyll-menus
+show_downloads: false
 google_analytics:
 theme: jekyll-theme-cayman
 gems:
