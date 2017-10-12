@@ -35,7 +35,8 @@ import java.util.logging.Logger;
 public class FDT {
 
     public static final String MONALISA2_CERN_CH = "monalisa2.cern.ch:28884";
-    public static final String FDT_FULL_VERSION = "0.26.0-201708081850";
+    public static final String RELEASE_DATE = Config.FDT_RELEASE_DATE.replaceAll("-", "");
+    public static final String FDT_FULL_VERSION = Config.FDT_FULL_VERSION+"-"+ RELEASE_DATE + Config.FDT_RELEASE_TIME;
     /**
      * two weeks between checking for updates
      */
