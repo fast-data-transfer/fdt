@@ -1808,8 +1808,8 @@ public final class Utils {
     public static void waitAndWork(ExecutorService executor, ServerSocket ss, Selector sel, Config config) throws Exception {
         if (config.isGSIModeEnabled()) {
             FDTGSIServer gsiServer = new FDTGSIServer(config.getGSIPort());
-            logger.log(Level.INFO, "FDT started in GSI mode on port: " + config.getGSIPort());
             gsiServer.start();
+            logger.log(Level.INFO, "FDT started in GSI mode on port: " + config.getGSIPort());
         }
         waitForTask(executor, ss, sel);
 
