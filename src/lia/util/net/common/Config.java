@@ -48,11 +48,12 @@ public class Config {
     public static final String REGEX_REMAP_DELIMITER = "(\\s)+/(\\s)+";
     // all of this are set by the ant script
     public static final String FDT_MAJOR_VERSION = "0";
-    public static final String FDT_MINOR_VERSION = "25";
+    public static final String FDT_MINOR_VERSION = "26";
     public static final String FDT_MAINTENANCE_VERSION = "0";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "."
             + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2017-04-20";
+    public static final String FDT_RELEASE_DATE = "2017-08-08";
+    public static final String FDT_RELEASE_TIME = "1830";
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )
     public static final int HEADER_SIZE = 56;
@@ -222,7 +223,7 @@ public class Config {
         rateLimit = Utils.getLongValue(configMap, "-limit", -1);
         if ((rateLimit > 0) && (rateLimit < NETWORK_BUFF_LEN_SIZE)) {
             rateLimit = NETWORK_BUFF_LEN_SIZE;
-            logger.log(Level.WARNING, " The rate limit (-limit) is too small. It will be set to " + rateLimit
+            logger.log(Level.INFO, " The rate limit (-limit) is too small. It will be set to " + rateLimit
                     + " Bytes/s");
         }
         configMap.put("-limit", String.valueOf(rateLimit));

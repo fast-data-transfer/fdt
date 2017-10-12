@@ -1809,6 +1809,7 @@ public final class Utils {
         if (config.isGSIModeEnabled()) {
             FDTGSIServer gsiServer = new FDTGSIServer(config.getGSIPort());
             gsiServer.start();
+            logger.log(Level.INFO, "FDT started in GSI mode on port: " + config.getGSIPort());
         }
         waitForTask(executor, ss, sel);
 

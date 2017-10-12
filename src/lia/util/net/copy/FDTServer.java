@@ -68,6 +68,7 @@ public class FDTServer extends AbstractFDTCloseable {
         if (config.isGSIModeEnabled()) {
             FDTGSIServer gsiServer = new FDTGSIServer(config.getGSIPort());
             gsiServer.start();
+            logger.log(Level.INFO, "FDT started in GSI mode on port: " + config.getGSIPort());
         }
         // Monitoring & Nice Prnting
         final ScheduledExecutorService monitoringService = Utils.getMonitoringExecService();

@@ -133,8 +133,11 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         rateLimit.set(config.getRateLimit());
         final long remoteRateLimit = Utils.getLongValue(controlChannel.remoteConf, "-limit", -1);
         rateLimitDelay.set(config.getRateLimitDelay());
-
         setNewRateLimit(remoteRateLimit, false);
+
+        if (rateLimit.get() > 0) {
+            logger.log(Level.INFO, "Adding rate limit " + rateLimit + " bytes to the FDT session " + sessionID);
+        }
 
         useFixedBlockSize = (useFixedBlockSize || (this.controlChannel.remoteConf.get("-fbs") != null));
         localLoop = (localLoop || (this.controlChannel.remoteConf.get("-ll") != null));
@@ -183,10 +186,12 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
         rateLimit.set(config.getRateLimit());
         rateLimitDelay.set(config.getRateLimitDelay());
-
         final long remoteRateLimit = Utils.getLongValue(controlChannel.remoteConf, "-limit", -1);
-
         setNewRateLimit(remoteRateLimit, false);
+
+        if (rateLimit.get() > 0) {
+            logger.log(Level.INFO, "Adding rate limit " + rateLimit + " bytes to the FDT session " + sessionID);
+        }
 
         useFixedBlockSize = (useFixedBlockSize || (this.controlChannel.remoteConf.get("-fbs") != null));
         localLoop = (localLoop || (this.controlChannel.remoteConf.get("-ll") != null));
