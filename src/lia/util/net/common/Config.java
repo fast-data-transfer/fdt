@@ -222,7 +222,7 @@ public class Config {
         rateLimit = Utils.getLongValue(configMap, "-limit", -1);
         if ((rateLimit > 0) && (rateLimit < NETWORK_BUFF_LEN_SIZE)) {
             rateLimit = NETWORK_BUFF_LEN_SIZE;
-            logger.log(Level.WARNING, " The rate limit (-limit) is too small. It will be set to " + rateLimit
+            logger.log(Level.INFO, " The rate limit (-limit) is too small. It will be set to " + rateLimit
                     + " Bytes/s");
         }
         configMap.put("-limit", String.valueOf(rateLimit));
