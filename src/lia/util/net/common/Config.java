@@ -67,6 +67,7 @@ public class Config {
     // default is 4
     public static final int DEFAULT_SOCKET_NO = 4;
     public static final int DEFAULT_PORT_NO = 54321;
+    public static final int DEFAULT_TRANSFER_PORT_NO = 43210;
     public static final long DEFAULT_KEEP_ALIVE_NANOS = TimeUnit.MINUTES.toNanos(2);
     public static final int DEFAULT_PORT_NO_GSI = 54320;
     public static final int DEFAULT_PORT_NO_SSH = 22;
@@ -291,7 +292,7 @@ public class Config {
         configMap.put("-ka", String.valueOf(TimeUnit.NANOSECONDS.toSeconds(this.keepAliveDelayNanos)));
 
         portNo = Utils.getIntValue(configMap, "-p", DEFAULT_PORT_NO);
-        transportPorts = Utils.getTransportPortsValue(configMap, "-tp", DEFAULT_PORT_NO);
+        transportPorts = Utils.getTransportPortsValue(configMap, "-tp", DEFAULT_TRANSFER_PORT_NO);
         tp = Arrays.asList(transportPorts.toArray());
         isCoordinatorMode = Boolean.getBoolean("coordinator");
         isThirdPartyCopyAgent = (configMap.get("-agent") != null);
