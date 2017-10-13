@@ -66,7 +66,7 @@ public class Config {
     public static final Object BIG_FDTAPP_LOCK = new Object();
     // default is 4
     public static final int DEFAULT_SOCKET_NO = 4;
-    public static final int DEFAULT_PORT_NO = 43210;
+    public static final int DEFAULT_PORT_NO = 54321;
     public static final long DEFAULT_KEEP_ALIVE_NANOS = TimeUnit.MINUTES.toNanos(2);
     public static final int DEFAULT_PORT_NO_GSI = 54320;
     public static final int DEFAULT_PORT_NO_SSH = 22;
