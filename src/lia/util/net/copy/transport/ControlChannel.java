@@ -29,7 +29,8 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
     public static final int CONNECT_TIMEOUT = 20 * 1000;
     public static final int SOCKET_TIMEOUT = 60 * 1000;
-    public static final int MAX_RETRIES = 3;
+    public static final int MAX_RETRIES = 1000;
+    public static final int RETRY_TIMEOUT = 300;
     private static final Logger logger = Logger.getLogger(ControlChannel.class.getName());
     private static final CtrlMsg versionMsg = new CtrlMsg(CtrlMsg.PROTOCOL_VERSION, Config.FDT_FULL_VERSION + "-"
             + Config.FDT_RELEASE_DATE);
@@ -420,7 +421,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
                 return newCtrlMsg;
             } catch (Exception e) {
                 t = e;
-                Thread.sleep(i * CONNECT_TIMEOUT / 2);
+                Thread.sleep(RETRY_TIMEOUT);
             } finally {
                 if (newCtrlMsg == null && i == MAX_RETRIES) {
                     throw t;

@@ -43,6 +43,7 @@ public final class AcceptableTask implements Runnable {
 
         this.sc = sc;
         this.s = sc.socket();
+        this.s.setTcpNoDelay(true);
     }
 
     public void run() {
