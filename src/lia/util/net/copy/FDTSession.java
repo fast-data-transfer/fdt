@@ -520,7 +520,9 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             if (newTransferPort > 0) {
                 openSocketForTransferPort(newTransferPort);
                 ctrlChann.sendRemoteTransferPort(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, newTransferPort));
+                this.internalClose();
                 Utils.waitAndWork(executor, ss, sel, config);
+
             } else {
                 ctrlChann.sendRemoteTransferPort(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, -1));
                 logger.warning("There are no free transfer ports at this moment, please try again later");
