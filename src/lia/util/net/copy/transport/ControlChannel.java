@@ -103,7 +103,6 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
             initStreams();
             controlSocket.setSoTimeout(1000);
 
-            //
         } catch (Throwable t) {
             close("Cannot instantiate ControlChannel", t);
             throw new Exception(t);
@@ -175,9 +174,6 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     @SuppressWarnings("unchecked")
     private void initStreams() throws Exception {
         oos = new ObjectOutputStream(new BufferedOutputStream(controlSocket.getOutputStream()));
-
-        // send the version
-
         sendMsgImpl(versionMsg);
 
         try {
