@@ -145,7 +145,7 @@ public class FDT {
             long lStart = System.currentTimeMillis();
             ApMon apmon = null;
 
-            String mlDestinations = "monalisa2.cern.ch:28884";
+            String mlDestinations = "monalisa2.cern.ch:8884";
             final String apMonHosts = (configApMonHosts.length() > 0) ? configApMonHosts : mlDestinations;
 
             logger.info("Trying to instantiate apMon to: " + apMonHosts);
