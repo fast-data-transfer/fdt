@@ -150,7 +150,7 @@ public class FDT {
                         }
                     } else {
                         if (!config.isStandAlone() && fdtSessionManager.isInited()
-                                && fdtSessionManager.sessionsNumber() == 0) {
+                                && fdtSessionManager.sessionsNumber() == 0 && !config.isThirdPartyCopyAgent()) {
                             SelectionManager.getInstance().stopIt();
                             logger.info(
                                     "Server started with -S flag set and all the sessions have finished ... FDT will stop now");
