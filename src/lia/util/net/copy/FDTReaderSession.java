@@ -940,21 +940,20 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
         @Override
         public int compare(FileSession fileSession1, FileSession fileSession2) {
-            System.out.println("Comparing " + fileSession1.fileName + " and " + fileSession2.fileName);
+            logger.log(Level.FINEST, "[ FileSessionComparator ] Comparing " + fileSession1.fileName + " and " + fileSession2.fileName);
             if (fileSession1.fileName.equals(fileSession2.fileName)) {
                 if (fileSession1.sessionSize < fileSession2.sessionSize) {
-                    System.out.println("Comparing session  size " + fileSession1.sessionSize + " and " + fileSession2.sessionSize);
+                    logger.log(Level.FINEST, "[ FileSessionComparator ] Comparing session  size " + fileSession1.sessionSize + " and " + fileSession2.sessionSize);
                     return -1;
                 }
                 else if (fileSession1.file.length() < fileSession2.file.length())
                 {
-                    System.out.println("Comparing file size " + fileSession1.file.length() + " and " + fileSession2.file.length());
+                    logger.log(Level.FINEST, "[ FileSessionComparator ] Comparing file size " + fileSession1.file.length() + " and " + fileSession2.file.length());
                     return -1;
                 }
             }
 
-
-            System.out.println("Return 1");
+            logger.log(Level.FINEST, "[ FileSessionComparator ] Return 1");
             return 1;
         }
     }
