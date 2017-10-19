@@ -60,7 +60,6 @@ public class FDT {
         if (config.isCoordinatorMode()) {
             ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
             String sessionID = cc.sendCoordinatorMessage(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, new FDTSessionConfigMsg(config)));
-            // wait for remote config
             if (sessionID.equals("-1")) {
                 logger.log(Level.WARNING, "Message sent to: " + config.getHostName() + ":" + config.getPort() + " but no free transfer ports available");
             } else {
@@ -70,7 +69,6 @@ public class FDT {
         } else if (config.isListFilesMode()) {
             ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
             List<String> filesInDir = cc.sendListFilesMessage(new CtrlMsg(CtrlMsg.LIST_FILES, new FDTListFilesMsg(config.getListFilesFrom())));
-            // wait for remote config
             logger.log(Level.INFO, "Message sent to: " + config.getHostName() + ":" + config.getPort());
             printOutResults(filesInDir);
             System.exit(0);
