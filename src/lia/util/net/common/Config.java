@@ -294,7 +294,7 @@ public class Config {
         portNo = Utils.getIntValue(configMap, "-p", DEFAULT_PORT_NO);
         transportPorts = Utils.getTransportPortsValue(configMap, "-tp", DEFAULT_TRANSFER_PORT_NO);
         tp = Arrays.asList(transportPorts.toArray());
-        isCoordinatorMode = Boolean.getBoolean("coordinator");
+        isCoordinatorMode = (configMap.get("-coord") != null);
         isThirdPartyCopyAgent = (configMap.get("-agent") != null);
 
         portNoGSI = Utils.getIntValue(configMap, "-gsip", DEFAULT_PORT_NO_GSI);

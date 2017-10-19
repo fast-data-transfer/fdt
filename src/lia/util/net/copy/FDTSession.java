@@ -225,6 +225,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     }
 
     public static List<String> getListOfFiles() {
+        logger.log(Level.FINEST, " [ getListOfFiles ] ");
         File[] filesList = new File(config.getListFilesFrom()).listFiles();
         List<String> listOfFiles = new ArrayList<>();
 
@@ -235,6 +236,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
                 }
             }
         }
+        logger.log(Level.FINEST, " [ getListOfFiles ] file list collected from directory: " + config.getListFilesFrom());
         return listOfFiles;
     }
 
@@ -502,9 +504,10 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         try {
             FDTListFilesMsg lsMsg = (FDTListFilesMsg) ctrlMsg.message;
             config.setListFilesFrom(lsMsg.listFilesFrom);
-            final ControlChannel ctrlChann = this.controlChannel;
             lsMsg.filesInDir = getListOfFiles();
-            ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.LIST_FILES, lsMsg));
+            logger.log(Level.FINEST, "[ FDTSession ] [ handleListFilesMessage ] collected " + lsMsg.filesInDir.size());
+            controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.LIST_FILES, lsMsg));
+            controlChannel.emptyMsgQueue();
         } catch (Exception ex) {
             logger.log(Level.WARNING, "Exception while handling 'list files in dir' message", ex);
         } finally {
@@ -515,16 +518,18 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
     private void handleGetRemoteTransferPortMessage(CtrlMsg ctrlMsg) {
         logger.log(Level.INFO, "[ FDTSession ] [ handleGetRemoteTransferPortMessage ( " + ctrlMsg.message.toString() + " )");
         try {
-            final ControlChannel ctrlChann = this.controlChannel;
             int newTransferPort = config.getNewRemoteTransferPort();
             if (newTransferPort > 0) {
                 openSocketForTransferPort(newTransferPort);
-                ctrlChann.sendRemoteTransferPort(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, newTransferPort));
+                controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, newTransferPort));
+                controlChannel.emptyMsgQueue();
                 this.internalClose();
+                logger.log(Level.INFO, "[ FDTSession ] [ handleGetRemoteTransferPortMessage ( closing session )");
                 Utils.waitAndWork(executor, ss, sel, config);
 
             } else {
-                ctrlChann.sendRemoteTransferPort(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, -1));
+                controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, -1));
+                controlChannel.emptyMsgQueue();
                 logger.warning("There are no free transfer ports at this moment, please try again later");
             }
         } catch (Exception ex) {

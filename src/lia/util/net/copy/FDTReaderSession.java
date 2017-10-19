@@ -250,7 +250,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
             if (!new File(fName).exists()) {
                 logger.warning("File listed in file list does not exist! " + fName);
                 controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.FILE_NOT_FOUND, fName));
-                controlChannel.sendFailureMsg();
+                controlChannel.emptyMsgQueue();
                 throw new FileNotFoundException("File does not exist! " + fName);
             }
             if (new File(fName).isFile()) {
@@ -435,21 +435,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
             if (realReadersCount > 1) {
                 FileSession[] filesArray = files.toArray(new FileSession[files.size()]);
-                Arrays.sort(filesArray, new Comparator<FileSession>() {
-
-                    @Override
-                    public int compare(FileSession fileSession1, FileSession fileSession2) {
-                        if (fileSession1.file.equals(fileSession2.file)) {
-                            return fileSession1.sessionID.compareTo(fileSession2.sessionID);
-                        }
-
-                        if (fileSession1.sessionSize < fileSession2.sessionSize) {
-                            return -1;
-                        }
-
-                        return 1;
-                    }
-                });
+                Arrays.sort(filesArray, new FileSessionComparator());
 
                 if (logger.isLoggable(Level.FINER)) {
                     logger.log(Level.FINER, "Sorted FileSession-s array: " + Arrays.toString(filesArray));
@@ -948,5 +934,27 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         }
 
         return fb;
+    }
+
+    private static class FileSessionComparator implements Comparator<FileSession> {
+
+        @Override
+        public int compare(FileSession fileSession1, FileSession fileSession2) {
+            logger.log(Level.FINEST, "[ FileSessionComparator ] Comparing " + fileSession1.fileName + " and " + fileSession2.fileName);
+            if (fileSession1.fileName.equals(fileSession2.fileName)) {
+                if (fileSession1.sessionSize < fileSession2.sessionSize) {
+                    logger.log(Level.FINEST, "[ FileSessionComparator ] Comparing session  size " + fileSession1.sessionSize + " and " + fileSession2.sessionSize);
+                    return -1;
+                }
+                else if (fileSession1.file.length() < fileSession2.file.length())
+                {
+                    logger.log(Level.FINEST, "[ FileSessionComparator ] Comparing file size " + fileSession1.file.length() + " and " + fileSession2.file.length());
+                    return -1;
+                }
+            }
+
+            logger.log(Level.FINEST, "[ FileSessionComparator ] Return 1");
+            return 1;
+        }
     }
 }

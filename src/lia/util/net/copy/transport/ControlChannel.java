@@ -127,6 +127,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
             this.notifier = notifier;
 
             initStreams();
+            controlSocket.setTcpNoDelay(true);
             controlSocket.setSoTimeout(1000);
 
         } catch (Throwable t) {
@@ -151,6 +152,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
             this.notifier = notifier;
 
             initStreams();
+            controlSocket.setTcpNoDelay(true);
             controlSocket.setSoTimeout(1000);
 
         } catch (Throwable t) {
@@ -213,13 +215,9 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
             if (DirectByteBufferPool.initInstance(Integer.parseInt((String) remoteConf.get("-bs")),
                     Config.getMaxTakePollIter())) {
-                if (logger.isLoggable(Level.FINER)) {
-                    logger.log(Level.FINER, "The buffer pool has been initialized");
-                }
+                logger.log(Level.FINER, "The buffer pool has been initialized");
             } else {
-                if (logger.isLoggable(Level.FINER)) {
-                    logger.log(Level.FINER, "The buffer pool is already initialized");
-                }
+                logger.log(Level.FINER, "The buffer pool is already initialized");
             }
 
         } catch (Throwable t) {
@@ -300,27 +298,22 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         if (ctrlMsg == null) {
             throw new NullPointerException("Control message cannot be null over the ControlChannel");
         }
-        if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
-            if (logger.isLoggable(Level.FINEST)) {
-                // do a thread dump
-                Thread.dumpStack();
-            }
+        logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+        if (logger.isLoggable(Level.FINEST)) {
+            Thread.dumpStack();
         }
         qToSend.add(ctrlMsg);
     }
 
     public void sendSessionIDToCoordinator(CtrlMsg ctrlMsg) {
         logger.log(Level.INFO, "[ ControlChannel ] [ sendSessionIDToCoordinator ( " + ctrlMsg.message.toString() + " )");
-        if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
-            if (logger.isLoggable(Level.FINEST)) {
-                Thread.dumpStack();
-            }
+        logger.log(Level.FINER, "[ ControlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+        if (logger.isLoggable(Level.FINEST)) {
+            Thread.dumpStack();
         }
-
         try {
             sendMsgImpl(ctrlMsg);
+            sendAllMsgs();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -329,14 +322,13 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
     public void sendRemoteTransferPort(CtrlMsg ctrlMsg) {
         logger.log(Level.INFO, "[ ControlChannel ] [ sendRemoteTransferPort ( " + ctrlMsg.message.toString() + " )" + this.remoteAddress + ":" + this.remotePort);
-        if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
-            if (logger.isLoggable(Level.FINEST)) {
-                Thread.dumpStack();
-            }
+        logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+        if (logger.isLoggable(Level.FINEST)) {
+            Thread.dumpStack();
         }
         try {
             sendMsgImpl(ctrlMsg);
+            sendAllMsgs();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -346,18 +338,17 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     public List<String> sendListFilesMessage(CtrlMsg ctrlMsg) throws IOException {
 
         logger.log(Level.INFO, "[ ControlChannel ] [ sendListFilesMessage ]");
-        if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
-            if (logger.isLoggable(Level.FINEST)) {
-                Thread.dumpStack();
-            }
+        logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+        if (logger.isLoggable(Level.FINEST)) {
+            Thread.dumpStack();
         }
         try {
+            logger.log(Level.FINEST, "[ ControlChannel ] [ sendListFilesMessage ] sendMsgImpl " + ctrlMsg);
             sendMsgImpl(ctrlMsg);
+            sendAllMsgs();
+            logger.log(Level.FINEST, "[ ControlChannel ] [ sendListFilesMessage ] waiting for response " + ctrlMsg);
             CtrlMsg newCtrlMsg = getResponse();
-            if (logger.isLoggable(Level.FINER)) {
-                logger.log(Level.FINER, "[ CtrlChannel ] [ sendListFilesMessage ] listing files on remote machine: " + newCtrlMsg.message.toString());
-            }
+            logger.log(Level.FINER, "[ CtrlChannel ] [ sendListFilesMessage ] listing files on remote machine: " + newCtrlMsg.message.toString());
             FDTListFilesMsg msg = (FDTListFilesMsg) newCtrlMsg.message;
             return msg.filesInDir;
         } catch (Exception e) {
@@ -370,14 +361,13 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     public int sendTransferPortMessage(CtrlMsg ctrlMsg) throws IOException {
 
         logger.log(Level.INFO, "[ ControlChannel ] [ sendTransferPortMessage ]");
-        if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
-            if (logger.isLoggable(Level.FINEST)) {
-                Thread.dumpStack();
-            }
+        logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+        if (logger.isLoggable(Level.FINEST)) {
+            Thread.dumpStack();
         }
         try {
             sendMsgImpl(ctrlMsg);
+            sendAllMsgs();
             CtrlMsg newCtrlMsg = getResponse();
             if (logger.isLoggable(Level.FINER)) {
                 logger.log(Level.FINER, "[ CtrlChannel ] [ sendTransferPortMessage ] got response: " + newCtrlMsg.message);
@@ -393,14 +383,13 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     public String sendCoordinatorMessage(CtrlMsg ctrlMsg) throws IOException {
 
         logger.log(Level.INFO, "[ ControlChannel ] [ sendCoordinatorMessage ]");
-        if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
-            if (logger.isLoggable(Level.FINEST)) {
-                Thread.dumpStack();
-            }
+        logger.log(Level.FINER, "[ CtrlChannel ] adding to send queue msg: " + ctrlMsg.toString());
+        if (logger.isLoggable(Level.FINEST)) {
+            Thread.dumpStack();
         }
         try {
             sendMsgImpl(ctrlMsg);
+            sendAllMsgs();
             CtrlMsg newCtrlMsg = getResponse();
             logger.info("Remote job session ID: " + newCtrlMsg.message.toString());
             return newCtrlMsg.message.toString();
@@ -415,27 +404,35 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
     private CtrlMsg getResponse() throws Exception {
         Exception t = null;
         CtrlMsg newCtrlMsg = null;
+        logger.log(Level.FINEST, "[ ControlChannel ] [ getResponse] will wait for response " + (MAX_RETRIES * RETRY_TIMEOUT) + "ms");
         for (int i = 1; i <= MAX_RETRIES; i++) {
             try {
+                logger.log(Level.FINER, "[ ControlChannel ] [ getResponse] trying to read CtrlMsg for " + i + " time");
                 newCtrlMsg = (CtrlMsg) ois.readObject();
+                logger.log(Level.FINER, "[ ControlChannel ] [ getResponse] read CtrlMsg " + newCtrlMsg);
                 return newCtrlMsg;
             } catch (Exception e) {
+                logger.log(Level.FINEST, "[ ControlChannel ] [ getResponse] failed to read CtrlMsg ", e);
                 t = e;
                 Thread.sleep(RETRY_TIMEOUT);
+                logger.log(Level.FINEST, "[ ControlChannel ] [ getResponse] waited for " + RETRY_TIMEOUT + "ms");
             } finally {
+
                 if (newCtrlMsg == null && i == MAX_RETRIES) {
+                    logger.log(Level.FINEST, "[ ControlChannel ] [ getResponse] CtrlMsg " + newCtrlMsg, t);
                     throw t;
                 }
             }
         }
+        logger.log(Level.FINEST, "[ ControlChannel ] [ getResponse] got message null");
         return null;
     }
 
-    public void sendFailureMsg() throws Exception {
+    public void emptyMsgQueue() throws Exception {
         sendAllMsgs();
     }
 
-    private void sendAllMsgs() throws Exception {
+    private synchronized void sendAllMsgs() throws Exception {
         for (; ; ) {
             final Object ctrlMsg = qToSend.poll();
             if (ctrlMsg == null) {
@@ -447,12 +444,11 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
     private void sendMsgImpl(Object o) throws Exception {
         try {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.log(Level.FINE, " [ ControlChannel ] sending message " + o);
-            }
+            logger.log(Level.INFO, " [ ControlChannel ] sending message " + o);
             oos.writeObject(o);
             oos.reset();
             oos.flush();
+            logger.log(Level.FINER, " [ ControlChannel ] sent message " + o);
         } catch (Throwable t) {
             if (!isClosed()) {
                 close("Exception sending control data", t);
