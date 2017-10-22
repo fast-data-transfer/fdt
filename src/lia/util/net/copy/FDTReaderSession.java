@@ -253,13 +253,10 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 controlChannel.emptyMsgQueue();
                 throw new FileNotFoundException("File does not exist! " + fName);
             }
-            if (new File(fName).isFile() || config.isNetTest()) {
                 FileReaderSession frs = new FileReaderSession(fName, this, isLoop, fcp);
                 fileSessions.put(frs.sessionID, frs);
                 setSessionSize(sessionSize() + frs.sessionSize());
-            } else {
-                logger.warning("File listed in file list is not a file! " + fName);
-            }
+
         }
 
         buildPartitionMap();
