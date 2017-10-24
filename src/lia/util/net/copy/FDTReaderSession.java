@@ -61,20 +61,16 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     public FDTReaderSession(int transferPort) throws Exception {
         super(FDTSession.CLIENT, transferPort);
         Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
-        final int rMul = Integer.getInteger("fdt.rQueueM", 2).intValue();
-        final int avProcProp = Integer.getInteger("fdt.avProc", 1).intValue();
+        final int rMul = Integer.getInteger("fdt.rQueueM", 2);
+        final int avProcProp = Integer.getInteger("fdt.avProc", 1);
         final int avProcMax = Math.max(avProcProp, Utils.availableProcessors());
-        fileBlockQueue = new ArrayBlockingQueue<FileBlock>(avProcMax * rMul);
-
-        // I am already connected here with the remote peer
-        readersMap = new TreeMap<Integer, ArrayList<DiskReaderTask>>();
+        fileBlockQueue = new ArrayBlockingQueue<>(avProcMax * rMul);
+        readersMap = new TreeMap<>();
         diskManager.addSession(this);
-
         this.remoteDir = config.getDestinationDir();
         this.recursive = config.isRecursive();
         this.isFileList = (config.getConfigMap().get("-fl") != null);
         this.monID = config.getMonID();
-
         readersCount = config.getReadersCount();
 
         if (readersCount <= 0) {
@@ -144,7 +140,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         }
 
         int filtersCount = 0;
-        final ProcessorInfo processorInfo = new ProcessorInfo();
+        final ProcessorInfo info = new ProcessorInfo();
         final long sTime = System.nanoTime();
 
         try {
@@ -161,17 +157,17 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 } else {
                     filtersCount = preProcessFilters.length;
 
-                    processorInfo.fileList = new String[fileList.length];
-                    processorInfo.destinationDir = (this.remoteDir == null) ? config.getDestinationDir()
+                    info.fileList = new String[fileList.length];
+                    info.destinationDir = (this.remoteDir == null) ? config.getDestinationDir()
                             : this.remoteDir;
-                    processorInfo.remoteAddress = this.controlChannel.remoteAddress;
-                    processorInfo.remotePort = this.controlChannel.remotePort;
-                    processorInfo.recursive = this.recursive;
+                    info.remoteAddress = this.controlChannel.remoteAddress;
+                    info.remotePort = this.controlChannel.remotePort;
+                    info.recursive = this.recursive;
 
-                    System.arraycopy(fileList, 0, processorInfo.fileList, 0, fileList.length);
+                    System.arraycopy(fileList, 0, info.fileList, 0, fileList.length);
 
                     for (final String filterName : preProcessFilters) {
-                        preProcess(processorInfo, filterName);
+                        preProcess(info, filterName);
                     }
                 }
             }
@@ -191,10 +187,10 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         Map<String, String> newRemappedFileList = new HashMap<String, String>();
 
         if (filtersCount > 0) {
-            this.processorInfo = processorInfo;
-            this.remoteDir = processorInfo.destinationDir;
-            newFileList = new ArrayList<String>(processorInfo.fileList.length);
-            newFileList.addAll(Arrays.asList(processorInfo.fileList));
+            this.processorInfo = info;
+            this.remoteDir = info.destinationDir;
+            newFileList = new ArrayList<>(info.fileList.length);
+            newFileList.addAll(Arrays.asList(info.fileList));
         } else {
             if (recursive) {
 
@@ -333,13 +329,11 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
             sccm.fileIDs[count] = fs.sessionID;
 
-            if (isFileList) {// -fl specified ... I don't care about the names
+            if (isFileList) {
                 sccm.fileLists[count] = fs.fileName;
                 sccm.remappedFileLists[count] = (newRemappedFileList == null) ? null
                         : newRemappedFileList.get(fs.fileName);
-            } else if (initialMapping.size() == 0) { // only files ... no
-                // -r(ecursive)
-                // specified
+            } else if (initialMapping.size() == 0) {
                 sccm.fileLists[count] = fs.getFile().getName();
             } else {
                 String parent = initialMapping.get(fs.fileName);
@@ -355,8 +349,6 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
 
                 sccm.fileLists[count] = name;
             }
-            // System.out.println(" sccm.fileLists [ " + count + " ] = " +
-            // sccm.fileLists[count]);
             sccm.fileSizes[count] = fs.sessionSize;
             sccm.lastModifTimes[count] = fs.lastModified;
 
@@ -377,7 +369,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         boolean bRet = true;
 
         synchronized (readersMap) {
-            final ArrayList<DiskReaderTask> readersList = readersMap.get(Integer.valueOf(partitionID));
+            final ArrayList<DiskReaderTask> readersList = readersMap.get(partitionID);
             if (readersList != null) {
                 if (!readersList.remove(drt)) {
                     bRet = false;
@@ -473,7 +465,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 logger.log(Level.FINER, " ReadersTasks for partitionID: " + partitionID + ": " + readersTasks);
             }
 
-            readersMap.put(Integer.valueOf(partitionID), readersTasks);
+            readersMap.put(partitionID, readersTasks);
             sb.append(partitionID).append(" ");
         }
 
