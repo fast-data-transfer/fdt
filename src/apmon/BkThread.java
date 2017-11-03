@@ -595,7 +595,6 @@ class BkThread extends Thread {
                 }
             } catch (Exception e) {
                 logger.log(Level.WARNING, "", e);
-                ;
                 if (apm.autoDisableMonitoring) {
                     logger.warning("parameter processes disabled");
                     apm.sysMonitorParams &= ~ApMonMonitoringConstants.SYS_NET_TCP_DETAILS;

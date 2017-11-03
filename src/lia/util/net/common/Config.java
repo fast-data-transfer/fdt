@@ -8,10 +8,7 @@ import lia.util.net.copy.PosixFSFileChannelProviderFactory;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.net.NetworkInterface;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketException;
+import java.net.*;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.*;
@@ -93,6 +90,9 @@ public class Config {
     public static final int SSH_REMOTE_SERVER_LOCAL_CLIENT_PULL = 2;
     // REMOTE server, REMOTE client in push mode)
     public static final int SSH_REMOTE_SERVER_REMOTE_CLIENT_PUSH = 3;
+
+    public static final String APMON="APMON";
+    public static final String OPENTSDB="OPENTSDB";
     /**
      * Logger used by this class
      */
@@ -123,7 +123,7 @@ public class Config {
     private final boolean isNagleEnabled;
     private final boolean isStandAlone;
     private final String sshKeyPath;
-    private final String apMonHosts;
+    private String apMonHosts;
     private final boolean isLisaRestartEnabled;
     private final String writeMode;
     private final String preFilters;
@@ -162,6 +162,7 @@ public class Config {
     private String listFilesFrom;
     private String sIP;
     private String dIP;
+    private String opentsdb = null;
     private boolean bComputeMD5 = false;
     private boolean bRecursive = false;
     private boolean bCheckUpdate = false;
@@ -237,6 +238,8 @@ public class Config {
 
         this.massStorageConfig = Utils.getStringValue(configMap, "-ms", null);
         this.massStorageType = Utils.getStringValue(configMap, "-mst", null);
+
+        this.opentsdb = Utils.getStringValue(configMap, "-opentsdb", "localhost:4242");
 
         try {
             if ((massStorageType() != null) && massStorageType().equals("dcache")) {
@@ -533,6 +536,19 @@ public class Config {
         }
     }
 
+    public String getMonitor()
+    {
+        if(configMap.get("-opentsdb") != null)
+        {
+            return OPENTSDB;
+        }
+        if (configMap.get("-apmon") != null)
+        {
+            return APMON;
+        }
+       return APMON;
+    }
+
     private static final int getMinMTU() {
         int retMTU = 1500;
 
@@ -791,6 +807,10 @@ public class Config {
         return portNo;
     }
 
+    public int getDefaultPort() {
+        return DEFAULT_PORT_NO;
+    }
+
     public int getGSIPort() {
         return portNoGSI;
     }
@@ -932,6 +952,10 @@ public class Config {
 
     public String getApMonHosts() {
         return apMonHosts;
+    }
+
+    public void setApMonHosts(String apMonHosts) {
+        this.apMonHosts = apMonHosts;
     }
 
     public boolean isCoordinatorMode() {
@@ -1123,5 +1147,18 @@ public class Config {
         } else {
             this.configMap.remove("-agent");
         }
+    }
+
+    public String getListenAddress()
+    {
+        return (String)this.configMap.get("-FDT_LISTEN");
+    }
+
+    public String getOpentsdb() {
+        return opentsdb;
+    }
+
+    public void setOpentsdb(String opentsdb) {
+        this.opentsdb = opentsdb;
     }
 }

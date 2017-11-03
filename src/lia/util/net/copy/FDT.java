@@ -36,7 +36,7 @@ public class FDT {
 
     public static final String MONALISA2_CERN_CH = "monalisa2.cern.ch:8884";
     public static final String RELEASE_DATE = Config.FDT_RELEASE_DATE.replaceAll("-", "");
-    public static final String FDT_FULL_VERSION = Config.FDT_FULL_VERSION+"-"+ RELEASE_DATE + Config.FDT_RELEASE_TIME;
+    public static final String FDT_FULL_VERSION = Config.FDT_FULL_VERSION + "-" + RELEASE_DATE + Config.FDT_RELEASE_TIME;
     /**
      * two weeks between checking for updates
      */
@@ -51,9 +51,18 @@ public class FDT {
     private static Properties localProps = new Properties();
 
     FDT() throws Exception {
+        String monitor = config.getMonitor();
+        switch (monitor) {
+            case Config.APMON:
+                initApMon();
+                break;
+            case Config.OPENTSDB:
+                initOpenTSDB();
+                break;
+            default:
+                break;
+        }
 
-        // initialize monitoring, if requested
-        initApMon();
 
         scheduleReportingTasks();
 
@@ -80,9 +89,7 @@ public class FDT {
                 config.setRemoteTransferPort(Utils.getFDTTransferPort(config));
                 try {
                     FDTSessionManager.getInstance().addFDTClientSession(config.getRemoteTransferPort());
-                }
-                catch (FileNotFoundException ex)
-                {
+                } catch (FileNotFoundException ex) {
                     ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
                     cc.sendCtrlMessage(new CtrlMsg(CtrlMsg.FILE_NOT_FOUND, ex.getMessage()));
                 }
@@ -96,6 +103,53 @@ public class FDT {
             }
         }
     }
+
+    private void initOpenTSDB() throws Exception {
+        ApMon apmon = null;
+        long lStart = System.currentTimeMillis();
+        try {
+            Vector<String> vHosts = new Vector<>();
+            Vector<Integer> vPorts = new Vector<>();
+            //dummy host
+            vHosts.add("127.0.0.1");
+            vPorts.add(12345);
+            ApMon.setLogLevel("WARNING");
+            apmon = new ApMon(vHosts, vPorts);
+            apmon.setConfRecheck(false, -1);
+            apmon.setGenMonitoring(true, 20);
+            String cluster_name;
+            String node_name;
+            if (config.getHostName() != null) {
+                cluster_name = "Clients";
+                node_name = config.getHostName();
+            } else {// server
+                cluster_name = "Servers";
+                node_name = apmon.getMyHostname();
+            }
+            apmon.setMonitorClusterNode(cluster_name, node_name);
+            apmon.setSysMonitoring(true, 10);
+        } catch (Throwable ex) {
+            logger.log(Level.WARNING, "Error initializing ApMon engine.", ex);
+        } finally {
+            Utils.initApMonInstance(apmon);
+        }
+
+        try {
+            if (Utils.getApMon() != null) {
+                ApMonReportingTask apmrt = new ApMonReportingTask();
+                Utils.getMonitoringExecService().scheduleWithFixedDelay(apmrt, 1,
+                        config.getApMonReportingInterval(), TimeUnit.SECONDS);
+            } else {
+                logger.log(Level.WARNING, "Cannot start ApMonReportingTask because apMon is null!");
+            }
+        } catch (Throwable t) {
+            logger.log(Level.WARNING, "Cannot start ApMonReportingTask because got Exception.", t);
+        }
+
+        long lEnd = System.currentTimeMillis();
+        logger.info("ApMon for OpenTSDB initialization took " + (lEnd - lStart) + " ms");
+    }
+
 
     private static void scheduleReportingTasks() {
         Utils.getMonitoringExecService().scheduleWithFixedDelay(FDTInternalMonitoringTask.getInstance(), 1, 5,

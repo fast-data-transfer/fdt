@@ -12,6 +12,12 @@ import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.opentsdb.client.ExpectResponse;
+import org.opentsdb.client.HttpClient;
+import org.opentsdb.client.HttpClientImpl;
+import org.opentsdb.client.builder.Metric;
+import org.opentsdb.client.builder.MetricBuilder;
+import org.opentsdb.client.response.Response;
 
 import java.io.*;
 import java.net.*;
@@ -404,7 +410,8 @@ public final class Utils {
         synchronized (Utils.class) {
 
             // just check that initApMonInstance will be ever called ....
-            if (Config.getInstance().getApMonHosts() == null) {
+            Config config = Config.getInstance();
+            if (config.getApMonHosts() == null && !config.getMonitor().equals(config.OPENTSDB)) {
                 return null;
             }
 

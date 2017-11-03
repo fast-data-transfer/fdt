@@ -634,6 +634,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 sb.append(" ) final stats:");
                 sb.append("\n Started: ").append(new Date(startTimeMillis));
                 sb.append("\n Ended:   ").append(endDate);
+                long period = System.nanoTime() - startTimeNanos;
                 sb.append("\n Transfer period:   ")
                         .append(Utils.getETA(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNanos)));
                 sb.append("\n TotalBytes: ").append(getTotalBytes());
@@ -663,6 +664,11 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
                 sb.append("\n");
                 logger.info(sb.toString());
                 System.out.println(sb.toString());
+                if (config.getMonitor().equals(Config.OPENTSDB)) {
+                    MonitoringUtils monUtils = new MonitoringUtils(config, this);
+                    monUtils.monitorEndStats(((downCause() == null) && (downMessage() == null)),getTotalBytes(), transportProvider.getUtilBytes(),
+                            startTimeMillis,  endDate.getTime(), period, "Readers");
+                }
             } catch (Throwable t) {
                 logger.log(Level.WARNING,
                         "[ FDTReaderSession ] [ finalCleanup ] [ HANDLED ] Exception getting final statistics. Smth went dreadfully wrong!",
@@ -867,6 +873,11 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
         controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.START_SESSION, transferPort));
         // I'm still in sync ... if smth goes wrong the state will not be set
         setCurrentState(START_SENT);
+
+        if (config.getMonitor().equals(Config.OPENTSDB)) {
+            MonitoringUtils monUtils = new MonitoringUtils(config, this);
+            monUtils.monitorStart(System.currentTimeMillis(), "Readers");
+        }
 
         startReading();
 

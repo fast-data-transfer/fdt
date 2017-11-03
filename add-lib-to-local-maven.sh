@@ -32,4 +32,6 @@ mvn install:install-file -Dfile="lib/gsi-sshterm/BCGSS.jar" -DgroupId=edu.illino
 mvn install:install-file -Dfile="lib/gsi-sshterm/swing-layout-1.0.3.jar" -DgroupId=org.jdesktop -DartifactId=swing-layout -Dversion=1.0.3 -Dpackaging=jar
 #mvn install:install-file -Dfile="bbbb" -DgroupId=aaaaa -DartifactId=BCGSS -Dversion=1.0.0 -Dpackaging=jar
 
+mvn install:install-file -Dfile="lib/opentsdb/opentsdb-client-2.1.0.jar" -DgroupId=org.opentsdb -DartifactId=opentsdb-client -Dversion=2.1.0 -Dpackaging=jar
+
 echo "FINISHED INSTALLING LOCAL DEPENDENCIES"
