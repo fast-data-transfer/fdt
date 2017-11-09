@@ -174,7 +174,9 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 sb.append("\n Transfer period:   ")
                         .append(Utils.getETA(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNanos)));
                 sb.append("\n TotalBytes: ").append(getTotalBytes());
+                long utilBytes = 0;
                 if (transportProvider != null) {
+                    utilBytes = transportProvider.getUtilBytes();
                     sb.append("\n TotalNetworkBytes: ").append(transportProvider.getUtilBytes());
                     try {
                         if (!Utils.updateTotalReadCounter(transportProvider.getUtilBytes())) {
@@ -204,7 +206,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 }
                 if (config.getMonitor().equals(Config.OPENTSDB)) {
                     MonitoringUtils monUtils = new MonitoringUtils(config, this);
-                    monUtils.monitorEndStats(((downCause() == null) && (downMessage() == null)),getTotalBytes(), transportProvider.getUtilBytes(),
+                    monUtils.monitorEndStats(((downCause() == null) && (downMessage() == null)), getTotalBytes(), utilBytes,
                             startTimeMillis,  endDate.getTime(), period, "Writers");
                 }
             } catch (Throwable t) {
