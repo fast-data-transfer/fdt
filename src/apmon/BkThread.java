@@ -457,7 +457,7 @@ class BkThread extends Thread {
         monitor.updateCall();
         long crtTime = System.currentTimeMillis();
 
-        logger.info("Sending system monitoring information...");
+        logger.log(Level.FINER,"Sending system monitoring information...");
         // long intervalLength = crtTime - apm.lastSysInfoSend;
         apm.lastSysInfoSend = crtTime;
 
