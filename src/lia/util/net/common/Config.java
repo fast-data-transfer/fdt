@@ -4,6 +4,7 @@
 package lia.util.net.common;
 
 import lia.util.net.copy.PosixFSFileChannelProviderFactory;
+import org.opentsdb.client.HttpClientImpl;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -163,6 +164,7 @@ public class Config {
     private String sIP;
     private String dIP;
     private String opentsdb = null;
+    private String opentsdbProtocol = System.getProperty("opentsdb.protocol", org.apache.http.HttpHost.DEFAULT_SCHEME_NAME+ "://");
     private boolean bComputeMD5 = false;
     private boolean bRecursive = false;
     private boolean bCheckUpdate = false;
@@ -196,6 +198,7 @@ public class Config {
     private long consoleReportingTaskDelay = 5;
     private Map<String, Integer> sessionPortMap = new HashMap<>();
     private Map<Integer, List<Object>> sessionSocketMap = new HashMap<>();
+    private HttpClientImpl httpClient = null;
 
     /**
      * @param configMap
@@ -547,6 +550,17 @@ public class Config {
             return APMON;
         }
        return APMON;
+    }
+
+    public void initOpenTSDBMonitorClient()
+    {
+        httpClient = new HttpClientImpl(opentsdbProtocol + getOpentsdb());
+    }
+
+
+    public HttpClientImpl getOpenTSDBMonitorClient()
+    {
+        return httpClient;
     }
 
     private static final int getMinMTU() {

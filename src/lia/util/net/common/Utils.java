@@ -12,12 +12,6 @@ import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.opentsdb.client.ExpectResponse;
-import org.opentsdb.client.HttpClient;
-import org.opentsdb.client.HttpClientImpl;
-import org.opentsdb.client.builder.Metric;
-import org.opentsdb.client.builder.MetricBuilder;
-import org.opentsdb.client.response.Response;
 
 import java.io.*;
 import java.net.*;
@@ -1775,6 +1769,7 @@ public final class Utils {
                 loggingProps.put("handlers", "java.util.logging.ConsoleHandler");
                 loggingProps.put("java.util.logging.ConsoleHandler.level", "FINEST");
                 loggingProps.put("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
+                loggingProps.put("java.util.logging.SimpleFormatter.format", "%1$tY-%1$tm-%1$td %1$tH:%1$tM:%1$tS %4$s %2$s %5$s%6$s%n");
             }
 
             if (logFile != null) {
@@ -1785,6 +1780,7 @@ public final class Utils {
                 loggingProps.put("handlers", "java.util.logging.FileHandler,java.util.logging.ConsoleHandler");
                 loggingProps.put("java.util.logging.ConsoleHandler.level", "FINEST");
                 loggingProps.put("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
+                loggingProps.put("java.util.logging.SimpleFormatter.format", "%1$tY-%1$tm-%1$td %1$tH:%1$tM:%1$tS %4$s %2$s %5$s%6$s%n");
                 loggingProps.put("java.util.logging.FileHandler.level", "FINEST");
                 loggingProps.put("java.util.logging.FileHandler.formatter", "java.util.logging.SimpleFormatter");
                 loggingProps.put("java.util.logging.FileHandler.pattern", "" + logFile);

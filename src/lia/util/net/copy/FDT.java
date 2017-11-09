@@ -105,6 +105,8 @@ public class FDT {
     }
 
     private void initOpenTSDB() throws Exception {
+
+        config.initOpenTSDBMonitorClient();
         ApMon apmon = null;
         long lStart = System.currentTimeMillis();
         try {

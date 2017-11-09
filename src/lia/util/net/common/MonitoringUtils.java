@@ -4,7 +4,6 @@ import lia.util.net.copy.FDT;
 import lia.util.net.copy.FDTSession;
 import org.opentsdb.client.ExpectResponse;
 import org.opentsdb.client.HttpClient;
-import org.opentsdb.client.HttpClientImpl;
 import org.opentsdb.client.builder.Metric;
 import org.opentsdb.client.builder.MetricBuilder;
 import org.opentsdb.client.response.Response;
@@ -33,13 +32,13 @@ public class MonitoringUtils {
     public MonitoringUtils(Config config, FDTSession session) {
         this.session = session;
         this.config = config;
-        this.client = new HttpClientImpl("http://" + config.getOpentsdb());
+        this.client = config.getOpenTSDBMonitorClient();
         this.hostName = getHostName();
     }
 
     public MonitoringUtils(Config config) {
         this.config = config;
-        this.client = new HttpClientImpl("http://" + config.getOpentsdb());
+        this.client = config.getOpenTSDBMonitorClient();
         this.hostName = getHostName();
     }
 
@@ -77,8 +76,10 @@ public class MonitoringUtils {
                 }
             }
             try {
-                Response response = client.pushMetrics(builder, ExpectResponse.SUMMARY);
-                logger.log(Level.FINE, "Response from OpenTSDB server: " + response.toString());
+                if (client != null) {
+                    Response response = client.pushMetrics(builder, ExpectResponse.SUMMARY);
+                    logger.log(Level.FINE, "Response from OpenTSDB server: " + response.toString());
+                }
             } catch (IOException e) {
                 logger.log(Level.WARNING, "Failed to send metrics to OpenTSDB server", e);
             }
