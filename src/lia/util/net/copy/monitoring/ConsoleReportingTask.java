@@ -157,7 +157,6 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
 
         if (shouldReport) {
             logger.info(sb.toString());
-            System.out.println(sb.toString());
         }
 
     }
