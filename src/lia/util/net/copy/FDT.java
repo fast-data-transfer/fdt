@@ -57,7 +57,7 @@ public class FDT {
                 initApMon();
                 break;
             case Config.OPENTSDB:
-                initOpenTSDB();
+                initOpenTSDB(config);
                 break;
             default:
                 break;
@@ -104,7 +104,7 @@ public class FDT {
         }
     }
 
-    private void initOpenTSDB() throws Exception {
+    public static void initOpenTSDB(Config config) throws Exception {
 
         config.initOpenTSDBMonitorClient();
         ApMon apmon = null;

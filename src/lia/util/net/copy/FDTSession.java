@@ -130,7 +130,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         if (this.role == CLIENT || this.role == COORDINATOR) {
             this.controlChannel = new ControlChannel(config.getHostName(), transferPort, sessionID(), this);
         }
-
+        syncFDTConfig(controlChannel.remoteConf);
         rateLimit.set(config.getRateLimit());
         final long remoteRateLimit = Utils.getLongValue(controlChannel.remoteConf, "-limit", -1);
         rateLimitDelay.set(config.getRateLimitDelay());
@@ -169,6 +169,23 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         monitoringTaskFuture = monitoringService.scheduleWithFixedDelay(monitoringTask, 1, 5, TimeUnit.SECONDS);
 
         monitoringTask.startSession();
+    }
+
+    private void syncFDTConfig(Map<String, Object> remoteConf) {
+
+        if (remoteConf.get("-opentsdb") != null){
+            if(config.getFDTTag() != remoteConf.get("-fdtTAG") && remoteConf.get("-fdtTAG") != null) {
+                config.setFDTTag((String)remoteConf.get("-fdtTAG"));
+            }
+            if (config.getOpentsdb() != remoteConf.get("-opentsdb") && remoteConf.get("-opentsdb") != null) {
+                config.setOpentsdb((String)remoteConf.get("-opentsdb"));
+            }
+            try {
+                FDT.initOpenTSDB(config);
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Failed to initOpenTSDB monitor task", e);
+            }
+        }
     }
 
     public int getTransferPort() {

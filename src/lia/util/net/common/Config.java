@@ -557,6 +557,16 @@ public class Config {
         httpClient = new HttpClientImpl(opentsdbProtocol + getOpentsdb());
     }
 
+    public String getFDTTag()
+    {
+        return Utils.getStringValue(configMap, "-fdtTAG", "DEFAULT_FDT_TAG");
+    }
+
+    public void setFDTTag(String fdtTag)
+    {
+        configMap.put("-fdtTAG", fdtTag);
+    }
+
 
     public HttpClientImpl getOpenTSDBMonitorClient()
     {
@@ -1175,4 +1185,5 @@ public class Config {
     public void setOpentsdb(String opentsdb) {
         this.opentsdb = opentsdb;
     }
+
 }

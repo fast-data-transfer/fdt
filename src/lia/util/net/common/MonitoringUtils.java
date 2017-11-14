@@ -146,7 +146,7 @@ public class MonitoringUtils {
                 .addTag("fdtsourceIP", getHostIP())
                 .addTag("fdtdestIP", destIP == null ? session != null ? session.getRemoteAddress().getHostAddress() : "0.0.0.0" : destIP)
                 .addTag("fdtclusterName", clusterName)
-                .addTag("fdtcustomFDTTag", Utils.getStringValue(config.getConfigMap(), "-fdtTAG", "DEFAULT_FDT_TAG"));
+                .addTag("fdtcustomFDTTag", config.getFDTTag());
     }
 
     public synchronized void shareMetrics(String clusterName, String nodeName, Vector paramNames, Vector paramValues) {
