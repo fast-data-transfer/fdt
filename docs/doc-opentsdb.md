@@ -12,7 +12,7 @@ At this moment no authentication is implemented for proxy and OpenTSDB.
 
 #### Examples
 
-#####Monitor net test metrics to specified OpenTSDB server:
+*Monitor net test metrics to specified OpenTSDB server:*
 
 SERVER2
 ```
@@ -22,7 +22,7 @@ SERVER1
 ```
 java -jar fdt.jar -opentsdb <opentsdb-ip:port> -nettest -c $SERVER2
 ```
-#####Monitor net test metrics to specified OpenTSDB server with specific tag:
+*Monitor net test metrics to specified OpenTSDB server with specific tag:*
 SERVER2
 ```
 java -jar fdt.jar -opentsdb <opentsdb-ip:port> -nettest -fdtTAG <tag>
@@ -31,7 +31,7 @@ SERVER1
 ```
 java -jar fdt.jar -opentsdb <opentsdb-ip:port> -nettest -c $SERVER2 -fdtTAG <tag>
 ```
-#####Monitor net test metrics to specified OpenTSDB server and using http proxy server:
+*Monitor net test metrics to specified OpenTSDB server and using http proxy server:*
 SERVER2
 ```
 java -Dhttp.proxyHost=<host> -Dhttp.proxyPort=<port> -jar fdt.jar -opentsdb <opentsdb-ip:port> -nettest
