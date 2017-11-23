@@ -1,6 +1,6 @@
 [[Home](index.md)]  [Documentation]  [[Performance Tests](perf-disk-to-disk.md)]
 
-[FDT & DDCopy]  [[Examples](doc-examples.md)]  [[Security](doc-security.md)]    [[User's Extensions](doc-user-extensions.md)]    [[System Tuning](doc-system-tuning.md)]
+[FDT & DDCopy]  [[Examples](doc-examples.md)]  [[Security](doc-security.md)]    [[User's Extensions](doc-user-extensions.md)]    [[System Tuning](doc-system-tuning.md)]    [[FDT Monitoring](doc-opentsdb.md)]
 
 ### FDT
 **FDT** can be used in one of these seven modes:
@@ -112,7 +112,13 @@ Agent can use booth Server and Client options too, because at any time Agent can
 
 **-sID \<session-id>** session ID retrieved from coordinator.
 
-**-d \<dstDir>** The destination directory used to copy session log file. 
+**-d \<dstDir>** The destination directory used to copy session log file.
+
+**Options used for FDT monitoring to OpenTSDB:**
+
+**-opentsdb \<opentsdb-ip:port>** OpenTSDB server and port where FDT will send metrics
+
+**-fdtTAG \<tag>** custom FDT metrics tag 
 
 	
 ### DDCopy
