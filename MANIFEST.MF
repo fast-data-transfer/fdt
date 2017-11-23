@@ -20,4 +20,3 @@ Class-Path: io-2.2.0.jar bcprov-jdk15on-157.jar gss-2.2.0.jar gram-2.2.0.jar jss
  .2.0.jar commons-io-2.4.jar commons-logging.jar commons-codec-1.7.jar
   commons-lang3-3.1.jar ssl-proxies-2.2.0.jar bcprov-jdk15on-157.jar
 Main-Class: lia.util.net.copy.FDTMain
-
