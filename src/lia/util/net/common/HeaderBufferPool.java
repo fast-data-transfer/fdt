@@ -2,22 +2,24 @@
  * $Id$
  */
 package lia.util.net.common;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * 
- * This class is only for the love of fast development. 
+ * This class is only for the love of fast development.
  * TODO - We should have only one buffer pool in entire FDT Application;
  * when this will happen this class will disappear ....
- *  
+ *
  * @author ramiro
  */
 public class HeaderBufferPool extends AbstractBPool {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final transient Logger logger = Logger.getLogger(HeaderBufferPool.class.getName());
-    
+
     //the list of ByteBuffer-s
     private static HeaderBufferPool _theInstance;
     //used for double checked locking
@@ -49,7 +51,7 @@ public class HeaderBufferPool extends AbstractBPool {
 
         synchronized (HeaderBufferPool.class) {
             if (!initialized) {
-                
+
                 _theInstance = new HeaderBufferPool(Config.HEADER_SIZE, 0, Config.TRACK_ALLOCATIONS);
 
                 initialized = true;

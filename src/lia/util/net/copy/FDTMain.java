@@ -7,11 +7,10 @@ import java.lang.reflect.Method;
 
 /**
  * Just a wrapper to check for Java version.</br>
- * FDT main class is invoked using reflection 
- * 
- * @since FDT 0.9.22
+ * FDT main class is invoked using reflection
+ *
  * @author ramiro
- * 
+ * @since FDT 0.9.22
  */
 public class FDTMain {
 
@@ -49,18 +48,18 @@ public class FDTMain {
         // Reflection is the only way to go ...
         try {
             Class fdtMainClass = Class.forName("lia.util.net.copy.FDT");
-            Class[] sClass = new Class[] {
-                args.getClass()
+            Class[] sClass = new Class[]{
+                    args.getClass()
             };
             Method mainMethod = fdtMainClass.getDeclaredMethod("main", sClass);
-            mainMethod.invoke((Object) null, new Object[] {
-                args
+            mainMethod.invoke((Object) null, new Object[]{
+                    args
             });
-        } catch(Throwable t) {
+        } catch (Throwable t) {
             t.printStackTrace();
             System.exit(22);
         }
-        
+
     }
 
 }

@@ -3,151 +3,122 @@
  */
 package lia.util.net.copy;
 
+import lia.util.net.common.Config;
+import lia.util.net.common.MonitoringUtils;
+import lia.util.net.common.Utils;
+import lia.util.net.copy.monitoring.FDTSessionMonitoringTask;
+import lia.util.net.copy.monitoring.lisa.LisaCtrlNotifier;
+import lia.util.net.copy.transport.*;
+
+import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.UUID;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.attribute.PosixFileAttributes;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.Config;
-import lia.util.net.common.Utils;
-import lia.util.net.copy.monitoring.FDTSessionMonitoringTask;
-import lia.util.net.copy.monitoring.lisa.LisaCtrlNotifier;
-import lia.util.net.copy.transport.ControlChannel;
-import lia.util.net.copy.transport.ControlChannelNotifier;
-import lia.util.net.copy.transport.CtrlMsg;
-import lia.util.net.copy.transport.FDTProcolException;
-import lia.util.net.copy.transport.TCPTransportProvider;
-
 /**
  * Base class for both FDT Reader/Writer sessions
- * 
+ *
  * @author ramiro
  */
 public abstract class FDTSession extends IOSession implements ControlChannelNotifier, Comparable<FDTSession>,
         Accountable, LisaCtrlNotifier {
 
-    /** Logger used by this class */
-    private static final Logger logger = Logger.getLogger(FDTSession.class.getName());
-
-    private static final String LISA_RATE_LIMIT_CMD = "limit";
-
-    private static final Config config = Config.getInstance();
-
     public static final short SERVER = 0;
-
     public static final short CLIENT = 1;
-
+    public static final short COORDINATOR = 2;
     public static final int UNINITIALIZED = 0; // I think only OOM can do this
-
     public static final int STARTED = 1 << 0;
-
     public static final int INIT_CONF_SENT = 1 << 1;
-
     public static final int INIT_CONF_RCV = 1 << 2;
-
     public static final int FINAL_CONF_SENT = 1 << 3;
-
     public static final int FINAL_CONF_RCV = 1 << 4;
-
     public static final int START_SENT = 1 << 5;
-
     public static final int START_RCV = 1 << 6;
-
     public static final int TRANSFERING = 1 << 7;
-
     public static final int END_SENT = 1 << 8;
-
     public static final int END_RCV = 1 << 8;
-
-    protected AtomicLong totalProcessedBytes;
-
-    protected AtomicLong totalUtilBytes;
-
-    protected String monID;
-
-    // should be 0 in case everything works fine and !=0 in case of an error
-    protected short currentStatus;
-
-    protected static final String[] FDT_SESION_STATES = { "UNINITIALIZED", "STARTED", "INIT_CONF_SENT",
+    public static final int COORDINATOR_MSG_RCVD = 1 << 9;
+    public static final int LIST_FILES_MSG_RCVD = 1 << 10;
+    public static final int MISSING_FILE = 1 << 11;
+    protected static final String[] FDT_SESION_STATES = {"UNINITIALIZED", "STARTED", "INIT_CONF_SENT",
             "INIT_CONF_RCV", "FINAL_CONF_SENT", "FINAL_CONF_RCV", "START_SENT", "START_RCV", "TRANSFERING", "END_SENT",
-            "END_RCV" };
-
-    protected Map<Integer, LinkedList<FileSession>> partitionsMap;
-
+            "END_RCV"};
+    /**
+     * Logger used by this class
+     */
+    private static final Logger logger = Logger.getLogger(FDTSession.class.getName());
+    private static final String LISA_RATE_LIMIT_CMD = "limit";
+    private static final Config config = Config.getInstance();
     /**
      * can be either SERVER, either CLIENT
      */
     protected final short role; // for the moment could be boolean ... but never know for future extensions, e.g third
-
-    // party transfers!
-
     protected final Object protocolLock = new Object();
-
-    protected ControlChannel controlChannel;
-
     //to keep the order in which they were added use a LinkedHashMap
     protected final Map<UUID, FileSession> fileSessions = new LinkedHashMap<UUID, FileSession>();
-
     //to keep the order in which they were added use a LinkedHashMap
     protected final Map<UUID, byte[]> md5Sums = new LinkedHashMap<UUID, byte[]>();
-
     protected final boolean isNetTest;
-
-    protected Set<UUID> finishedSessions = new TreeSet<UUID>();
-
-    protected TCPTransportProvider transportProvider;
-
-    private final Object lock = new Object();
-
-    protected AtomicBoolean postProcessingDone = new AtomicBoolean(false);
-
     protected final Object ctrlNotifLock = new Object();
+    protected final boolean customLog;
+    final FDTSessionMonitoringTask monitoringTask;
+    final ScheduledFuture<?> monitoringTaskFuture;
+    private final Object lock = new Object();
+    protected AtomicLong totalProcessedBytes;
+    protected AtomicLong totalUtilBytes;
 
+    // party transfers!
+    protected String monID;
+    // should be 0 in case everything works fine and !=0 in case of an error
+    protected short currentStatus;
+    protected ServerSocketChannel ssc;
+    protected ServerSocket ss;
+    protected Selector sel;
+    protected SocketChannel sc;
+    protected Socket s;
+    protected Map<Integer, LinkedList<FileSession>> partitionsMap;
+    protected ControlChannel controlChannel;
+    protected Set<UUID> finishedSessions = new TreeSet<UUID>();
+    protected TCPTransportProvider transportProvider;
+    protected AtomicBoolean postProcessingDone = new AtomicBoolean(false);
+    // use fixed block size for network I/O ?
+    protected boolean useFixedBlockSize = config.useFixedBlocks();
+    // do not try to write on the writer peer
+    protected boolean localLoop = config.localLoop();
+    protected int transferPort;
+    // is loop ?
+    protected boolean isLoop = config.loop();
+    protected String writeMode = config.getWriteMode();
+    // rateLimit ?
+    protected AtomicLong rateLimit = new AtomicLong(-1);
+    protected AtomicLong rateLimitDelay = new AtomicLong(300L);
+    ExecutorService executor;
+    // control thread started
+    AtomicBoolean ctrlThreadStarted = new AtomicBoolean(false);
     // keeps the history of the states
     private volatile int historyState;
-
     // current state of the session
     private volatile int currentState;
 
-    // control thread started
-    AtomicBoolean ctrlThreadStarted = new AtomicBoolean(false);
-
-    // use fixed block size for network I/O ?
-    protected boolean useFixedBlockSize = config.useFixedBlocks();
-
-    // do not try to write on the writer peer
-    protected boolean localLoop = config.localLoop();
-
-    // is loop ?
-    protected boolean isLoop = config.loop();
-
-    protected String writeMode = config.getWriteMode();
-
-    // rateLimit ?
-    protected AtomicLong rateLimit = new AtomicLong(-1);
-
-    protected AtomicLong rateLimitDelay = new AtomicLong(300L);
-
-    final FDTSessionMonitoringTask monitoringTask;
-
-    final ScheduledFuture<?> monitoringTaskFuture;
-
-    protected final boolean customLog;
-
-    public FDTSession(short role) throws Exception {
+    public FDTSession(short role, int transferPort) throws Exception {
         super();
+        this.transferPort = transferPort;
+
         customLog = Utils.isCustomLog();
 
         currentStatus = 0;
@@ -156,15 +127,18 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
         setCurrentState(STARTED);
         this.role = role;
-        if (this.role == CLIENT) {
-            this.controlChannel = new ControlChannel(config.getHostName(), config.getPort(), sessionID(), this);
+        if (this.role == CLIENT || this.role == COORDINATOR) {
+            this.controlChannel = new ControlChannel(config.getHostName(), transferPort, sessionID(), this);
         }
-
+        syncFDTConfig(controlChannel.remoteConf);
         rateLimit.set(config.getRateLimit());
         final long remoteRateLimit = Utils.getLongValue(controlChannel.remoteConf, "-limit", -1);
         rateLimitDelay.set(config.getRateLimitDelay());
-
         setNewRateLimit(remoteRateLimit, false);
+
+        if (rateLimit.get() > 0) {
+            logger.log(Level.INFO, "Adding rate limit " + rateLimit + " bytes to the FDT session " + sessionID);
+        }
 
         useFixedBlockSize = (useFixedBlockSize || (this.controlChannel.remoteConf.get("-fbs") != null));
         localLoop = (localLoop || (this.controlChannel.remoteConf.get("-ll") != null));
@@ -197,15 +171,25 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         monitoringTask.startSession();
     }
 
-    final void startControlThread() {
-        if (ctrlThreadStarted.compareAndSet(false, true)) {
-            new Thread(this.controlChannel, "Control channel for [ " + config.getHostName() + ":" + config.getPort()
-                    + " ]").start();
+    private void syncFDTConfig(Map<String, Object> remoteConf) {
+
+        if (remoteConf.get("-opentsdb") != null){
+            if(config.getFDTTag() != remoteConf.get("-fdtTAG") && remoteConf.get("-fdtTAG") != null) {
+                config.setFDTTag((String)remoteConf.get("-fdtTAG"));
+            }
+            if (config.getOpentsdb() != remoteConf.get("-opentsdb") && remoteConf.get("-opentsdb") != null) {
+                config.setOpentsdb((String)remoteConf.get("-opentsdb"));
+            }
+            try {
+                FDT.initOpenTSDB(config);
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Failed to initOpenTSDB monitor task", e);
+            }
         }
     }
 
-    public String getMonID() {
-        return monID;
+    public int getTransferPort() {
+        return transferPort;
     }
 
     public FDTSession(ControlChannel controlChannel, short role) throws Exception {
@@ -224,10 +208,12 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
 
         rateLimit.set(config.getRateLimit());
         rateLimitDelay.set(config.getRateLimitDelay());
-
         final long remoteRateLimit = Utils.getLongValue(controlChannel.remoteConf, "-limit", -1);
-
         setNewRateLimit(remoteRateLimit, false);
+
+        if (rateLimit.get() > 0) {
+            logger.log(Level.INFO, "Adding rate limit " + rateLimit + " bytes to the FDT session " + sessionID);
+        }
 
         useFixedBlockSize = (useFixedBlockSize || (this.controlChannel.remoteConf.get("-fbs") != null));
         localLoop = (localLoop || (this.controlChannel.remoteConf.get("-ll") != null));
@@ -258,6 +244,59 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         monitoringTaskFuture = monitoringService.scheduleWithFixedDelay(monitoringTask, 1, 5, TimeUnit.SECONDS);
 
         monitoringTask.startSession();
+    }
+
+    public static List<String> getListOfFiles() {
+        logger.log(Level.FINEST, " [ getListOfFiles ] ");
+        File[] filesList = new File(config.getListFilesFrom()).listFiles();
+        List<String> listOfFiles = new ArrayList<>();
+
+        if (filesList != null) {
+            for (File fileInDir : filesList) {
+                if (fileInDir.canRead()) {
+                    listOfFiles.add(getFileListEntry(fileInDir));
+                }
+            }
+        }
+        logger.log(Level.FINEST, " [ getListOfFiles ] file list collected from directory: " + config.getListFilesFrom());
+        return listOfFiles;
+    }
+
+    private static String getFileListEntry(File fileInDir) {
+
+        StringBuilder sb = new StringBuilder();
+        try {
+            PosixFileAttributes fa = Files.readAttributes(fileInDir.toPath(), PosixFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            sb.append(fa.isDirectory() ? "d" : fa.isSymbolicLink() ? "l" : fa.isRegularFile() ? "f" : "-");
+            sb.append(fileInDir.canRead() ? "r" : "-");
+            sb.append(fileInDir.canWrite() ? "w" : "-");
+            sb.append(fileInDir.canExecute() ? "x" : "-");
+            sb.append("\t");
+            sb.append(fa.owner());
+            sb.append(fa.owner().getName().length() < 4 ? "\t\t" : "\t");
+            sb.append(fa.group());
+            sb.append(fa.group().getName().length() < 4 ? "\t\t" : "\t");
+            sb.append(fa.size());
+            sb.append(String.valueOf(fa.size()).length() < 4 ? "\t\t" : "\t");
+            sb.append(fa.lastModifiedTime().toString());
+            sb.append("\t");
+            sb.append(fa.isDirectory() ? fileInDir.getName() + "/" : fileInDir.getName());
+        } catch (IOException e) {
+            logger.log(Level.WARNING, "Failed to get file attributes", e);
+        }
+        logger.info(sb.toString());
+        return sb.toString();
+    }
+
+    final void startControlThread() {
+        if (ctrlThreadStarted.compareAndSet(false, true)) {
+            new Thread(this.controlChannel, "Control channel for [ " + config.getHostName() + ":" + transferPort
+                    + " ]").start();
+        }
+    }
+
+    public String getMonID() {
+        return monID;
     }
 
     public FDTSessionMonitoringTask getMonitoringTask() {
@@ -385,32 +424,52 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
                 synchronized (protocolLock) {
                     switch (ctrlMsg.tag) {
 
-                    case CtrlMsg.INIT_FDTSESSION_CONF: {
-                        setCurrentState(INIT_CONF_RCV);
-                        handleInitFDTSessionConf(ctrlMsg);
-                        break;
-                    }
-                    case CtrlMsg.FINAL_FDTSESSION_CONF: {
-                        setCurrentState(FINAL_CONF_RCV);
-                        handleFinalFDTSessionConf(ctrlMsg);
-                        break;
-                    }
-                    case CtrlMsg.START_SESSION: {
-                        setCurrentState(START_RCV);
-                        handleStartFDTSession(ctrlMsg);
-                        break;
-                    }
-                    case CtrlMsg.END_SESSION: {
-                        setCurrentState(END_RCV);
-                        handleEndFDTSession(ctrlMsg);
-                        break;
-                    }
-                    default: {
-                        FDTProcolException fpe = new FDTProcolException("Illegal CtrlMsg tag [ " + ctrlMsg.tag + " ]");
-                        fpe.fillInStackTrace();
-                        close("FileProtocolException", fpe);
-                        throw fpe;
-                    }
+                        case CtrlMsg.INIT_FDTSESSION_CONF: {
+                            setCurrentState(INIT_CONF_RCV);
+                            handleInitFDTSessionConf(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.FINAL_FDTSESSION_CONF: {
+                            setCurrentState(FINAL_CONF_RCV);
+                            handleFinalFDTSessionConf(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.START_SESSION: {
+                            setCurrentState(START_RCV);
+                            handleStartFDTSession(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.END_SESSION: {
+                            setCurrentState(END_RCV);
+                            handleEndFDTSession(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.THIRD_PARTY_COPY: {
+                            setCurrentState(COORDINATOR_MSG_RCVD);
+                            handleCoordinatorMessage(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.LIST_FILES: {
+                            setCurrentState(LIST_FILES_MSG_RCVD);
+                            handleListFilesMessage(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.REMOTE_TRANSFER_PORT: {
+                            setCurrentState(COORDINATOR_MSG_RCVD);
+                            handleGetRemoteTransferPortMessage(ctrlMsg);
+                            break;
+                        }
+                        case CtrlMsg.FILE_NOT_FOUND: {
+                            setCurrentState(MISSING_FILE);
+                            handleFileNotFound(ctrlMsg);
+                            break;
+                        }
+                        default: {
+                            FDTProcolException fpe = new FDTProcolException("Illegal CtrlMsg tag [ " + ctrlMsg.tag + " ]");
+                            fpe.fillInStackTrace();
+                            close("FileProtocolException", fpe);
+                            throw fpe;
+                        }
                     }
                 }
             } else {
@@ -419,6 +478,113 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         } catch (Throwable t) {
             close("Got exception trying to process", t);
         }
+    }
+
+    private void handleFileNotFound(CtrlMsg ctrlMsg) {
+        logger.log(Level.WARNING, "[ FDTSession ] [ handleFileNotFound File not found:  ( " + ctrlMsg.message.toString() + " )");
+    }
+
+    private void handleCoordinatorMessage(CtrlMsg ctrlMsg) {
+
+        logger.log(Level.INFO, "[ FDTSession ] [ handleCoordinatorMessage ( " + ctrlMsg.message.toString() + " )");
+        Map<String, Object> oldConfig = config.getConfigMap();
+        try {
+            FDTSessionConfigMsg sessionConfig = (FDTSessionConfigMsg) ctrlMsg.message;
+            config.setDestinationDir(sessionConfig.destinationDir);
+            config.setCoordinatorMode(false);
+            config.setDestinationIP(sessionConfig.destinationIP);
+            config.setHostName(sessionConfig.destinationIP);
+            config.setFileList(sessionConfig.fileLists);
+            config.setPortNo(sessionConfig.destinationPort);
+            final ControlChannel ctrlChann = this.controlChannel;
+            int remoteTransferPort = getFDTTransferPort(sessionConfig.destinationPort);
+            if (remoteTransferPort > 0) {
+                FDTSession session = FDTSessionManager.getInstance().addFDTClientSession(remoteTransferPort);
+                ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, session.controlChannel.fdtSessionID().toString()));
+            } else {
+                ctrlChann.sendSessionIDToCoordinator(new CtrlMsg(CtrlMsg.THIRD_PARTY_COPY, "-1"));
+            }
+        } catch (Exception ex) {
+            logger.log(Level.WARNING, "Exception while handling coordinator message", ex);
+        } finally {
+            //Restore old config.
+            this.setClosed(true);
+            config.setConfigMap(oldConfig);
+        }
+    }
+
+    public int getFDTTransferPort(int destinationMsgPort) throws Exception {
+        ControlChannel cc = new ControlChannel(config.getHostName(), destinationMsgPort, UUID.randomUUID(), FDTSessionManager.getInstance());
+        int transferPort = cc.sendTransferPortMessage(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, "rtp"));
+        // wait for remote config
+        logger.log(Level.INFO, "Got transfer port: " + config.getHostName() + ":" + transferPort);
+        return transferPort;
+    }
+
+    private void handleListFilesMessage(CtrlMsg ctrlMsg) {
+        logger.log(Level.INFO, "[ FDTSession ] [ handleListFilesMessage ( " + ctrlMsg.message.toString() + " )");
+        try {
+            FDTListFilesMsg lsMsg = (FDTListFilesMsg) ctrlMsg.message;
+            config.setListFilesFrom(lsMsg.listFilesFrom);
+            lsMsg.filesInDir = getListOfFiles();
+            logger.log(Level.FINEST, "[ FDTSession ] [ handleListFilesMessage ] collected " + lsMsg.filesInDir.size());
+            controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.LIST_FILES, lsMsg));
+            controlChannel.emptyMsgQueue();
+        } catch (Exception ex) {
+            logger.log(Level.WARNING, "Exception while handling 'list files in dir' message", ex);
+        } finally {
+            this.setClosed(true);
+        }
+    }
+
+    private void handleGetRemoteTransferPortMessage(CtrlMsg ctrlMsg) {
+        logger.log(Level.INFO, "[ FDTSession ] [ handleGetRemoteTransferPortMessage ( " + ctrlMsg.message.toString() + " )");
+        try {
+            int newTransferPort = config.getNewRemoteTransferPort();
+            if (newTransferPort > 0) {
+                openSocketForTransferPort(newTransferPort);
+                controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, newTransferPort));
+                controlChannel.emptyMsgQueue();
+                this.internalClose();
+                logger.log(Level.INFO, "[ FDTSession ] [ handleGetRemoteTransferPortMessage ( closing session )");
+                Utils.waitAndWork(executor, ss, sel, config);
+
+            } else {
+                controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, -1));
+                controlChannel.emptyMsgQueue();
+                logger.warning("There are no free transfer ports at this moment, please try again later");
+            }
+        } catch (Exception ex) {
+            logger.log(Level.WARNING, "Exception while handling 'get remote transfer port' message", ex);
+        } finally {
+            this.setClosed(true);
+        }
+    }
+
+    private void openSocketForTransferPort(int port) throws IOException {
+
+        executor = Utils.getStandardExecService("[ Acceptable ServersThreadPool ] ",
+                2,
+                10,
+                new ArrayBlockingQueue<Runnable>(65500),
+                Thread.NORM_PRIORITY - 2);
+        ssc = ServerSocketChannel.open();
+        ssc.configureBlocking(false);
+        FDTSession sess = FDTSessionManager.getInstance().getSession(sessionID);
+        ss = ssc.socket();
+        String listenIP = config.getListenAddress();
+        if (listenIP == null) {
+            ss.bind(new InetSocketAddress(port));
+        }
+        else
+        {
+            ss.bind(new InetSocketAddress(InetAddress.getByName(listenIP), port));
+        }
+
+        sel = Selector.open();
+        ssc.register(sel, SelectionKey.OP_ACCEPT);
+        sc = ssc.accept();
+        config.setSessionSocket(ssc, ss, sc, s, port);
     }
 
     protected void buildPartitionMap() {
@@ -461,6 +627,9 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
                             Thread.dumpStack();
                         }
                     } else {
+                        if (downCause == null) {
+                            logger.log(Level.INFO, fs.fileName + " STATUS: OK");
+                        }
                         if (logger.isLoggable(Level.FINE)) {
                             logger.log(Level.FINE, " [ FDTSession ] [ HANDLED ] The fileSession [ " + sessionID
                                     + " ] added to finised sessions list");
@@ -475,6 +644,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             }
 
             if (downCause != null) {
+                logger.log(Level.WARNING, fs.fileName + " STATUS: FAILED");
                 close("the file session: " + sessionID + " / " + fs.fileName + " finished with errors: "
                         + downCause.getMessage(), downCause);
             }
@@ -567,6 +737,10 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             monitoringService.remove(monitoringTask);
             monitoringService.purge();
             monitoringTask.finishSession();
+        }
+        if (config.getMonitor().equals(Config.OPENTSDB)) {
+            MonitoringUtils monUtils = new MonitoringUtils(config, this);
+            monUtils.monitorFinish(System.currentTimeMillis(), role == CLIENT ? "Readers" : "Writers");
         }
     }
 

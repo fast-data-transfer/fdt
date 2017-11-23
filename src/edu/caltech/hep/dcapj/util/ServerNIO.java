@@ -2,16 +2,11 @@ package edu.caltech.hep.dcapj.util;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
 import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.Inet4Address;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.net.NetworkInterface;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.Enumeration;
 
 public abstract class ServerNIO implements Runnable {
 
@@ -23,12 +18,9 @@ public abstract class ServerNIO implements Runnable {
     protected ServerSocketChannel _serverChannel = null;
 
     protected ServerSocket _server = null;
-
-    private Thread serverThread = null;
-
-    private boolean secure = true;
-
     protected int timeout = 5 * 60 * 1000;
+    private Thread serverThread = null;
+    private boolean secure = true;
 
     public ServerNIO() throws IOException {
         this(0);
@@ -50,12 +42,12 @@ public abstract class ServerNIO implements Runnable {
                 + _server.getLocalPort());
     }
 
-    public void setTimeout(final int timeout) {
-        this.timeout = timeout;
-    }
-
     public int getTimeout() {
         return this.timeout;
+    }
+
+    public void setTimeout(final int timeout) {
+        this.timeout = timeout;
     }
 
     public void shutdown() {

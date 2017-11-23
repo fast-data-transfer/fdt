@@ -1,15 +1,10 @@
 package edu.caltech.hep.dcapj.util;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.Inet4Address;
-import java.net.NetworkInterface;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.Enumeration;
 
 public abstract class Server implements Runnable {
 
@@ -19,12 +14,9 @@ public abstract class Server implements Runnable {
     protected boolean accept;
 
     protected ServerSocket _server = null;
-
-    private Thread serverThread = null;
-
-    private boolean secure = true;
-
     protected int timeout = 5 * 60 * 1000;
+    private Thread serverThread = null;
+    private boolean secure = true;
 
     public Server() throws IOException {
         this(0);
@@ -41,12 +33,12 @@ public abstract class Server implements Runnable {
                 + _server.getLocalPort());
     }
 
-    public void setTimeout(final int timeout) {
-        this.timeout = timeout;
-    }
-
     public int getTimeout() {
         return this.timeout;
+    }
+
+    public void setTimeout(final int timeout) {
+        this.timeout = timeout;
     }
 
     public void shutdown() {

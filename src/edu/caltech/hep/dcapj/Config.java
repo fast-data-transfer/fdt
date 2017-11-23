@@ -13,7 +13,7 @@ import java.util.logging.Logger;
  * This class contains configuration information for dCapJ. The default values
  * can be overridden by setting the environment variable
  * <code>DCAPJ_CONFIG_FILE</code> to the absolute path of the file.
- * 
+ *
  * @author Kamran Soomro
  * @author Faisal Khan
  */
@@ -35,7 +35,6 @@ public class Config {
      * <p>
      * If the <code>DCAPJ_CONFIG_FILE</code> variable is defined, the values
      * defined in the file override the default values.
-     * 
      */
     public Config() {
         initialize();
@@ -92,7 +91,7 @@ public class Config {
 
     /**
      * Get the Pnfs ID of the file.
-     * 
+     *
      * @return The Pnfs ID of the file.
      */
     public String getPnfsDir() {
@@ -101,7 +100,7 @@ public class Config {
 
     /**
      * Get the location of the dCap door.
-     * 
+     *
      * @return The location of the dCap door of the form <i>hostname:port</i>
      */
     public String getdCapDoor() {
@@ -110,7 +109,7 @@ public class Config {
 
     /**
      * Get the interface to use for receiving callback connections from pools.
-     * 
+     *
      * @return The IP address of the interface to use for callback connections.
      */
     public String getInterface() {
@@ -139,6 +138,7 @@ public class Config {
 
     /**
      * Get the time to wait for a pool to respond.
+     *
      * @return The pool timeout.
      */
     public int getPoolTimeout() {
@@ -147,6 +147,7 @@ public class Config {
 
     /**
      * Set the time to wait for a pool to respond.
+     *
      * @param timeout The pool timeout in seconds.
      */
     public void setPoolTimeout(int timeout) {

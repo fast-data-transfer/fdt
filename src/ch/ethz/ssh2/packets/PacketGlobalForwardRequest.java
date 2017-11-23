@@ -1,41 +1,35 @@
-
 package ch.ethz.ssh2.packets;
 
 /**
  * PacketGlobalForwardRequest.
- * 
+ *
  * @author Christian Plattner, plattner@inf.ethz.ch
  * @version $Id: PacketGlobalForwardRequest.java,v 1.1 2005/12/05 17:13:27 cplattne Exp $
  */
-public class PacketGlobalForwardRequest
-{
-	byte[] payload;
+public class PacketGlobalForwardRequest {
+    public boolean wantReply;
+    public String bindAddress;
+    public int bindPort;
+    byte[] payload;
 
-	public boolean wantReply;
-	public String bindAddress;
-	public int bindPort;
+    public PacketGlobalForwardRequest(boolean wantReply, String bindAddress, int bindPort) {
+        this.wantReply = wantReply;
+        this.bindAddress = bindAddress;
+        this.bindPort = bindPort;
+    }
 
-	public PacketGlobalForwardRequest(boolean wantReply, String bindAddress, int bindPort)
-	{
-		this.wantReply = wantReply;
-		this.bindAddress = bindAddress;
-		this.bindPort = bindPort;
-	}
+    public byte[] getPayload() {
+        if (payload == null) {
+            TypesWriter tw = new TypesWriter();
+            tw.writeByte(Packets.SSH_MSG_GLOBAL_REQUEST);
 
-	public byte[] getPayload()
-	{
-		if (payload == null)
-		{
-			TypesWriter tw = new TypesWriter();
-			tw.writeByte(Packets.SSH_MSG_GLOBAL_REQUEST);
-			
-			tw.writeString("tcpip-forward");
-			tw.writeBoolean(wantReply);
-			tw.writeString(bindAddress);
-			tw.writeUINT32(bindPort);
+            tw.writeString("tcpip-forward");
+            tw.writeBoolean(wantReply);
+            tw.writeString(bindAddress);
+            tw.writeUINT32(bindPort);
 
-			payload = tw.getBytes();
-		}
-		return payload;
-	}
+            payload = tw.getBytes();
+        }
+        return payload;
+    }
 }

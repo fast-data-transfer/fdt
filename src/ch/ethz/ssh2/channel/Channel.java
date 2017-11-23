@@ -1,15 +1,13 @@
-
 package ch.ethz.ssh2.channel;
 
 /**
  * Channel.
- * 
+ *
  * @author Christian Plattner, plattner@inf.ethz.ch
  * @version $Id: Channel.java,v 1.7 2005/12/07 10:25:48 cplattne Exp $
  */
-public class Channel
-{
-	/*
+public class Channel {
+    /*
 	 * OK. Here is an important part of the JVM Specification:
 	 * (http://java.sun.com/docs/books/vmspec/2nd-edition/html/Threads.doc.html#22214)
 	 * 
@@ -36,34 +34,33 @@ public class Channel
 	 * 
 	 */
 
-	static final int STATE_OPENING = 1;
-	static final int STATE_OPEN = 2;
-	static final int STATE_CLOSED = 4;
+    static final int STATE_OPENING = 1;
+    static final int STATE_OPEN = 2;
+    static final int STATE_CLOSED = 4;
 
-	static final int CHANNEL_BUFFER_SIZE = 30000;
+    static final int CHANNEL_BUFFER_SIZE = 30000;
 
 	/*
 	 * To achieve correctness, the following rules have to be respected when
 	 * accessing this object:
 	 */
 
-	// These fields can always be read
-	final ChannelManager cm;
-	final ChannelOutputStream stdinStream;
-	final ChannelInputStream stdoutStream;
-	final ChannelInputStream stderrStream;
+    // These fields can always be read
+    final ChannelManager cm;
+    final ChannelOutputStream stdinStream;
+    final ChannelInputStream stdoutStream;
+    final ChannelInputStream stderrStream;
 
-	// These two fields will only be written while the Channel is in state
-	// STATE_OPENING.
-	// The code makes sure that the two fields are written out when the state is
-	// changing to STATE_OPEN.
-	// Therefore, if you know that the Channel is in state STATE_OPEN, then you
-	// can read these two fields without synchronizing on the Channel. However, make
-	// sure that you get the latest values (e.g., flush caches by synchronizing on any
-	// object). However, to be on the safe side, you can lock the channel.
-
-	int localID = -1;
-	int remoteID = -1;
+    // These two fields will only be written while the Channel is in state
+    // STATE_OPENING.
+    // The code makes sure that the two fields are written out when the state is
+    // changing to STATE_OPEN.
+    // Therefore, if you know that the Channel is in state STATE_OPEN, then you
+    // can read these two fields without synchronizing on the Channel. However, make
+    // sure that you get the latest values (e.g., flush caches by synchronizing on any
+    // object). However, to be on the safe side, you can lock the channel.
+    final Object channelSendLock = new Object();
+    final byte[] msgWindowAdjust = new byte[9];
 
 	/*
 	 * Make sure that we never send a data/EOF/WindowChange msg after a CLOSE
@@ -87,121 +84,95 @@ public class Channel
 	 * BTW: NEVER EVER SEND MESSAGES FROM THE RECEIVE THREAD - see explanation
 	 * above.
 	 */
-
-	final Object channelSendLock = new Object();
-	boolean closeMessageSent = false;
+    final byte[] stdoutBuffer = new byte[CHANNEL_BUFFER_SIZE];
+    final byte[] stderrBuffer = new byte[CHANNEL_BUFFER_SIZE];
 
 	/*
 	 * Stop memory fragmentation by allocating this often used buffer.
 	 * May only be used while holding the channelSendLock
 	 */
+    private final Object reasonClosedLock = new Object();
 
-	final byte[] msgWindowAdjust = new byte[9];
+    // If you access (read or write) any of the following fields, then you have
+    // to synchronize on the channel.
+    int localID = -1;
+    int remoteID = -1;
+    boolean closeMessageSent = false;
+    int state = STATE_OPENING;
+    boolean closeMessageRecv = false;
+    /* This is a stupid implementation. At the moment we can only wait
+     * for one pending request per channel.
+     */
+    int successCounter = 0;
+    int failedCounter = 0;
+    int localWindow = 0; /* locally, we use a small window, < 2^31 */
+    long remoteWindow = 0; /* long for readable  2^32 - 1 window support */
+    int localMaxPacketSize = -1;
+    int remoteMaxPacketSize = -1;
+    int stdoutReadpos = 0;
+    int stdoutWritepos = 0;
+    int stderrReadpos = 0;
+    int stderrWritepos = 0;
+    boolean EOF = false;
+    Integer exit_status;
 
-	// If you access (read or write) any of the following fields, then you have
-	// to synchronize on the channel.
+    // we keep the x11 cookie so that this channel can be closed when this
+    // specific x11 forwarding gets stopped
+    String exit_signal;
 
-	int state = STATE_OPENING;
+    // reasonClosed is special, since we sometimes need to access it
+    // while holding the channelSendLock.
+    // We protect it with a private short term lock.
+    String hexX11FakeCookie;
+    private String reasonClosed = null;
 
-	boolean closeMessageRecv = false;
+    public Channel(ChannelManager cm) {
+        this.cm = cm;
 
-	/* This is a stupid implementation. At the moment we can only wait
-	 * for one pending request per channel.
-	 */
-	int successCounter = 0;
-	int failedCounter = 0;
+        this.localWindow = CHANNEL_BUFFER_SIZE;
+        this.localMaxPacketSize = 35000 - 1024; // leave enough slack
 
-	int localWindow = 0; /* locally, we use a small window, < 2^31 */
-	long remoteWindow = 0; /* long for readable  2^32 - 1 window support */
-
-	int localMaxPacketSize = -1;
-	int remoteMaxPacketSize = -1;
-
-	final byte[] stdoutBuffer = new byte[CHANNEL_BUFFER_SIZE];
-	final byte[] stderrBuffer = new byte[CHANNEL_BUFFER_SIZE];
-
-	int stdoutReadpos = 0;
-	int stdoutWritepos = 0;
-	int stderrReadpos = 0;
-	int stderrWritepos = 0;
-
-	boolean EOF = false;
-
-	Integer exit_status;
-
-	String exit_signal;
-
-	// we keep the x11 cookie so that this channel can be closed when this
-	// specific x11 forwarding gets stopped
-
-	String hexX11FakeCookie;
-
-	// reasonClosed is special, since we sometimes need to access it
-	// while holding the channelSendLock.
-	// We protect it with a private short term lock.
-
-	private final Object reasonClosedLock = new Object();
-	private String reasonClosed = null;
-
-	public Channel(ChannelManager cm)
-	{
-		this.cm = cm;
-
-		this.localWindow = CHANNEL_BUFFER_SIZE;
-		this.localMaxPacketSize = 35000 - 1024; // leave enough slack
-
-		this.stdinStream = new ChannelOutputStream(this);
-		this.stdoutStream = new ChannelInputStream(this, false);
-		this.stderrStream = new ChannelInputStream(this, true);
-	}
+        this.stdinStream = new ChannelOutputStream(this);
+        this.stdoutStream = new ChannelInputStream(this, false);
+        this.stderrStream = new ChannelInputStream(this, true);
+    }
 
 	/* Methods to allow access from classes outside of this package */
 
-	public ChannelInputStream getStderrStream()
-	{
-		return stderrStream;
-	}
+    public ChannelInputStream getStderrStream() {
+        return stderrStream;
+    }
 
-	public ChannelOutputStream getStdinStream()
-	{
-		return stdinStream;
-	}
+    public ChannelOutputStream getStdinStream() {
+        return stdinStream;
+    }
 
-	public ChannelInputStream getStdoutStream()
-	{
-		return stdoutStream;
-	}
+    public ChannelInputStream getStdoutStream() {
+        return stdoutStream;
+    }
 
-	public String getExitSignal()
-	{
-		synchronized (this)
-		{
-			return exit_signal;
-		}
-	}
+    public String getExitSignal() {
+        synchronized (this) {
+            return exit_signal;
+        }
+    }
 
-	public Integer getExitStatus()
-	{
-		synchronized (this)
-		{
-			return exit_status;
-		}
-	}
+    public Integer getExitStatus() {
+        synchronized (this) {
+            return exit_status;
+        }
+    }
 
-	public String getReasonClosed()
-	{
-		synchronized (reasonClosedLock)
-		{
-			return reasonClosed;
-		}
-	}
+    public String getReasonClosed() {
+        synchronized (reasonClosedLock) {
+            return reasonClosed;
+        }
+    }
 
-	public void setReasonClosed(String reasonClosed)
-	{
-		synchronized (reasonClosedLock)
-		{
-			if (this.reasonClosed == null)
-				this.reasonClosed = reasonClosed;
-		}
-	}
+    public void setReasonClosed(String reasonClosed) {
+        synchronized (reasonClosedLock) {
+            if (this.reasonClosed == null)
+                this.reasonClosed = reasonClosed;
+        }
+    }
 }

@@ -3,11 +3,12 @@
  */
 package lia.util.net.copy;
 
+import lia.util.net.common.FileChannelProvider;
+
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.UUID;
-
-import lia.util.net.common.FileChannelProvider;
 
 /**
  * Wrapper class over a current file which is being read
@@ -16,26 +17,20 @@ import lia.util.net.common.FileChannelProvider;
  */
 public class FileReaderSession extends FileSession {
 
-    @Override
-    public String toString() {
-        return "FileReaderSession [file=" + file + ", partitionID=" + partitionID + ", sessionID=" + sessionID
-                + ", sessionSize=" + sessionSize + "]";
-    }
-
     public FileReaderSession(String fileName, FDTSession fdtSession, boolean isLoop,
-            FileChannelProvider fileChannelProvider) throws IOException {
+                             FileChannelProvider fileChannelProvider) throws IOException {
         this(UUID.randomUUID(), fdtSession, fileName, isLoop, fileChannelProvider);
     }
 
     public FileReaderSession(UUID uid, FDTSession fdtSession, String fileName, boolean isLoop,
-            FileChannelProvider fileChannelProvider) throws IOException {
+                             FileChannelProvider fileChannelProvider) throws IOException {
         super(uid, fdtSession, fileName, isLoop, fileChannelProvider);
 
         this.fileName = file.getAbsolutePath();
         this.file = this.fileChannelProvider.getFile(fileName);
 
         if (!fileName.startsWith(FileSession.DEV_ZERO_FILENAME) && !file.exists()) {
-            throw new IOException("No such file: " + fileName);
+            throw new FileNotFoundException("No such file: " + fileName);
         }
 
         sessionSize = file.length();
@@ -56,6 +51,12 @@ public class FileReaderSession extends FileSession {
         }
 
         this.partitionID = this.fileChannelProvider.getPartitionID(this.file);
+    }
+
+    @Override
+    public String toString() {
+        return "FileReaderSession [file=" + file + ", partitionID=" + partitionID + ", sessionID=" + sessionID
+                + ", sessionSize=" + sessionSize + "]";
     }
 
     @Override

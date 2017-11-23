@@ -2,31 +2,31 @@
  * $Id$
  */
 package lia.util.net.copy.filters.examples;
+
+import lia.util.net.copy.filters.Preprocessor;
+import lia.util.net.copy.filters.ProcessorInfo;
+
+import javax.security.auth.Subject;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
-import javax.security.auth.Subject;
-
-import lia.util.net.copy.filters.Preprocessor;
-import lia.util.net.copy.filters.ProcessorInfo;
 
 
 /**
  * Simple preProcess FDT Filter. It compress every file list specified in the
  * file list, saves it as a .zip and modifies the file name and returns the
  * file list to the FDT, which sends the zip files to the destination
- * 
- *  @author ramiro
+ *
+ * @author ramiro
  */
 public class PreZipFilter implements Preprocessor {
 
     public void preProcessFileList(ProcessorInfo processorInfo, Subject peerSubject) throws Exception {
-        
+
         System.out.println(" [ PreZipFilter ] Subject: " + peerSubject);
-        
-        for(int i=0; i<processorInfo.fileList.length; i++) {
+
+        for (int i = 0; i < processorInfo.fileList.length; i++) {
 
             // Create a buffer for reading the files
             byte[] buf = new byte[1024];

@@ -29,6 +29,7 @@ public interface DBPoolJMXMBean {
 
     /**
      * Operation exposed for management
+     *
      * @return long
      */
     public long totalAllocated();

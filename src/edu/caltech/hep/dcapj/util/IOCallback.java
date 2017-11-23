@@ -1,20 +1,18 @@
 package edu.caltech.hep.dcapj.util;
 
-import java.util.Hashtable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.net.Socket;
+import java.util.Hashtable;
 import java.util.logging.Logger;
 
 public class IOCallback extends ServerNIO {
 
-    protected Hashtable<Integer, DataConnectionCallback> callbacks;
-
     private static final Logger logger = Logger.getLogger(IOCallback.class
             .getName());
+    protected Hashtable<Integer, DataConnectionCallback> callbacks;
 
     public IOCallback() throws IOException {
         callbacks = new Hashtable<Integer, DataConnectionCallback>();
@@ -69,7 +67,7 @@ public class IOCallback extends ServerNIO {
      * in-comming pool connection
      */
     public boolean registerCallback(int sessionID,
-            DataConnectionCallback connection) {
+                                    DataConnectionCallback connection) {
         if (!callbacks.contains(sessionID)) {
             callbacks.put(sessionID, connection);
             logger.fine("Registered data call back receiver for sessionID "
@@ -83,7 +81,7 @@ public class IOCallback extends ServerNIO {
     public boolean unregisterCallback(int sessionID) {
         if (callbacks.contains(sessionID)) {
             logger.info("Removing callback receiver for sessionID "
-                            + sessionID);
+                    + sessionID);
             callbacks.remove(sessionID);
             return true;
         }

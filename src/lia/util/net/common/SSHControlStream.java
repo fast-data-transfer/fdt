@@ -3,41 +3,32 @@
  */
 package lia.util.net.common;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import ch.ethz.ssh2.Connection;
 import ch.ethz.ssh2.InteractiveCallback;
 import ch.ethz.ssh2.Session;
 import ch.ethz.ssh2.StreamGobbler;
 import ch.ethz.ssh2.util.PasswordReader;
 
+import java.io.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
- * 
  * @author Adrian Muraru
- * 
  */
 public class SSHControlStream implements ControlStream {
 
-    private static final Logger logger = Logger.getLogger(SSHControlStream.class.getName());
     static final String knownHostPath = System.getProperty("user.home") + "/.ssh/known_hosts";
     static final String idDSAPath = System.getProperty("user.home") + "/.ssh/id_dsa.fdt";
     static final String idRSAPath = System.getProperty("user.home") + "/.ssh/id_rsa.fdt";
-    
+    private static final Logger logger = Logger.getLogger(SSHControlStream.class.getName());
     // configuration parameters
     private final String hostname;
     private final String username;
     private final int port;
-    
+
     /**
      * the SSH connection & session
      */
@@ -47,15 +38,12 @@ public class SSHControlStream implements ControlStream {
 
     /**
      * Creates a new SSH control connection on the default ssh port.
-     * 
+     * <p>
      * Same as {@link #SSHControlStream(String, String, int) SSHControlStream(hostname, username, 22)}
-     * 
-     * @param hostname:
-     *            remote host
-     * @param username:
-     *            remote account
-     * @throws IOException
-     *             in case of failure
+     *
+     * @param hostname: remote host
+     * @param username: remote account
+     * @throws IOException in case of failure
      */
     public SSHControlStream(String hostname, String username) {
         this(hostname, username, 22);
@@ -63,22 +51,37 @@ public class SSHControlStream implements ControlStream {
 
     /**
      * Creates a new SSH control connection on the specified remote sshd port
-     * 
-     * @param port:
-     *          remote sshd port 
-     * @param hostname:
-     *            remote host
-     * @param username:
-     *            remote account
-     * @throws IOException
-     *             in case of failure
+     *
+     * @param port:     remote sshd port
+     * @param hostname: remote host
+     * @param username: remote account
+     * @throws IOException in case of failure
      */
     public SSHControlStream(String hostname, String username, int port) {
-    	this.hostname = hostname;
-    	this.username = username;
-    	this.port = port;
+        this.hostname = hostname;
+        this.username = username;
+        this.port = port;
     }
-    
+
+    // TEST
+    public static void main(String[] args) throws IOException {
+        ControlStream cs = new SSHControlStream(args[0], args[1]);
+        cs.startProgram(args[2]);
+
+        /* read stdout */
+        InputStream stdout = new StreamGobbler(cs.getProgramStdOut());
+        BufferedReader br = new BufferedReader(new InputStreamReader(stdout));
+        while (true) {
+            String line = br.readLine();
+            if (line == null) {
+                break;
+            }
+            System.out.println(line);
+        }
+        System.out.println("ExitCode:" + cs.getExitCode());
+        cs.close();
+    }
+
     public void connect() throws IOException {
         this.conn = new Connection(hostname, port);
         conn.connect();
@@ -114,7 +117,7 @@ public class SSHControlStream implements ControlStream {
         if (sshKeyPath == null) {
             enableKEY = false;
         }
-        
+
         while (true) {
             if ((enableKEY || enableDSA || enableRSA) && conn.isAuthMethodAvailable(username, "publickey")) {
 
@@ -236,11 +239,10 @@ public class SSHControlStream implements ControlStream {
         this.sess = this.conn.openSession();
         this.sess.requestPTY("javash", 0, 0, 0, 0, null);
     }
-    
+
     public String getPassword(String message) throws IOException {
         return PasswordReader.readPassword(message);
     }
-
 
     /* (non-Javadoc)
      * @see lia.util.net.common.ControlStream#startProgram(java.lang.String)
@@ -277,7 +279,7 @@ public class SSHControlStream implements ControlStream {
             if (line == null) {
                 if (allowEOF) {
                     return;
-                //else
+                    //else
                 }
                 throw new IOException("[" + this.cmd + "] exited. No control message received]");
             }
@@ -313,6 +315,25 @@ public class SSHControlStream implements ControlStream {
         LogWriter lw = new LogWriter(br, "fdt_" + this.conn.getHostname() + ".err");
         lw.setDaemon(true);
         lw.start();
+    }
+
+    /* (non-Javadoc)
+     * @see lia.util.net.common.ControlStream#getExitCode()
+     */
+    public int getExitCode() {
+        return this.sess.getExitStatus();
+    }
+
+    /* (non-Javadoc)
+     * @see lia.util.net.common.ControlStream#close()
+     */
+    public void close() {
+        if (this.sess != null) {
+            this.sess.close();
+        }
+        if (this.conn != null) {
+            this.conn.close();
+        }
     }
 
     /**
@@ -365,25 +386,6 @@ public class SSHControlStream implements ControlStream {
                 }
                 return;
             }
-        }
-    }
-
-    /* (non-Javadoc)
-     * @see lia.util.net.common.ControlStream#getExitCode()
-     */
-    public int getExitCode() {
-        return this.sess.getExitStatus();
-    }
-
-    /* (non-Javadoc)
-     * @see lia.util.net.common.ControlStream#close()
-     */
-    public void close() {
-        if(this.sess != null) {
-            this.sess.close();
-        }
-        if(this.conn != null) {
-            this.conn.close();
         }
     }
 
@@ -443,24 +445,5 @@ public class SSHControlStream implements ControlStream {
         public int getPromptCount() {
             return promptCount;
         }
-    }
-
-    // TEST
-    public static void main(String[] args) throws IOException {
-        ControlStream cs = new SSHControlStream(args[0], args[1]);
-        cs.startProgram(args[2]);
-
-        /* read stdout */
-        InputStream stdout = new StreamGobbler(cs.getProgramStdOut());
-        BufferedReader br = new BufferedReader(new InputStreamReader(stdout));
-        while (true) {
-            String line = br.readLine();
-            if (line == null) {
-                break;
-            }
-            System.out.println(line);
-        }
-        System.out.println("ExitCode:" + cs.getExitCode());
-        cs.close();
     }
 }

@@ -3,6 +3,8 @@
  */
 package lia.util.net.copy;
 
+import lia.util.net.common.Utils;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
@@ -12,20 +14,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.Utils;
-
 /**
  * Helper class which determines the real partition ID for a file
- * 
+ *
  * @author Lucian Musat
  * @author ramiro
  */
 public class PartitionMap {
 
-    /** Logger used by this class */
-    private static final Logger logger = Logger.getLogger(PartitionMap.class.getName());
-
     public static final String osname = System.getProperty("os.name");
+    /**
+     * Logger used by this class
+     */
+    private static final Logger logger = Logger.getLogger(PartitionMap.class.getName());
+    private static ConcurrentHashMap<String, Integer> hLocations = new ConcurrentHashMap<String, Integer>();
 
     public static final int getPartition(String fileName) {
 
@@ -37,7 +39,7 @@ public class PartitionMap {
         if (osname.indexOf("Linux") != -1 || osname.indexOf("SunOS") != -1) {
             // identifies the partition the real file denoted by this path resides on
             // command="/usr/bin/stat -L -c \"%d\" \""+fileName+"\"";
-            command = new String[] {
+            command = new String[]{
                     "stat", "-L", "-c", "%d", fileName
             };
         } else if (osname.indexOf("Win") != -1) {
@@ -46,7 +48,7 @@ public class PartitionMap {
             // identifies the major number for the drive that has the file
             // that means, it identifies the disk, not only the partition
             // command="/usr/bin/stat -L -f \"%Hd\" \""+fileName+"\"";
-            command = new String[] {
+            command = new String[]{
                     "stat", "-L", "-f", "%Hd", fileName
             };
         }
@@ -68,11 +70,11 @@ public class PartitionMap {
     /**
      * runs a shell command and returns first line if nothing on stderr<br>
      * TODO: replace with cmdExec.java
-     * 
-     * @author mluc
-     * @since Aug 31, 2006
+     *
      * @param cmd
      * @return
+     * @author mluc
+     * @since Aug 31, 2006
      */
     private static String runICommand(final String[] cmd) {
         BufferedReader br = null;
@@ -88,8 +90,8 @@ public class PartitionMap {
             Process pro = null;
 
             if (osname.startsWith("Linux") || osname.startsWith("Mac") || osname.startsWith("SunOS")) {
-                pro = Runtime.getRuntime().exec(cmd, new String[] {
-                    "PATH=/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+                pro = Runtime.getRuntime().exec(cmd, new String[]{
+                        "PATH=/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
                 });
             } else if (osname.startsWith("Windows")) {
                 String exehome = System.getProperty("user.home");
@@ -145,24 +147,22 @@ public class PartitionMap {
         return null;
     }
 
-    private static ConcurrentHashMap<String, Integer> hLocations = new ConcurrentHashMap<String, Integer>();
-
     /**
      * stores the directory path to a file and for a second file with the same
      * directory path will return the last value and will not search for a new one<br>
      * ATTENTION: if one of two files is a link, then the result returned will probably
      * not be valid!
-     * 
-     * @author mluc
-     * @since Sep 18, 2006
+     *
      * @param fileName
      * @return tag of partition taken from cache if available
+     * @author mluc
+     * @since Sep 18, 2006
      */
     public static int getPartitionFromCache(File file) {
-        String dirPath="";
+        String dirPath = "";
         final String fileName = file.getAbsolutePath();
         boolean isDir = false;
-        if(!file.isDirectory()) {
+        if (!file.isDirectory()) {
             int lastIndex = fileName.lastIndexOf(File.separatorChar);
             if (lastIndex != -1)
                 dirPath = fileName.substring(0, lastIndex);
@@ -172,8 +172,8 @@ public class PartitionMap {
             isDir = true;
             dirPath = file.getAbsolutePath();
         }
-        
-        final Integer value = hLocations.get((isDir)?dirPath:fileName);
+
+        final Integer value = hLocations.get((isDir) ? dirPath : fileName);
         if (value != null)
             return value.intValue();
         int val = getPartition(fileName);

@@ -3,45 +3,34 @@
  */
 package lia.util.net.copy;
 
-import java.io.File;
-import java.net.InetAddress;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import lia.util.net.common.Config;
-import lia.util.net.common.DirectByteBufferPool;
-import lia.util.net.common.FileChannelProvider;
-import lia.util.net.common.NetloggerRecord;
-import lia.util.net.common.StoragePathDecoder;
-import lia.util.net.common.Utils;
+import lia.util.net.common.*;
 import lia.util.net.copy.disk.DiskWriterManager;
 import lia.util.net.copy.disk.ResumeManager;
 import lia.util.net.copy.filters.Postprocessor;
 import lia.util.net.copy.filters.Preprocessor;
 import lia.util.net.copy.filters.ProcessorInfo;
-import lia.util.net.copy.transport.ControlChannel;
-import lia.util.net.copy.transport.CtrlMsg;
-import lia.util.net.copy.transport.FDTProcolException;
-import lia.util.net.copy.transport.FDTSessionConfigMsg;
-import lia.util.net.copy.transport.TCPSessionReader;
+import lia.util.net.copy.transport.*;
+
+import java.io.File;
+import java.net.InetAddress;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The Writer session ...
- * 
+ *
  * @author ramiro
  */
 public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final Logger logger = Logger.getLogger(FDTWriterSession.class.getName());
 
     private static final ResumeManager resumeManager = ResumeManager.getInstance();
@@ -49,19 +38,15 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
     private static final Config config = Config.getInstance();
 
     private static final DiskWriterManager dwm = DiskWriterManager.getInstance();
-
+    private final AtomicBoolean finalCleaupExecuted = new AtomicBoolean(false);
+    private final AtomicBoolean finishNotifiedExecuted = new AtomicBoolean(false);
     private String destinationDir;
-
     private String[] fileList;
-
     private ProcessorInfo processorInfo;
 
-    private final AtomicBoolean finalCleaupExecuted = new AtomicBoolean(false);
-
-    private final AtomicBoolean finishNotifiedExecuted = new AtomicBoolean(false);
-
-    public FDTWriterSession() throws Exception {
-        super(FDTSession.CLIENT);
+    public FDTWriterSession(int transferPort) throws Exception {
+        super(FDTSession.CLIENT, transferPort);
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
         dwm.addSession(this);
         sendInitConf();
         this.monID = config.getMonID();
@@ -69,12 +54,13 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
     /**
      * REMOTE SESSION
-     * 
+     *
      * @param cc control channel
      * @throws Exception
      */
     public FDTWriterSession(ControlChannel cc) throws Exception {
         super(cc, FDTSession.SERVER);
+        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
         dwm.addSession(this);
         this.monID = (String) cc.remoteConf.get("-monID");
     }
@@ -163,7 +149,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             }
             nlrec.setType("STOR");
 
-            System.out.println(nlrec.toULMString());
+            logger.info(nlrec.toULMString());
 
             try {
                 notifySessionFinished();
@@ -184,10 +170,13 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 sb.append(" ) final stats:");
                 sb.append("\n Started: ").append(new Date(startTimeMillis));
                 sb.append("\n Ended:   ").append(endDate);
+                long period = System.nanoTime() - startTimeNanos;
                 sb.append("\n Transfer period:   ")
                         .append(Utils.getETA(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNanos)));
                 sb.append("\n TotalBytes: ").append(getTotalBytes());
+                long utilBytes = 0;
                 if (transportProvider != null) {
+                    utilBytes = transportProvider.getUtilBytes();
                     sb.append("\n TotalNetworkBytes: ").append(transportProvider.getUtilBytes());
                     try {
                         if (!Utils.updateTotalReadCounter(transportProvider.getUtilBytes())) {
@@ -214,6 +203,11 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                     logger.info(sb.toString());
                 } else {
                     System.out.println(sb.toString());
+                }
+                if (config.getMonitor().equals(Config.OPENTSDB)) {
+                    MonitoringUtils monUtils = new MonitoringUtils(config, this);
+                    monUtils.monitorEndStats(((downCause() == null) && (downMessage() == null)), getTotalBytes(), utilBytes,
+                            startTimeMillis,  endDate.getTime(), period, "Writers");
                 }
             } catch (Throwable t) {
                 logger.log(Level.WARNING,
@@ -288,7 +282,6 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                             ignCtrl);
                 }
             }
-
             try {
                 FDTSessionManager.getInstance().finishSession(sessionID, downMessage(), downCause());
             } catch (Throwable ignore) {
@@ -363,7 +356,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
     @Override
     public void handleFinalFDTSessionConf(CtrlMsg ctrlMsg) throws Exception {
         final boolean isFiner = logger.isLoggable(Level.FINER);
-
+        config.registerTransferPortForSession(controlChannel.localPort, sessionID().toString());
         FDTSessionConfigMsg sccm = (FDTSessionConfigMsg) ctrlMsg.message;
 
         this.destinationDir = sccm.destinationDir;
@@ -489,11 +482,12 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             }
         } else if (role == CLIENT) {
             transportProvider = new TCPSessionReader(this, this, InetAddress.getByName(config.getHostName()),
-                    config.getPort(), config.getSockNum());
+                    transferPort, config.getSockNum());
         }
 
         // Notify the reader that he can start to send the data
-        controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.START_SESSION, null));
+        logger.log(Level.FINER, "FWS handleFinalFDTSessionConf starting session on port: " + transferPort);
+        controlChannel.sendCtrlMessage(new CtrlMsg(CtrlMsg.START_SESSION, transferPort));
 
         setCurrentState(START_SENT);
 
@@ -506,14 +500,19 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
     @Override
     public void handleStartFDTSession(CtrlMsg ctrlMsg) throws Exception {
+
         if (logger.isLoggable(Level.FINEST)) {
             logger.log(Level.FINEST, "[ FDTWriterSession ] handleStartFDTSession. Msg: " + ctrlMsg);
         }
         if (role == CLIENT) {
             if (transportProvider == null) {
                 transportProvider = new TCPSessionReader(this, this, InetAddress.getByName(config.getHostName()),
-                        config.getPort(), config.getSockNum());
+                        transferPort, config.getSockNum());
             }
+        }
+        if (config.getMonitor().equals(Config.OPENTSDB)) {
+            MonitoringUtils monUtils = new MonitoringUtils(config, this);
+            monUtils.monitorStart(System.currentTimeMillis(), "Writers");
         }
 
         setCurrentState(TRANSFERING);
@@ -558,7 +557,6 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             logger.log(Level.INFO, "[ FDTWriterSession ] Remote FDTReaderSession for session [ " + sessionID
                     + " ] finished ok. Waiting for our side to finish.");
         }
-
     }
 
     private boolean doPreprocess(String[] preProcessFilters, Map<String, FileSession> preProcMap) throws Exception {
@@ -687,9 +685,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                     processorInfo.remotePort = this.controlChannel.remotePort;
 
                     for (final String filterName : postProcessFilters) {
-                        Postprocessor postprocessor = (Postprocessor) (Class.forName(filterName).newInstance());
-                        postprocessor.postProcessFileList(processorInfo, this.controlChannel.subject, downCause(),
-                                downMessage());
+                        postPprocess(processorInfo, filterName);
                     }
                 }
             }
@@ -705,6 +701,35 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
         }
 
         return (filtersCount > 0);
+    }
+
+    private void postPprocess(ProcessorInfo processorInfo, String filterName) throws Exception {
+        boolean searchElsewhere = false;
+        Postprocessor postprocessor = null;
+        try {
+            postprocessor = (Postprocessor) (Class.forName("lia.util.net.copy.filters.examples." + filterName).newInstance());
+        } catch (ClassNotFoundException e) {
+            searchElsewhere = true;
+        }
+        if (searchElsewhere) {
+            String userDirectory = System.getProperty("user.dir");
+            File filter = new File(userDirectory + File.separator + "plugins" + File.separator);
+            logger.log(Level.FINER, "Trying to load plugin from 'plugins' directory. " + filter.toString());
+            try {
+                URL url = filter.toURL();
+                URL[] urls = new URL[]{url};
+                ClassLoader cl = new URLClassLoader(urls);
+                Class cls = cl.loadClass(filterName);
+                postprocessor = (Postprocessor) cls.newInstance();
+            } catch (Exception e) {
+                logger.log(Level.FINER, "Failed to load filter from external plugins directory. " + e);
+                postprocessor = (Postprocessor) (Class.forName(filterName).newInstance());
+            }
+        }
+        if (postprocessor != null) {
+            postprocessor.postProcessFileList(processorInfo, this.controlChannel.subject, downCause(),
+                    downMessage());
+        }
     }
 
     private void checkFinished(Throwable finishCause) {

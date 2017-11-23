@@ -3,23 +3,25 @@
  */
 package lia.util.net.copy.disk;
 
+import lia.util.net.copy.FileSession;
+
 import java.io.File;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.copy.FileSession;
-
 /**
  * This class is used to "check" if a {@link FileSession} is already copied or not
  * For the moment, two "remote" <code>{@link java.io.File}-s</code> are considered
- * equal only if they have the {@link java.io.File.length} and {@link java.io.File.lastModified} are the same for both
+ * equal only if they have the {@link java.io.File length} and {@link java.io.File lastModified} are the same for both
  * of them
- * 
+ *
  * @author ramiro
  */
 public class ResumeManager {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final transient Logger logger = Logger.getLogger(ResumeManager.class.getName());
 
     private static final ResumeManager _thisInstance = new ResumeManager();
@@ -54,9 +56,9 @@ public class ResumeManager {
                 }
         } catch (Throwable t) {
             logger.log(Level.WARNING,
-                       " [ ResumeManager ] Got exception checking if fileSession [ " + fileSession.fileName() + " / " + fileSession.sessionID()
-                               + " ] is finished ",
-                       t);
+                    " [ ResumeManager ] Got exception checking if fileSession [ " + fileSession.fileName() + " / " + fileSession.sessionID()
+                            + " ] is finished ",
+                    t);
         }
 
         return false;

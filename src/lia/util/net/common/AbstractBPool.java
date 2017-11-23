@@ -17,12 +17,14 @@ import java.util.logging.Logger;
 
 /**
  * This class should unify both header and payload buffers
- * 
+ *
  * @author ramiro
  */
 public abstract class AbstractBPool {
 
-    /** Logger used by this class */
+    /**
+     * Logger used by this class
+     */
     private static final transient Logger logger = Logger.getLogger(AbstractBPool.class.getName());
 
     protected final int bufferSize;
@@ -30,16 +32,11 @@ public abstract class AbstractBPool {
     protected final int maxPollIter;
 
     protected final BlockingQueue<ByteBuffer> thePool;
-
-    private final boolean trackAllocations;
-
-    private final IdentityHashMap<ByteBuffer, AtomicBoolean> mapTrack = new IdentityHashMap<ByteBuffer, AtomicBoolean>();
-
     protected final AtomicBoolean limitReached = new AtomicBoolean(false);
-
     protected final AtomicInteger poolSize = new AtomicInteger(0);
-
     protected final boolean randomGen;
+    private final boolean trackAllocations;
+    private final IdentityHashMap<ByteBuffer, AtomicBoolean> mapTrack = new IdentityHashMap<ByteBuffer, AtomicBoolean>();
 
     public AbstractBPool(int bufferSize, int maxPollIter) {
         this(bufferSize, maxPollIter, false);
@@ -235,7 +232,7 @@ public abstract class AbstractBPool {
     public ByteBuffer poll(long timeout, TimeUnit unit) throws InterruptedException {
         final boolean logFinest = logger.isLoggable(Level.FINEST);
         final boolean logFiner = logFinest || logger.isLoggable(Level.FINER);
-        
+
         ByteBuffer retBuff = thePool.poll();
 
         try {
@@ -280,7 +277,7 @@ public abstract class AbstractBPool {
     public boolean put(ByteBuffer buff) {
         final boolean logFinest = logger.isLoggable(Level.FINEST);
         final boolean logFiner = logFinest || logger.isLoggable(Level.FINER);
-        
+
         if (logFiner) {
             StringBuilder sb = new StringBuilder();
             sb.append("<ByteBufferPool> PUT BACK TO POOL: buffer: ").append(Utils.buffToString(buff));
@@ -306,7 +303,7 @@ public abstract class AbstractBPool {
         }
 
         // test and clear the interrupted flag
-        for (;;) {
+        for (; ; ) {
             final boolean isInterrupted = Thread.interrupted();
             try {
                 final boolean returned = thePool.offer(buff);

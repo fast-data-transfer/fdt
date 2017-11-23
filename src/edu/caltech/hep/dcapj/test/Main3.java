@@ -2,12 +2,13 @@ package edu.caltech.hep.dcapj.test;
 
 import edu.caltech.hep.dcapj.PnfsUtil;
 import edu.caltech.hep.dcapj.dCapLayer;
-import edu.caltech.hep.dcapj.io.*;
-import edu.caltech.hep.dcapj.nio.*;
+import edu.caltech.hep.dcapj.io.dCacheFileInputStream;
+import edu.caltech.hep.dcapj.io.dCacheFileOutputStream;
 
-import java.io.*;
-import java.nio.*;
-import java.nio.channels.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 
 /**
  * Copy from dcache to filesystem or from filesystem to dache.. no other option
@@ -28,6 +29,44 @@ public class Main3 implements Runnable {
     public Main3(String src, String dest) {
         this.source = src;
         this.destination = dest;
+    }
+
+    public static void main(String args[]) {
+
+        // initialize the dcap layer
+        try {
+            dCapLayer.initialize();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        int ioPairs = args.length / 2; // based on soruce, dest pair
+
+        if (ioPairs == 0 || (ioPairs != 1 && ioPairs % 2 != 0)) {
+            System.out.println("Not enough source/dest pair! " + ioPairs);
+            dCapLayer.close();
+            return;
+        }
+
+        Main3 main3[] = new Main3[ioPairs];
+        Thread ioThreads[] = new Thread[ioPairs];
+        int count = 0;
+
+        for (int i = 0; i < ioPairs; i++) {
+            main3[i] = new Main3(args[count++], args[count++]);
+            ioThreads[i] = new Thread(main3[i]);
+            ioThreads[i].start();
+        }
+
+        try {
+
+            for (int i = 0; i < ioPairs; i++)
+                ioThreads[i].join();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        dCapLayer.close();
     }
 
     public void run() {
@@ -110,43 +149,5 @@ public class Main3 implements Runnable {
         }
 
         return fc;
-    }
-
-    public static void main(String args[]) {
-
-        // initialize the dcap layer
-        try {
-            dCapLayer.initialize();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        int ioPairs = args.length / 2; // based on soruce, dest pair
-
-        if (ioPairs == 0 || (ioPairs != 1 && ioPairs % 2 != 0)) {
-            System.out.println("Not enough source/dest pair! " + ioPairs);
-            dCapLayer.close();
-            return;
-        }
-
-        Main3 main3[] = new Main3[ioPairs];
-        Thread ioThreads[] = new Thread[ioPairs];
-        int count = 0;
-
-        for (int i = 0; i < ioPairs; i++) {
-            main3[i] = new Main3(args[count++], args[count++]);
-            ioThreads[i] = new Thread(main3[i]);
-            ioThreads[i].start();
-        }
-
-        try {
-
-            for (int i = 0; i < ioPairs; i++)
-                ioThreads[i].join();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        dCapLayer.close();
     }
 }

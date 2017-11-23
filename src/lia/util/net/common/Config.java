@@ -3,38 +3,110 @@
  */
 package lia.util.net.common;
 
+import lia.util.net.copy.PosixFSFileChannelProviderFactory;
+import org.opentsdb.client.HttpClientImpl;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.net.*;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import lia.util.net.copy.PosixFSFileChannelProviderFactory;
-
 /**
  * Configuration params for FDT
- * 
+ *
  * @author ramiro
  * @author Lucian Musat
  */
 public class Config {
 
-    /** Logger used by this class */
-    private static final Logger logger = Logger.getLogger("lia.util.net.common.Config");
     // The size of the buffer which is sent over the wire!
     // TODO make this a parameter
     public static final int NETWORK_BUFF_LEN_SIZE;
+    // public static final String SINGLE_CMDLINE_ARGS[] = { "-S", "-pull", "-N", "-gsi", "-bio", "-r", "-fbs", "-ll",
+    // "-loop", "-enableLisaRestart", "-md5", "-printStats", "-gsissh", "-noupdates", "-silent"};
+    public static final String[] SINGLE_CMDLINE_ARGS = {"-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats",
+            "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb"};
+    public static final String[] VALUE_CMDLINE_ARGS = {"-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters",
+            "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d",
+            "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka", "-tp"};
+    public static final String POSSIBLE_VALUE_CMDLINE_ARGS[] = {"-enable_apmon", "-lisafdtclient", "-lisafdtserver",
+            "-f", "-F", "-h", "-H", "--help", "-help," + "-u", "-U", "--update", "-update"};
+    /**
+     * used in conjuction with -fl to delimit the eventual destination file name
+     * e.g. {@code /orginal/file/name / /destination/file/name}
+     */
+    public static final String REGEX_REMAP_DELIMITER = "(\\s)+/(\\s)+";
+    // all of this are set by the ant script
+    public static final String FDT_MAJOR_VERSION = "0";
+    public static final String FDT_MINOR_VERSION = "26";
+    public static final String FDT_MAINTENANCE_VERSION = "1";
+    public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "."
+            + FDT_MAINTENANCE_VERSION;
+    public static final String FDT_RELEASE_DATE = "2017-11-23";
+    public static final String FDT_RELEASE_TIME = "2300";
+
+    // the size of header packet sent over the wire -
+    // TODO - this should be dynamic ... or not ( performance resons ?! )
+    public static final int HEADER_SIZE = 56;
+    public static final int HEADER_SIZE_v2 = 56;
+    public static final boolean TRACK_ALLOCATIONS = true;
+    public static final int KILO = 1024;
+    // 1 MByte
+    public static final int DEFAULT_BUFFER_SIZE = KILO * KILO; // 1MB
+    // this should be used for syncronizations at application level ()
+    public static final Object BIG_FDTAPP_LOCK = new Object();
+    // default is 4
+    public static final int DEFAULT_SOCKET_NO = 4;
+    public static final int DEFAULT_PORT_NO = 54321;
+    public static final int DEFAULT_TRANSFER_PORT_NO = 43210;
+    public static final long DEFAULT_KEEP_ALIVE_NANOS = TimeUnit.MINUTES.toNanos(2);
+    public static final int DEFAULT_PORT_NO_GSI = 54320;
+    public static final int DEFAULT_PORT_NO_SSH = 22;
+    /**
+     * Check if remote server is needed. We use SSH channels to control remote startup. <br>
+     * In SSH/SCP mode we have three types of syntax we need to support:
+     * <ul>
+     * <li>fdt /local/path [user]@remotehost:/remote/path : <br>
+     * In this case a remote server si started on remote host and client starts in "PUSH" mode The server accept
+     * connection just from the the given client and exits when the transfer finishes
+     * <li>fdt /local/path [user]@remotehost:/remote/path : <br>
+     * In this case a remote server si started on remote host and client starts in "PULL" mode The server accept
+     * connection just from the the given client and exits when the transfer finishes
+     * <li>fdt [user]@remotehost1:/remote/path1 [user]@remotehost2:/remote/path2 : <br>
+     * In this case both the server and the client are started remotely (the local fdt acts as an agent for the transfer
+     * </ul>
+     */
+    // different client/server configuration set using SSH
+    public static final int SSH_NO_REMOTE = -1;
+    // REMOTE server, local client in push mode
+    public static final int SSH_REMOTE_SERVER_LOCAL_CLIENT_PUSH = 1;
+    // REMOTE server, local client in pull mode
+    public static final int SSH_REMOTE_SERVER_LOCAL_CLIENT_PULL = 2;
+    // REMOTE server, REMOTE client in push mode)
+    public static final int SSH_REMOTE_SERVER_REMOTE_CLIENT_PUSH = 3;
+
+    public static final String APMON="APMON";
+    public static final String OPENTSDB="OPENTSDB";
+    /**
+     * Logger used by this class
+     */
+    private static final Logger logger = Logger.getLogger("lia.util.net.common.Config");
+    // env props which will be sent to remote peer
+    private final static String[] exportedSysProps = {"user.name", "user.home", "user.dir", "file.separator",
+            "file.encoding", "path.separator"};
+    private volatile static Config _thisInstance;
 
     static {
-        int defaultMSSSize = 1460;
-        int minMTU = 1500;
+        int defaultMSSSize;
+        int minMTU;
         try {
             minMTU = getMinMTU();
             defaultMSSSize = minMTU - 40;
@@ -48,54 +120,28 @@ public class Config {
 
         NETWORK_BUFF_LEN_SIZE = defaultMSSSize;
     }
-    // env props which will be sent to remote peer
-    private final static String[] exportedSysProps = { "user.name", "user.home", "user.dir", "file.separator",
-            "file.encoding", "path.separator" };
-    // public static final String SINGLE_CMDLINE_ARGS[] = { "-S", "-pull", "-N", "-gsi", "-bio", "-r", "-fbs", "-ll",
-    // "-loop", "-enableLisaRestart", "-md5", "-printStats", "-gsissh", "-noupdates", "-silent"};
-    public static final String[] SINGLE_CMDLINE_ARGS = { "-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats",
-            "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb" };
-    public static final String[] VALUE_CMDLINE_ARGS = { "-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters",
-            "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d",
-            "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka" };
-    public static final String POSSIBLE_VALUE_CMDLINE_ARGS[] = { "-enable_apmon", "-lisafdtclient", "-lisafdtserver",
-            "-f", "-F", "-h", "-H", "--help", "-help," + "-u", "-U", "--update", "-update" };
 
-    /**
-     * used in conjuction with -fl to delimit the eventual destination file name
-     * e.g. {@code /orginal/file/name / /destination/file/name}
-     */
-    public static final String REGEX_REMAP_DELIMITER = "(\\s)+/(\\s)+";
-
-    // all of this are set by the ant script
-    public static final String FDT_MAJOR_VERSION = "0";
-    public static final String FDT_MINOR_VERSION = "25";
-    public static final String FDT_MAINTENANCE_VERSION = "1";
-    public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "."
-            + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2017-10-14";
-    private volatile static Config _thisInstance;
-    // the size of header packet sent over the wire -
-    // TODO - this should be dynamic ... or not ( performance resons ?! )
-    public static final int HEADER_SIZE = 56;
-    public static final int HEADER_SIZE_v2 = 56;
-    public static final boolean TRACK_ALLOCATIONS = true;
-    // 1 MByte
-    public static final int DEFAULT_BUFFER_SIZE = 1 * 1024 * 1024; // 1MB
-    private int byteBufferSize = DEFAULT_BUFFER_SIZE;
     // default will be false
     private final boolean isNagleEnabled;
+    private final boolean isStandAlone;
+    private final String sshKeyPath;
+    private String apMonHosts;
+    private final boolean isLisaRestartEnabled;
+    private final String writeMode;
+    private final String preFilters;
+    private final String postFilters;
+    private final String monID;
+    private final boolean isNetTest;
+    private final boolean isGenTest;
+    private final long keepAliveDelayNanos;
+    private final FileChannelProviderFactory fileChannelProviderFactory;
+    private int byteBufferSize = DEFAULT_BUFFER_SIZE;
     // shall I get the data from server? - used only by the client
     private boolean isPullMode = false;
-    // this should be used for syncronizations at application level ()
-    public static final Object BIG_FDTAPP_LOCK = new Object();
-    // default is 4
-    public static final int DEFAULT_SOCKET_NO = 4;
+    private boolean isCoordinatorMode;
+    private boolean isRetrievingLogFile;
+    private boolean isThirdPartyCopyAgent;
     private int sockNum = DEFAULT_SOCKET_NO;
-    public static final int DEFAULT_PORT_NO = 54321;
-    public static final long DEFAULT_KEEP_ALIVE_NANOS = TimeUnit.MINUTES.toNanos(2);
-    public static final int DEFAULT_PORT_NO_GSI = 54320;
-    public static final int DEFAULT_PORT_NO_SSH = 22;
     private int sockBufSize = -1;
     private long rateLimit = -1;
     private long rateLimitDelayMillis = 300L;
@@ -105,15 +151,21 @@ public class Config {
     private String hostname;
     private String lisaHost;
     private int lisaPort;
-    private final int portNo;
-    private final int portNoGSI;
-    private final int portNoSSH;
-    private final boolean isStandAlone;
+    private int portNo;
+    private int portNoGSI;
+    private int portNoSSH;
+    private int destPort;
+    private int remoteTransferPort;
+    private ArrayBlockingQueue<Integer> transportPorts;
+    private final List<Object> tp;
     private String[] fileList;
     private String[] remappedFileList;
     private String destDir;
-    private final String sshKeyPath;
-    private final String apMonHosts;
+    private String listFilesFrom;
+    private String sIP;
+    private String dIP;
+    private String opentsdb = null;
+    private String opentsdbProtocol = System.getProperty("opentsdb.protocol", org.apache.http.HttpHost.DEFAULT_SCHEME_NAME+ "://");
     private boolean bComputeMD5 = false;
     private boolean bRecursive = false;
     private boolean bCheckUpdate = false;
@@ -136,81 +188,22 @@ public class Config {
     private String sDestinationUser = null;
     private String sLocalAddresses = null;
     private String sStartServerCommand = null;
-    private final boolean isLisaRestartEnabled;
-    private final String writeMode;
-    private final String preFilters;
-    private final String postFilters;
-    private final String monID;
+    private String logLevel;
     private String massStorageConfig = null;
     private String massStorageType = null;
     private MassStorage storageParams = null;
     private Level statsLevel = null;
-    private final Map<String, Object> configMap;
+    private Map<String, Object> configMap;
     private boolean isNoTmpFlagSet = false;
     private boolean isNoLockFlagSet = false;
     private long consoleReportingTaskDelay = 5;
-    private final boolean isNetTest;
-    private final boolean isGenTest;
-    private final long keepAliveDelayNanos;
-    private final FileChannelProviderFactory fileChannelProviderFactory;
-
-    private static final int getMinMTU() {
-        int retMTU = 1500;
-
-        try {
-            final Enumeration<NetworkInterface> netInterfacesEnum = NetworkInterface.getNetworkInterfaces();
-            while (netInterfacesEnum.hasMoreElements()) {
-                final NetworkInterface netInteface = netInterfacesEnum.nextElement();
-
-                try {
-                    if (!netInteface.isUp()) {
-                        continue;
-                    }
-                } catch (NoSuchMethodError nsme) {
-                    // java < 1.6
-                    if (logger.isLoggable(Level.FINE)) {
-                        System.out.println("The current JVM is not able to determine if the net interface "
-                                + netInteface + "is up and running. JVM >= 1.6 should support this feature");
-                    }
-                    return retMTU;
-                } catch (Throwable t) {
-                    System.err.println(" Cannot determine if the interface: " + netInteface + " is up");
-                    return retMTU;
-                }
-
-                int cMTU = -1;
-                try {
-                    cMTU = netInteface.getMTU();
-                } catch (SocketException se) {
-                    System.err.println(" Cannot get MTU for netInterface: " + netInteface + " SocketException: " + se);
-                } catch (NoSuchMethodError nsme) {
-                    if (logger.isLoggable(Level.FINE)) {
-                        System.out.println("The current JVM is not able to determine the MTU for the net interface "
-                                + netInteface + "is up and running. JVM >= 1.6 should support this feature");
-                    }
-                    continue;
-                } catch (Throwable t) {
-                    // probably incompatible JVM version
-                    System.err.println(" Cannot get MTU for netInterface: " + netInteface + " Exception: " + t);
-                }
-
-                if ((cMTU < retMTU) && (cMTU > 0)) {
-                    retMTU = cMTU;
-                }
-            }// while
-        } catch (SocketException se) {
-            System.err.println(" Cannot get min MTU for current instance of FDT. SocketException: " + se);
-        } catch (Throwable t) {
-            System.err.println(" Cannot get min MTU for current instance of FDT. Exception: " + t);
-        }
-
-        return retMTU;
-    }
+    private Map<String, Integer> sessionPortMap = new HashMap<>();
+    private Map<Integer, List<Object>> sessionSocketMap = new HashMap<>();
+    private HttpClientImpl httpClient = null;
 
     /**
      * @param configMap
-     * @throws InvalidFDTParameterException
-     *             if incorrect values are supplied for parameters
+     * @throws InvalidFDTParameterException if incorrect values are supplied for parameters
      */
     private Config(final Map<String, Object> configMap) throws InvalidFDTParameterException {
         this.configMap = configMap;
@@ -223,24 +216,25 @@ public class Config {
         }
 
         isStandAlone = (configMap.get("-S") == null);
+        setRetrievingLogFile(configMap.get("-sID"));
         byteBufferSize = Utils.getIntValue(configMap, "-bs", DEFAULT_BUFFER_SIZE);
-        configMap.put("-bs", "" + byteBufferSize);
+        configMap.put("-bs", String.valueOf(byteBufferSize));
 
         sockNum = Utils.getIntValue(configMap, "-P", DEFAULT_SOCKET_NO);
-        configMap.put("-P", "" + sockNum);
+        configMap.put("-P", String.valueOf(sockNum));
 
         sockBufSize = Utils.getIntValue(configMap, "-ss", -1);
-        configMap.put("-ss", "" + sockBufSize);
+        configMap.put("-ss", String.valueOf(sockBufSize));
 
         rateLimit = Utils.getLongValue(configMap, "-limit", -1);
         if ((rateLimit > 0) && (rateLimit < NETWORK_BUFF_LEN_SIZE)) {
             rateLimit = NETWORK_BUFF_LEN_SIZE;
-            logger.log(Level.WARNING, " The rate limit (-limit) is too small. It will be set to " + rateLimit
+            logger.log(Level.INFO, " The rate limit (-limit) is too small. It will be set to " + rateLimit
                     + " Bytes/s");
         }
-        configMap.put("-limit", "" + rateLimit);
+        configMap.put("-limit", String.valueOf(rateLimit));
         rateLimitDelayMillis = Utils.getLongValue(configMap, "-limitDelay", 300L);
-        configMap.put("-limitDelay", "" + rateLimitDelayMillis);
+        configMap.put("-limitDelay", String.valueOf(rateLimitDelayMillis));
 
         preFilters = Utils.getStringValue(configMap, "-preFilters", null);
         postFilters = Utils.getStringValue(configMap, "-postFilters", null);
@@ -248,6 +242,8 @@ public class Config {
 
         this.massStorageConfig = Utils.getStringValue(configMap, "-ms", null);
         this.massStorageType = Utils.getStringValue(configMap, "-mst", null);
+
+        this.opentsdb = Utils.getStringValue(configMap, "-opentsdb", "localhost:4242");
 
         try {
             if ((massStorageType() != null) && massStorageType().equals("dcache")) {
@@ -292,14 +288,22 @@ public class Config {
         if ((hostname != null) && (hostname.length() == 0)) {
             hostname = null;
         } else {
-            isPullMode = (configMap.get("-pull") != null);
+            isPullMode = (configMap.get("-pull") != null) || (configMap.get("-sID") != null);
+            if (isPullMode) {
+                configMap.put("-pull", "");
+            }
         }
 
         final long ka = Utils.getLongValue(configMap, "-ka", TimeUnit.NANOSECONDS.toSeconds(DEFAULT_KEEP_ALIVE_NANOS));
         this.keepAliveDelayNanos = (ka < 0) ? DEFAULT_KEEP_ALIVE_NANOS : TimeUnit.SECONDS.toNanos(ka);
-        configMap.put("-ka", "" + TimeUnit.NANOSECONDS.toSeconds(this.keepAliveDelayNanos));
+        configMap.put("-ka", String.valueOf(TimeUnit.NANOSECONDS.toSeconds(this.keepAliveDelayNanos)));
 
         portNo = Utils.getIntValue(configMap, "-p", DEFAULT_PORT_NO);
+        transportPorts = Utils.getTransportPortsValue(configMap, "-tp", DEFAULT_TRANSFER_PORT_NO);
+        tp = Arrays.asList(transportPorts.toArray());
+        isCoordinatorMode = (configMap.get("-coord") != null);
+        isThirdPartyCopyAgent = (configMap.get("-agent") != null);
+
         portNoGSI = Utils.getIntValue(configMap, "-gsip", DEFAULT_PORT_NO_GSI);
         portNoSSH = Utils.getIntValue(configMap, "-sshp", DEFAULT_PORT_NO_SSH);
         IORetryFactor = Utils.getIntValue(configMap, "-iof", 1);
@@ -331,6 +335,11 @@ public class Config {
         isLisaRestartEnabled = (configMap.get("-enableLisaRestart") != null);
         bCheckUpdate = (configMap.get("-u") != null);
         destDir = Utils.getStringValue(configMap, "-d", null);
+        sIP = Utils.getStringValue(configMap, "-sIP", null);
+        dIP = Utils.getStringValue(configMap, "-dIP", null);
+        destPort = Utils.getIntValue(configMap, "-dp", -1);
+        remoteTransferPort = -1;
+        listFilesFrom = Utils.getStringValue(configMap, "-ls", null);
         bComputeMD5 = (configMap.get("-md5") != null);
         sshKeyPath = Utils.getStringValue(configMap, "-sshKey", null);
 
@@ -341,7 +350,7 @@ public class Config {
             lastParams.add("/dev/zero");
         }
 
-        if ((hostname != null) && ((destDir == null) || (destDir.length() == 0))) {
+        if ((hostname != null) && (((destDir == null) || (destDir.length() == 0)) && listFilesFrom == null)) {
             throw new IllegalArgumentException("No destination specified");
         }
 
@@ -490,6 +499,11 @@ public class Config {
                     Utils.closeIgnoringExceptions(fr);
                     Utils.closeIgnoringExceptions(br);
                 }
+            } else if (configMap.get("-sID") != null) {
+                String sessionID = (String) configMap.get("-sID");
+                String[] logFiles = getLogFiles(sessionID);
+                remappedFileList = logFiles;
+                fileList = logFiles;
             }
         } else {
             configMap.remove("-fl");
@@ -503,8 +517,7 @@ public class Config {
             fileList = (String[]) files;
         }
 
-        logger.log(Level.INFO, "FDT started in {0} mode", ((hostname == null)
-                && (configMap.get("SCPSyntaxUsed") == null) ? "server" : "client"));
+        logger.log(Level.INFO, "FDT started in {0} mode", getFDTMode(configMap));
         if (hostname != null) {// client mode
             if (logger.isLoggable(Level.FINE)) {
                 StringBuilder sb = new StringBuilder();
@@ -517,8 +530,8 @@ public class Config {
                                     + fileList[i] : " remapped to: " + remappedFileList[i]).append("\n");
                 }
                 logger.log(Level.FINE, sb.toString());
-                logger.log(Level.FINE, "Remote destination directory: {0}\nRemote host: {1} port: {2}", new Object[] {
-                        destDir, hostname, portNo });
+                logger.log(Level.FINE, "Remote destination directory: {0}\nRemote host: {1} port: {2}", new Object[]{
+                        destDir, hostname, portNo});
             }
         } else {// server mode
             if (logger.isLoggable(Level.FINE)) {
@@ -527,40 +540,107 @@ public class Config {
         }
     }
 
-    public int getBulkSockConnect() {
+    public String getMonitor()
+    {
+        if(configMap.get("-opentsdb") != null)
+        {
+            return OPENTSDB;
+        }
+        if (configMap.get("-apmon") != null)
+        {
+            return APMON;
+        }
+       return APMON;
+    }
+
+    public void initOpenTSDBMonitorClient()
+    {
+        httpClient = new HttpClientImpl(opentsdbProtocol + getOpentsdb());
+    }
+
+    public String getFDTTag()
+    {
+        return Utils.getStringValue(configMap, "-fdtTAG", "DEFAULT_FDT_TAG");
+    }
+
+    public void setFDTTag(String fdtTag)
+    {
+        configMap.put("-fdtTAG", fdtTag);
+    }
+
+
+    public HttpClientImpl getOpenTSDBMonitorClient()
+    {
+        return httpClient;
+    }
+
+    private static final int getMinMTU() {
+        int retMTU = 1500;
+
+        try {
+            final Enumeration<NetworkInterface> netInterfacesEnum = NetworkInterface.getNetworkInterfaces();
+            while (netInterfacesEnum.hasMoreElements()) {
+                final NetworkInterface netInteface = netInterfacesEnum.nextElement();
+
+                try {
+                    if (!netInteface.isUp()) {
+                        continue;
+                    }
+                } catch (NoSuchMethodError nsme) {
+                    // java < 1.6
+                    if (logger.isLoggable(Level.FINE)) {
+                        System.out.println("The current JVM is not able to determine if the net interface "
+                                + netInteface + "is up and running. JVM >= 1.6 should support this feature");
+                    }
+                    return retMTU;
+                } catch (Throwable t) {
+                    System.err.println(" Cannot determine if the interface: " + netInteface + " is up");
+                    return retMTU;
+                }
+
+                int cMTU = -1;
+                try {
+                    cMTU = netInteface.getMTU();
+                } catch (SocketException se) {
+                    System.err.println(" Cannot get MTU for netInterface: " + netInteface + " SocketException: " + se);
+                } catch (NoSuchMethodError nsme) {
+                    if (logger.isLoggable(Level.FINE)) {
+                        System.out.println("The current JVM is not able to determine the MTU for the net interface "
+                                + netInteface + "is up and running. JVM >= 1.6 should support this feature");
+                    }
+                    continue;
+                } catch (Throwable t) {
+                    // probably incompatible JVM version
+                    System.err.println(" Cannot get MTU for netInterface: " + netInteface + " Exception: " + t);
+                }
+
+                if ((cMTU < retMTU) && (cMTU > 0)) {
+                    retMTU = cMTU;
+                }
+            }// while
+        } catch (SocketException se) {
+            System.err.println(" Cannot get min MTU for current instance of FDT. SocketException: " + se);
+        } catch (Throwable t) {
+            System.err.println(" Cannot get min MTU for current instance of FDT. Exception: " + t);
+        }
+
+        return retMTU;
+    }
+
+    public static int getBulkSockConnect() {
         return 30;
     }
 
-    public long getKeepAliveDelay(TimeUnit unit) {
-        return unit.convert(keepAliveDelayNanos, TimeUnit.NANOSECONDS);
-    }
-
-    public long getBulkSockConnectWait() {
+    public static long getBulkSockConnectWait() {
         return 1500;
-    }
-
-    public Map<String, Object> getConfigMap() {
-        return configMap;
     }
 
     public static final String getUsage() {
         return Utils.getUsage();
     }
 
-    public int getMaxTakePollIter() {
+    public static int getMaxTakePollIter() {
         return 1000;
-    }
-
-    public long getReportingTaskDelay() {
-        return consoleReportingTaskDelay;
-    }
-
-    public Level getStatsLevel() {
-        return statsLevel;
-    }
-
-    public String getMonID() {
-        return monID;
     }
 
     public static final Config getInstance() {
@@ -577,10 +657,6 @@ public class Config {
         return _thisInstance;
     }
 
-    public int getRetryIOCount() {
-        return IORetryFactor;
-    }
-
     public static final void initInstance(final Map<String, Object> configMap) throws Exception {
 
         synchronized (Config.class) {
@@ -589,6 +665,92 @@ public class Config {
             }
             Config.class.notifyAll();
         }
+    }
+
+    private static void closeSessionRelatedSocks(List<Object> socks) {
+        if (socks != null) {
+            for (Object o : socks) {
+                if (o instanceof ServerSocketChannel) {
+                    try {
+                        ((ServerSocketChannel) o).close();
+                    } catch (IOException e) {
+                        logger.log(Level.WARNING, "Failed to close ServerSocketChannel", e);
+                    }
+                }
+                if (o instanceof ServerSocket) {
+                    try {
+                        ((ServerSocket) o).close();
+                    } catch (IOException e) {
+                        logger.log(Level.WARNING, "Failed to close ServerSocket", e);
+                    }
+                }
+                if (o instanceof SocketChannel) {
+                    try {
+                        ((SocketChannel) o).close();
+                    } catch (IOException e) {
+                        logger.log(Level.WARNING, "Failed to close SocketChannel", e);
+                    }
+                }
+                if (o instanceof Socket) {
+                    try {
+                        ((Socket) o).close();
+                    } catch (IOException e) {
+                        logger.log(Level.WARNING, "Failed to close Socket", e);
+                    }
+                }
+            }
+        }
+    }
+
+    private String[] getLogFiles(String sessionID) {
+        return new String[]{"/tmp/" + sessionID + ".log"};
+    }
+
+    public String getListFilesFrom() {
+        return listFilesFrom;
+    }
+
+    public void setListFilesFrom(String listFilesFrom) {
+        this.listFilesFrom = listFilesFrom;
+    }
+
+    private String getFDTMode(Map<String, Object> configMap) {
+        if (configMap.get("-coord") != null) {
+            return "coordinator";
+        } else if (configMap.get("-ls") != null) {
+            return "list files";
+        } else if (configMap.get("-agent") != null) {
+            return "agent worker";
+        }
+        return (hostname == null) && (configMap.get("SCPSyntaxUsed") == null) ? "server" : "client";
+    }
+
+    public long getKeepAliveDelay(TimeUnit unit) {
+        return unit.convert(keepAliveDelayNanos, TimeUnit.NANOSECONDS);
+    }
+
+    public Map<String, Object> getConfigMap() {
+        return configMap;
+    }
+
+    public void setConfigMap(Map<String, Object> configMap) {
+        this.configMap = configMap;
+    }
+
+    public long getReportingTaskDelay() {
+        return consoleReportingTaskDelay;
+    }
+
+    public Level getStatsLevel() {
+        return statsLevel;
+    }
+
+    public String getMonID() {
+        return monID;
+    }
+
+    public int getRetryIOCount() {
+        return IORetryFactor;
     }
 
     public int getByteBufferSize() {
@@ -638,6 +800,10 @@ public class Config {
         return lisaPort;
     }
 
+    public void setLisaPort(int lisaPort) {
+        this.lisaPort = lisaPort;
+    }
+
     public String getSshKeyPath() {
         return sshKeyPath;
     }
@@ -650,25 +816,44 @@ public class Config {
         return isNoLockFlagSet;
     }
 
+    public String getHostName() {
+        if (configMap.get("-agent") != null) {
+            return dIP;
+        }
+        return hostname;
+    }
+
     public void setHostName(String hostname) {
         this.configMap.put("-destinationHost", hostname);
         this.hostname = hostname;
-    }
-
-    public String getHostName() {
-        return hostname;
     }
 
     public int getPort() {
         return portNo;
     }
 
+    public int getDefaultPort() {
+        return DEFAULT_PORT_NO;
+    }
+
     public int getGSIPort() {
         return portNoGSI;
     }
 
+    public void setGSIPort(int port) {
+        this.portNoGSI = port;
+    }
+
     public int getSSHPort() {
         return portNoSSH;
+    }
+
+    public void setSSHPort(int port) {
+        this.portNoSSH = port;
+    }
+
+    public void setPortNo(int port) {
+        this.portNo = port;
     }
 
     public boolean isStandAlone() {
@@ -683,6 +868,10 @@ public class Config {
         return fileList;
     }
 
+    public void setFileList(String[] fileList) {
+        this.fileList = fileList;
+    }
+
     public String[] getRemappedFileList() {
         return remappedFileList;
     }
@@ -695,12 +884,90 @@ public class Config {
         return postFilters;
     }
 
+    public String getDestinationDir() {
+        return destDir;
+    }
+
     public void setDestinationDir(String destDir) {
         this.destDir = destDir;
     }
 
-    public String getDestinationDir() {
-        return destDir;
+    public int getDestinationPort() {
+        return destPort;
+    }
+
+    public void setDestinationPort(int destPort) {
+        this.destPort = destPort;
+    }
+
+    public void registerTransferPortForSession(int newTransferPort, String sessionID) {
+        this.sessionPortMap.put(sessionID, newTransferPort);
+    }
+
+    public int getNewRemoteTransferPort() {
+        try {
+            if (!transportPorts.isEmpty()) {
+                int rtp = this.transportPorts.poll(20, TimeUnit.SECONDS);
+                System.out.println("Took new remote transfer port " + rtp);
+                return rtp;
+            }
+        } catch (Exception e) {
+            if (transportPorts.size() == 0) {
+                logger.log(Level.WARNING, "No transfer ports defined or no free transfer ports left...", e);
+            } else {
+                logger.log(Level.WARNING, "Failed to retrieve remote transfer port", e);
+            }
+        }
+        return -1;
+    }
+
+    public void setSessionSocket(ServerSocketChannel ssc, ServerSocket ss, SocketChannel sc, Socket s, int port) {
+        List<Object> socks = new ArrayList<>();
+        socks.add(ssc);
+        socks.add(ss);
+        socks.add(sc);
+        socks.add(s);
+        sessionSocketMap.put(port, socks);
+    }
+
+    public void releaseRemoteTransferPort(String sessionID) {
+        if (sessionPortMap.keySet().contains(sessionID)) {
+            logger.log(Level.FINER, "Trying to release transfer port from session " + sessionID);
+            int sessionPort = sessionPortMap.get(sessionID);
+            if (sessionPort > 0) {
+                try {
+                    transportPorts.put(sessionPort);
+                    sessionPortMap.remove(sessionID);
+                    closeSessionRelatedSocks(sessionSocketMap.get(sessionPort));
+                } catch (InterruptedException e) {
+                    logger.log(Level.WARNING, "Failed to release remote transfer port: " + remoteTransferPort, e);
+                }
+            }
+        }
+    }
+
+    public int getRemoteTransferPort() {
+        return remoteTransferPort;
+    }
+
+    public List<Object> getRemoteTransferPorts() {
+        return tp;
+    }
+
+    public void setRemoteTransferPort(int remoteTransferPort) {
+        this.remoteTransferPort = remoteTransferPort;
+    }
+
+    public String getSourceIP() {
+        return sIP;
+    }
+
+    public String getDestinationIP() {
+        return dIP;
+    }
+
+    public void setDestinationIP(String dIP) {
+        this.dIP = dIP;
     }
 
     // TODO - As param ...
@@ -712,6 +979,44 @@ public class Config {
         return apMonHosts;
     }
 
+    public void setApMonHosts(String apMonHosts) {
+        this.apMonHosts = apMonHosts;
+    }
+
+    public boolean isCoordinatorMode() {
+        return isCoordinatorMode;
+    }
+
+    public void setCoordinatorMode(boolean coordinatorMode) {
+        this.isCoordinatorMode = coordinatorMode;
+        if (coordinatorMode) {
+            this.configMap.put("-coord", true);
+        } else {
+            this.configMap.remove("-coord");
+        }
+    }
+
+    public boolean isListFilesMode() {
+        return listFilesFrom != null && configMap.get("-ls") != null;
+    }
+
+    public boolean isRetrievingLogFile() {
+        return isRetrievingLogFile || configMap.containsKey("-sID");
+    }
+
+    public void setRetrievingLogFile(Object sessionID) {
+        this.isRetrievingLogFile = sessionID != null;
+        if (isRetrievingLogFile) {
+            this.configMap.put("-sID", (String) sessionID);
+        } else {
+            this.configMap.remove("-sID");
+        }
+    }
+
+    public boolean isPullMode() {
+        return isPullMode;
+    }
+
     public void setPullMode(boolean pullMode) {
         this.isPullMode = pullMode;
         if (pullMode) {
@@ -719,11 +1024,6 @@ public class Config {
         } else {
             this.configMap.remove("-pull");
         }
-
-    }
-
-    public boolean isPullMode() {
-        return isPullMode;
     }
 
     public boolean shouldUpdate() {
@@ -765,29 +1065,6 @@ public class Config {
     public boolean isGSISSHModeEnabled() {
         return bGSISSHMode;
     }
-
-    /**
-     * Check if remote server is needed. We use SSH channels to control remote startup. <br>
-     * In SSH/SCP mode we have three types of syntax we need to support:
-     * <ul>
-     * <li>fdt /local/path [user]@remotehost:/remote/path : <br>
-     * In this case a remote server si started on remote host and client starts in "PUSH" mode The server accept
-     * connection just from the the given client and exits when the transfer finishes
-     * <li>fdt /local/path [user]@remotehost:/remote/path : <br>
-     * In this case a remote server si started on remote host and client starts in "PULL" mode The server accept
-     * connection just from the the given client and exits when the transfer finishes
-     * <li>fdt [user]@remotehost1:/remote/path1 [user]@remotehost2:/remote/path2 : <br>
-     * In this case both the server and the client are started remotely (the local fdt acts as an agent for the transfer
-     * </ul>
-     */
-    // different client/server configuration set using SSH
-    public static final int SSH_NO_REMOTE = -1;
-    // REMOTE server, local client in push mode
-    public static final int SSH_REMOTE_SERVER_LOCAL_CLIENT_PUSH = 1;
-    // REMOTE server, local client in pull mode
-    public static final int SSH_REMOTE_SERVER_LOCAL_CLIENT_PULL = 2;
-    // REMOTE server, REMOTE client in push mode)
-    public static final int SSH_REMOTE_SERVER_REMOTE_CLIENT_PUSH = 3;
 
     public int getReadersCount() {
         return readersCount;
@@ -872,7 +1149,42 @@ public class Config {
         return isGenTest;
     }
 
+    public String getLogLevel() {
+        return logLevel;
+    }
+
+    public void setLogLevel(String logLevel) {
+        this.logLevel = logLevel;
+    }
+
     public FileChannelProviderFactory getFileChannelProviderFactory() {
         return this.fileChannelProviderFactory;
     }
+
+    public boolean isThirdPartyCopyAgent() {
+        return this.isThirdPartyCopyAgent;
+    }
+
+    public void setThirdPartyCopyAgent(boolean isThirdPartyCopyAgent) {
+        this.isThirdPartyCopyAgent = isThirdPartyCopyAgent;
+        if (isThirdPartyCopyAgent) {
+            this.configMap.put("-agent", true);
+        } else {
+            this.configMap.remove("-agent");
+        }
+    }
+
+    public String getListenAddress()
+    {
+        return (String)this.configMap.get("-FDT_LISTEN");
+    }
+
+    public String getOpentsdb() {
+        return opentsdb;
+    }
+
+    public void setOpentsdb(String opentsdb) {
+        this.opentsdb = opentsdb;
+    }
+
 }

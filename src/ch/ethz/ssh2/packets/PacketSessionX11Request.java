@@ -1,53 +1,46 @@
-
 package ch.ethz.ssh2.packets;
 
 /**
  * PacketSessionX11Request.
- * 
+ *
  * @author Christian Plattner, plattner@inf.ethz.ch
  * @version $Id: PacketSessionX11Request.java,v 1.2 2005/12/05 17:13:27 cplattne Exp $
  */
-public class PacketSessionX11Request
-{
-	byte[] payload;
+public class PacketSessionX11Request {
+    public int recipientChannelID;
+    public boolean wantReply;
+    public boolean singleConnection;
+    byte[] payload;
+    String x11AuthenticationProtocol;
+    String x11AuthenticationCookie;
+    int x11ScreenNumber;
 
-	public int recipientChannelID;
-	public boolean wantReply;
+    public PacketSessionX11Request(int recipientChannelID, boolean wantReply, boolean singleConnection,
+                                   String x11AuthenticationProtocol, String x11AuthenticationCookie, int x11ScreenNumber) {
+        this.recipientChannelID = recipientChannelID;
+        this.wantReply = wantReply;
 
-	public boolean singleConnection;
-	String x11AuthenticationProtocol;
-	String x11AuthenticationCookie;
-	int x11ScreenNumber;
+        this.singleConnection = singleConnection;
+        this.x11AuthenticationProtocol = x11AuthenticationProtocol;
+        this.x11AuthenticationCookie = x11AuthenticationCookie;
+        this.x11ScreenNumber = x11ScreenNumber;
+    }
 
-	public PacketSessionX11Request(int recipientChannelID, boolean wantReply, boolean singleConnection,
-			String x11AuthenticationProtocol, String x11AuthenticationCookie, int x11ScreenNumber)
-	{
-		this.recipientChannelID = recipientChannelID;
-		this.wantReply = wantReply;
+    public byte[] getPayload() {
+        if (payload == null) {
+            TypesWriter tw = new TypesWriter();
+            tw.writeByte(Packets.SSH_MSG_CHANNEL_REQUEST);
+            tw.writeUINT32(recipientChannelID);
+            tw.writeString("x11-req");
+            tw.writeBoolean(wantReply);
 
-		this.singleConnection = singleConnection;
-		this.x11AuthenticationProtocol = x11AuthenticationProtocol;
-		this.x11AuthenticationCookie = x11AuthenticationCookie;
-		this.x11ScreenNumber = x11ScreenNumber;
-	}
+            tw.writeBoolean(singleConnection);
+            tw.writeString(x11AuthenticationProtocol);
+            tw.writeString(x11AuthenticationCookie);
+            tw.writeUINT32(x11ScreenNumber);
 
-	public byte[] getPayload()
-	{
-		if (payload == null)
-		{
-			TypesWriter tw = new TypesWriter();
-			tw.writeByte(Packets.SSH_MSG_CHANNEL_REQUEST);
-			tw.writeUINT32(recipientChannelID);
-			tw.writeString("x11-req");
-			tw.writeBoolean(wantReply);
-
-			tw.writeBoolean(singleConnection);
-			tw.writeString(x11AuthenticationProtocol);
-			tw.writeString(x11AuthenticationCookie);
-			tw.writeUINT32(x11ScreenNumber);
-
-			payload = tw.getBytes();
-		}
-		return payload;
-	}
+            payload = tw.getBytes();
+        }
+        return payload;
+    }
 }

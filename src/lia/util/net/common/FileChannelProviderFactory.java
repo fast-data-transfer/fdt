@@ -4,15 +4,18 @@
  */
 package lia.util.net.common;
 
+//import lia.util.net.copy.FDTCoordinatorSession;
+
 import lia.util.net.copy.FDTReaderSession;
 import lia.util.net.copy.FDTWriterSession;
 
 
 /**
- * 
  * @author ramiro
  */
 public interface FileChannelProviderFactory {
     FileChannelProvider newReaderFileChannelProvider(FDTReaderSession readerSession);
+
     FileChannelProvider newWriterFileChannelProvider(FDTWriterSession writerSession);
+//    FileChannelProvider newCoordinatorChannelProvider(FDTCoordinatorSession coordinatorSession);
 }

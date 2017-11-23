@@ -1,8 +1,13 @@
 package lia.util.net.common;
 
 import apmon.ApMon;
+import lia.gsi.FDTGSIServer;
 import lia.util.net.copy.FDT;
+import lia.util.net.copy.FDTServer;
+import lia.util.net.copy.FDTSessionManager;
 import lia.util.net.copy.FileBlock;
+import lia.util.net.copy.transport.ControlChannel;
+import lia.util.net.copy.transport.CtrlMsg;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -11,10 +16,7 @@ import org.json.JSONObject;
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
+import java.nio.channels.*;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.*;
@@ -23,6 +25,7 @@ import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 /**
@@ -32,72 +35,44 @@ import java.util.logging.Logger;
  */
 public final class Utils {
 
+    public static final char ZERO = '0';
+    public static final int VALUE_2_STRING_NO_UNIT = 1;
+    public static final int VALUE_2_STRING_UNIT = 2;
+    public static final int VALUE_2_STRING_SHORT_UNIT = 3;
     /**
      * Logger used by this class
      */
     private static final Logger logger = Logger.getLogger(Utils.class.getName());
-
     private static final ScheduledThreadPoolExecutor scheduledExecutor = getSchedExecService("FDT Monitoring ThPool",
             5, Thread.MIN_PRIORITY);
-    public static final char ZERO = '0';
-
+    private static final int AV_PROCS;
+    private static final long KILO_BIT = 1000;
+    public static final long MEGA_BIT = KILO_BIT * 1000;
+    private static final long GIGA_BIT = MEGA_BIT * 1000;
+    private static final long TERA_BIT = GIGA_BIT * 1000;
+    private static final long PETA_BIT = TERA_BIT * 1000;
+    private static final long KILO_BYTE = 1024;
+    public static final long MEGA_BYTE = KILO_BYTE * 1024;
+    private static final long GIGA_BYTE = MEGA_BYTE * 1024;
+    private static final long TERA_BYTE = GIGA_BYTE * 1024;
+    private static final long PETA_BYTE = TERA_BYTE * 1024;
+    private static final long[] BYTE_MULTIPLIERS = new long[]{KILO_BYTE, MEGA_BYTE, GIGA_BYTE, TERA_BYTE, PETA_BYTE};
+    private static final String[] BYTE_SUFIXES = new String[]{"KB", "MB", "GB", "TB", "PB"};
+    private static final long[] BIT_MULTIPLIERS = new long[]{KILO_BIT, MEGA_BIT, GIGA_BIT, TERA_BIT, PETA_BIT};
+    private static final String[] BIT_SUFIXES = new String[]{"Kb", "Mb", "Gb", "Tb", "Pb"};
+    private static final int URL_CONNECTION_TIMEOUT = 20 * 1000;
+    private static final Object lock = new Object();
+    private static final long SECONDS_IN_MINUTE = TimeUnit.MINUTES.toSeconds(1);
+    private static final long SECONDS_IN_HOUR = TimeUnit.HOURS.toSeconds(1);
+    private static final long SECONDS_IN_DAY = TimeUnit.DAYS.toSeconds(1);
+    private static final String[] SELECTION_KEY_OPS_NAMES = {"OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE"};
+    private static final int[] SELECTION_KEY_OPS_VALUES = {SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT,
+            SelectionKey.OP_READ, SelectionKey.OP_WRITE};
     /**
      * reference to the monitor reporting api, initialized in the constructor of {@link FDT}
      */
     private static ApMon apmon = null;
-
     private static boolean apmonInitied = false;
-
-    public static final int VALUE_2_STRING_NO_UNIT = 1;
-
-    public static final int VALUE_2_STRING_UNIT = 2;
-
-    public static final int VALUE_2_STRING_SHORT_UNIT = 3;
-
-    private static final int AV_PROCS;
-
-    private static final long KILO_BIT = 1000;
-
-    public static final long MEGA_BIT = KILO_BIT * 1000;
-
-    private static final long GIGA_BIT = MEGA_BIT * 1000;
-
-    private static final long TERA_BIT = GIGA_BIT * 1000;
-
-    private static final long PETA_BIT = TERA_BIT * 1000;
-
-    private static final long KILO_BYTE = 1024;
-
-    public static final long MEGA_BYTE = KILO_BYTE * 1024;
-
-    private static final long GIGA_BYTE = MEGA_BYTE * 1024;
-
-    private static final long TERA_BYTE = GIGA_BYTE * 1024;
-
-    private static final long PETA_BYTE = TERA_BYTE * 1024;
-
-    private static final long[] BYTE_MULTIPLIERS = new long[]{KILO_BYTE, MEGA_BYTE, GIGA_BYTE, TERA_BYTE, PETA_BYTE};
-
-    private static final String[] BYTE_SUFIXES = new String[]{"KB", "MB", "GB", "TB", "PB"};
-
-    private static final long[] BIT_MULTIPLIERS = new long[]{KILO_BIT, MEGA_BIT, GIGA_BIT, TERA_BIT, PETA_BIT};
-
-    private static final String[] BIT_SUFIXES = new String[]{"Kb", "Mb", "Gb", "Tb", "Pb"};
-
-    private static final int URL_CONNECTION_TIMEOUT = 20 * 1000;
-
-    private static final Object lock = new Object();
-
-    private static final long SECONDS_IN_MINUTE = TimeUnit.MINUTES.toSeconds(1);
-
-    private static final long SECONDS_IN_HOUR = TimeUnit.HOURS.toSeconds(1);
-
-    private static final long SECONDS_IN_DAY = TimeUnit.DAYS.toSeconds(1);
-
-    private static final String[] SELECTION_KEY_OPS_NAMES = {"OP_ACCEPT", "OP_CONNECT", "OP_READ", "OP_WRITE"};
-
-    private static final int[] SELECTION_KEY_OPS_VALUES = {SelectionKey.OP_ACCEPT, SelectionKey.OP_CONNECT,
-            SelectionKey.OP_READ, SelectionKey.OP_WRITE};
 
     //
     // END this should not be here any more after FDT will use only Java6
@@ -429,7 +404,8 @@ public final class Utils {
         synchronized (Utils.class) {
 
             // just check that initApMonInstance will be ever called ....
-            if (Config.getInstance().getApMonHosts() == null) {
+            Config config = Config.getInstance();
+            if (config.getApMonHosts() == null && !config.getMonitor().equals(config.OPENTSDB)) {
                 return null;
             }
 
@@ -923,8 +899,8 @@ public final class Utils {
                     rstContor++;
                 }
 
-                updateProperties.put(property, lastContor);
-                updateProperties.put(property + "_rst", rstContor);
+                updateProperties.put(property, String.valueOf(lastContor));
+                updateProperties.put(property + "_rst", String.valueOf(rstContor));
 
                 if (logger.isLoggable(Level.FINEST)) {
                     logger.log(Level.FINEST, " [ Utils ] [ updateTotalContor ] store new properties: {0}",
@@ -1208,9 +1184,7 @@ public final class Utils {
                 String downloadUrl = getDownloadURL(jsonObject);
                 downloadFDT(fos, downloadUrl);
                 // try to check the version
-            }
-            else
-            {
+            } else {
                 downloadFDT(fos, updateURL);
             }
             jf = new JarFile(tmpUpdateFile);
@@ -1230,9 +1204,7 @@ public final class Utils {
                 }
                 logger.info("Remote FDT version: " + remoteVersion + " Local FDT version: " + currentVersion
                         + ". Update available.");
-            }
-            else
-            {
+            } else {
                 logger.info("Skipped version checking.");
             }
 
@@ -1299,14 +1271,10 @@ public final class Utils {
 
     private static void downloadFDT(FileOutputStream fos, String downloadURL) throws IOException {
         InputStream downInputStream;
-        if (!downloadURL.endsWith("fdt.jar"))
-        {
-            if(!downloadURL.endsWith("/"))
-            {
+        if (!downloadURL.endsWith("fdt.jar")) {
+            if (!downloadURL.endsWith("/")) {
                 downloadURL = downloadURL + "/fdt.jar";
-            }
-            else
-            {
+            } else {
                 downloadURL = downloadURL + "fdt.jar";
             }
         }
@@ -1734,5 +1702,181 @@ public final class Utils {
         }
 
         return localhost;
+    }
+
+    public static ArrayBlockingQueue<Integer> getTransportPortsValue(Map<String, Object> configMap, String key, int defaultPortNo) {
+        ArrayBlockingQueue<Integer> transportPorts = new ArrayBlockingQueue<>(10);
+        int i = 0;
+        Object obj = configMap.get(key);
+        if (obj == null || obj.toString().isEmpty()) {
+            transportPorts.add(defaultPortNo);
+            return transportPorts;
+        }
+        String tp = obj.toString();
+        StringTokenizer stk = new StringTokenizer(tp, ",");
+        String s[] = new String[10];
+        while (stk.hasMoreTokens()) {
+            s[i] = stk.nextToken();
+            transportPorts.add(Integer.parseInt(s[i]));
+            i++;
+        }
+        return transportPorts;
+    }
+
+    private static void initLocalProps(String level, Properties localProps) {
+
+        FileInputStream fis = null;
+        File confFile = null;
+        try {
+            confFile = new File(
+                    System.getProperty("user.home") + File.separator + ".fdt" + File.separator + "fdt.properties");
+            if (level.contains("FINE")) {
+                logger.info("Using local properties file: " + confFile);
+            }
+            if (confFile.exists() && confFile.canRead()) {
+                fis = new FileInputStream(confFile);
+                localProps.load(fis);
+            }
+        } catch (Throwable t) {
+            if (confFile != null) {
+                if (level.contains("FINE")) {
+                    System.err.println("Unable to read local configuration file " + confFile);
+                    t.printStackTrace();
+                }
+            }
+        } finally {
+            Utils.closeIgnoringExceptions(fis);
+        }
+
+        if (level.contains("FINE")) {
+            if (localProps.size() > 0) {
+                if (level.contains("FINER")) {
+                    logger.info(" LocalProperties loaded: " + localProps);
+                }
+            } else {
+                logger.info("No local properties defined");
+            }
+        }
+    }
+
+    public static void initLogger(String level, File logFile, Properties localProps) {
+        initLocalProps(level, localProps);
+        Properties loggingProps = new Properties();
+        loggingProps.putAll(localProps);
+
+        try {
+            if (!loggingProps.containsKey("handlers")) {
+                loggingProps.put("handlers", "java.util.logging.ConsoleHandler");
+                loggingProps.put("java.util.logging.ConsoleHandler.level", "FINEST");
+                loggingProps.put("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
+                loggingProps.put("java.util.logging.SimpleFormatter.format", "%1$tY-%1$tm-%1$td %1$tH:%1$tM:%1$tS %4$s %2$s %5$s%6$s%n");
+            }
+
+            if (logFile != null) {
+                if (loggingProps.contains("handlers")) {
+                    loggingProps.remove("handlers");
+                }
+
+                loggingProps.put("handlers", "java.util.logging.FileHandler,java.util.logging.ConsoleHandler");
+                loggingProps.put("java.util.logging.ConsoleHandler.level", "FINEST");
+                loggingProps.put("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
+                loggingProps.put("java.util.logging.SimpleFormatter.format", "%1$tY-%1$tm-%1$td %1$tH:%1$tM:%1$tS %4$s %2$s %5$s%6$s%n");
+                loggingProps.put("java.util.logging.FileHandler.level", "FINEST");
+                loggingProps.put("java.util.logging.FileHandler.formatter", "java.util.logging.SimpleFormatter");
+                loggingProps.put("java.util.logging.FileHandler.pattern", "" + logFile);
+                loggingProps.put("java.util.logging.FileHandler.append", "true");
+
+                System.setProperty("CustomLog", "true");
+            }
+
+            if (!loggingProps.containsKey(".level")) {
+                loggingProps.put(".level", level);
+            }
+
+            if (level.contains("FINER")) {
+                logger.info("\n Logging props: " + loggingProps);
+            }
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            loggingProps.store(baos, null);
+            LogManager.getLogManager().reset();
+            LogManager.getLogManager().readConfiguration(new ByteArrayInputStream(baos.toByteArray()));
+
+        } catch (Throwable t) {
+            System.err.println(" Got exception setting the logging level ");
+            t.printStackTrace();
+        }
+    }
+
+    public static void waitAndWork(ExecutorService executor, ServerSocket ss, Selector sel, Config config) throws Exception {
+        if (config.isGSIModeEnabled()) {
+            FDTGSIServer gsiServer = new FDTGSIServer(config.getGSIPort());
+            gsiServer.start();
+            logger.log(Level.INFO, "FDT started in GSI mode on port: " + config.getGSIPort());
+        }
+        waitForTask(executor, ss, sel);
+
+        int transferPort = getFDTTransferPort(config);
+        if (transferPort > 0) {
+            final FDTServer theServer = new FDTServer(transferPort);
+            theServer.doWork();
+        } else {
+            logger.warning("There are no free transfer ports at this moment, please try again later");
+            waitForTask(executor, ss, sel);
+        }
+    }
+
+    public static int getFDTTransferPort(Config config) throws Exception {
+        ControlChannel cc = new ControlChannel(config.getHostName(), config.getPort(), UUID.randomUUID(), FDTSessionManager.getInstance());
+        int transferPort = cc.sendTransferPortMessage(new CtrlMsg(CtrlMsg.REMOTE_TRANSFER_PORT, "rtp"));
+        // wait for remote config
+        logger.log(Level.INFO, "Got transfer port: " + config.getHostName() + ":" + transferPort);
+        return transferPort;
+    }
+
+    private static void waitForTask(ExecutorService executor, ServerSocket ss, Selector sel) throws Exception {
+        try {
+
+            for (; ; ) {
+                final int count = sel.select(2000);
+
+                if (count == 0)
+                    continue;
+
+                Iterator<SelectionKey> it = sel.selectedKeys().iterator();
+                while (it.hasNext()) {
+                    final SelectionKey sk = it.next();
+                    it.remove();
+
+                    if (!sk.isValid())
+                        continue;// closed socket ?
+
+                    if (sk.isAcceptable()) {
+                        final ServerSocketChannel ssc = (ServerSocketChannel) sk.channel();
+                        final SocketChannel sc = ssc.accept();
+
+                        try {
+                            executor.execute(new AcceptableTask(sc));
+                        } catch (Throwable t) {
+                            StringBuilder sb = new StringBuilder();
+                            sb.append("[ FDT ] [ waitForTask ] got exception in while sumbiting the AcceptableTask for SocketChannel: ").append(sc);
+                            if (sc != null) {
+                                sb.append(" Socket: ").append(sc.socket());
+                            }
+                            sb.append(" Cause: ");
+                            logger.log(Level.WARNING, sb.toString(), t);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            logger.log(Level.WARNING, "[FDT] [ waitForTask ] Exception in main loop!", t);
+            throw new Exception(t);
+        }
+
+    }
+
+    public static boolean isTransferPort(int localPort) {
+        return Config.getInstance().getRemoteTransferPorts().contains(localPort);
     }
 }

@@ -3,6 +3,8 @@
  */
 package lia.util.net.copy;
 
+import lia.util.net.common.FileChannelProvider;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
@@ -11,41 +13,30 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.common.FileChannelProvider;
-
 /**
- *
  * This class is the FDT wrapper over the FileChannel which performs the I/O operations
  *
  * @author ramiro
  */
 public abstract class FileSession extends IOSession {
 
-    private static final Logger logger = Logger.getLogger(FileSession.class.getName());
-
     public static final String DEV_NULL_FILENAME = "/dev/null";
     public static final String DEV_ZERO_FILENAME = "/dev/zero";
-
-    protected final boolean isLoop;
-
-    protected volatile String fileName;
-
-    protected volatile FileChannel fileChannel;
-
-    protected volatile File file;
-    protected final FDTSession fdtSession;
+    private static final Logger logger = Logger.getLogger(FileSession.class.getName());
     public final AtomicLong cProcessedBytes = new AtomicLong(0);
-    protected volatile int partitionID;
-
-    protected volatile long lastModified;
-
+    protected final boolean isLoop;
+    protected final FDTSession fdtSession;
     protected final boolean isNull;
     protected final boolean isZero;
-
     protected final FileChannelProvider fileChannelProvider;
+    protected volatile String fileName;
+    protected volatile FileChannel fileChannel;
+    protected volatile File file;
+    protected volatile int partitionID;
+    protected volatile long lastModified;
 
     public FileSession(UUID uid, FDTSession fdtSession, String fileName, boolean isLoop,
-            FileChannelProvider fileChannelProvider) {
+                       FileChannelProvider fileChannelProvider) {
         super(uid, -1);
         this.fdtSession = fdtSession;
 
@@ -135,7 +126,6 @@ public abstract class FileSession extends IOSession {
     }
 
     /**
-     *
      * @param fileName
      * @throws IOException
      */

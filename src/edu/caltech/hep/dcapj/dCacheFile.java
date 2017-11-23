@@ -1,26 +1,15 @@
 package edu.caltech.hep.dcapj;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import edu.caltech.hep.dcapj.util.*;
+
+import java.io.*;
 import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
-import java.nio.channels.*;
-import java.util.Arrays;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import edu.caltech.hep.dcapj.util.ControlCommandCallback;
-import edu.caltech.hep.dcapj.util.ControlConnection;
-import edu.caltech.hep.dcapj.util.DataConnectionCallback;
-import edu.caltech.hep.dcapj.util.IOCallback;
-import edu.caltech.hep.dcapj.util.InvalidConfigurationException;
 
 /**
  * Main class that implements all the file-like behaviour for dCache files.
@@ -30,45 +19,34 @@ import edu.caltech.hep.dcapj.util.InvalidConfigurationException;
  * {@link edu.caltech.hep.dcapj.io.dCacheFileOutputStream} and
  * {@link edu.caltech.hep.dcapj.io.dCacheFileInputStream}. To achieve NIO like
  * functionality, use {@link edu.caltech.hep.dcapj.nio.dCacheFileChannel}.
- * 
+ *
  * @author Kamran Soomro
  * @author Faisal Khan
  */
 public class dCacheFile extends File implements DataConnectionCallback,
         ControlCommandCallback {
 
+    protected SocketChannel _clientChannel = null;
     private Logger _logger = Logger.getLogger(dCacheFile.class.getName());
-
     private boolean _connected = false;
     private boolean _poolReplied = false;
     private boolean _doorReplied = false;
     private ByteBuffer _commandBuffer = null;
-
     private IOCallback _poolCallback = null;
     private ControlConnection _controlConnection = null;
-
-    protected SocketChannel _clientChannel = null;
-
     private String _pnfsID;
     private int _sessionID = -1;
     private int _commandID = -1;
-
-    // / Represents the mode in which dCache files can be opened.
-    public enum Mode {
-        READ_ONLY, WRITE_ONLY
-    };
-
     private Mode _openMode;
 
+    ;
     private long _max_bytes = Long.MAX_VALUE;
     private boolean _writable = false;
-
     private long _filesize;
-
     private int _poolID = 0;
     private int _mode;
-    
     private SelectionKey _selectionKey;
+    private String[] _doorReply = null;
 
     /*
      * private int _uid; private int _guid;
@@ -76,37 +54,30 @@ public class dCacheFile extends File implements DataConnectionCallback,
      * private long _atime; private long _mtime; private long _ctime;
      */
 
-    private String[] _doorReply = null;
-    
     public dCacheFile(String name, String openMode) throws FileNotFoundException,
-    IOException, InvalidConfigurationException {
-        this(name, openMode.equals("w")?Mode.WRITE_ONLY:Mode.READ_ONLY);
+            IOException, InvalidConfigurationException {
+        this(name, openMode.equals("w") ? Mode.WRITE_ONLY : Mode.READ_ONLY);
     }
-    
+
     /**
      * Create a dCacheFile.
-     * 
-     * @param name
-     *            Path of the file to open. The path should be absolute.
-     * @param openMode
-     *            Open the file in read or write mode.
-     * @throws FileNotFoundException
-     *             If the file is not found
-     * @throws IOException
-     *             If there was an error opening/creating the file
-     * @throws InvalidConfigurationException
-     *             If the <code>$DCAPJ_CONFIG_FILE</code> is in an invalid
-     *             format
+     *
+     * @param name     Path of the file to open. The path should be absolute.
+     * @param openMode Open the file in read or write mode.
+     * @throws FileNotFoundException         If the file is not found
+     * @throws IOException                   If there was an error opening/creating the file
+     * @throws InvalidConfigurationException If the <code>$DCAPJ_CONFIG_FILE</code> is in an invalid
+     *                                       format
      */
     public dCacheFile(String name, Mode openMode) throws FileNotFoundException,
-                   IOException, InvalidConfigurationException {
+            IOException, InvalidConfigurationException {
         super(name);
 
         // if dcap layer is not initialized, don't do anything
         if (!dCapLayer.isInitialized()) {
             throw new InvalidConfigurationException(
                     "dCap layer should be initialized by "
-                    + "  making a call to dCapLayer.initialze()");
+                            + "  making a call to dCapLayer.initialze()");
         }
 
         // We can only handle files that are part of dCache.
@@ -144,9 +115,8 @@ public class dCacheFile extends File implements DataConnectionCallback,
         } // File exists and we want to read
 
         _pnfsID = PnfsUtil.getPnfsID(super.getAbsolutePath()); // getPnfsID();
-        if (_openMode == Mode.READ_ONLY)
-        {
-        	this.open();
+        if (_openMode == Mode.READ_ONLY) {
+            this.open();
             this.tell();
             _connected = true;
             getPoolID();
@@ -162,8 +132,8 @@ public class dCacheFile extends File implements DataConnectionCallback,
 
         if (!result) {
             String emsg = "Open failed on file " + getName()
-            + "; Unable to register " + " pool call back for session "
-            + _sessionID;
+                    + "; Unable to register " + " pool call back for session "
+                    + _sessionID;
             _logger.severe(emsg);
             throw new IOException(emsg);
         }
@@ -173,7 +143,7 @@ public class dCacheFile extends File implements DataConnectionCallback,
         String ip = dCapLayer.getConfig().getInterface();
         if (ip == null) {
             IOException ex = new IOException(
-            "Cannot get ip address for system.");
+                    "Cannot get ip address for system.");
             _logger.severe(ex.getMessage());
             _logger.throwing("dCacheFile", "open", ex);
             throw ex;
@@ -181,8 +151,8 @@ public class dCacheFile extends File implements DataConnectionCallback,
 
         _doorReplied = false;
         String openCommand = _sessionID + " " + (++_commandID)
-        + " client open " + _pnfsID + " " + mode + " " + ip + " "
-        + _poolCallback.getPort();
+                + " client open " + _pnfsID + " " + mode + " " + ip + " "
+                + _poolCallback.getPort();
         _controlConnection.sendCommand(openCommand);
 
         long t0 = System.currentTimeMillis();
@@ -207,9 +177,9 @@ public class dCacheFile extends File implements DataConnectionCallback,
         }
 
         if (_doorReplied) {
-        	String reply = "";
-        	for (String replyPart : _doorReply)
-        		reply += replyPart + " ";
+            String reply = "";
+            for (String replyPart : _doorReply)
+                reply += replyPart + " ";
             String errormsg = "dCapJ " + reply;
             _logger.severe(errormsg);
             throw new IOException(errormsg);
@@ -219,7 +189,7 @@ public class dCacheFile extends File implements DataConnectionCallback,
 
         _logger.fine("Waiting for a data call back connection");
         long t1 = System.currentTimeMillis();
-        while (!_poolReplied) {	
+        while (!_poolReplied) {
 
             try {
                 Thread.sleep(500);
@@ -242,7 +212,7 @@ public class dCacheFile extends File implements DataConnectionCallback,
         // Receive Mover HELLO BLOCK
         ByteBuffer commandBuffer = ByteBuffer.allocate(20);
         commandBuffer.limit(4);
-        
+
         _clientChannel.read(commandBuffer);
 
         commandBuffer.rewind();
@@ -263,49 +233,23 @@ public class dCacheFile extends File implements DataConnectionCallback,
                 + ", nBytes = " + nBytes);
     }
 
-    // TODO: Let's see what we can do for stat
-    /*
-     * private void stat() throws IOException { _poolOut.writeInt(4);
-     * _poolOut.writeInt(10); // Send STATUS command
-     * 
-     * int nBytes = _poolIn.readInt() - 12; // Should be 12 int ack =
-     * _poolIn.readInt(); int cmdCode = _poolIn.readInt(); int success =
-     * _poolIn.readInt();
-     * 
-     * if (success != 0) // Means command failed { String detail =
-     * _poolIn.readUTF(); _logger.severe("Cannot get STATUS information for file
-     * [nBytes = " + nBytes + ", ack = " + ack + ", cmdCode = " + cmdCode + ",
-     * success = " + success + "]\n" + "Pool replied: " + detail);
-     * 
-     * IOException ex = new IOException(detail); _logger.throwing("dCacheFile",
-     * "stat", ex); throw ex; } // Else if command successful _mode =
-     * _poolIn.readInt(); int nLinks = _poolIn.readInt();
-     * 
-     * _uid = _poolIn.readInt(); _guid = _poolIn.readInt(); _filesize =
-     * _poolIn.readLong(); _atime = _poolIn.readLong(); _mtime =
-     * _poolIn.readLong(); _ctime = _poolIn.readLong(); }
-     */
-
     /**
      * Set the cursor to the specified offset. This method is only available if
      * the file is opened for reading.
-     *      * 
-     * @param offset
-     *            The offset within the file to set the cursor to
-     * @param relative
-     *            If true, the offset is calculated from the current position
-     *            within the file, otherwise it is calculated as absolute
+     * *
+     *
+     * @param offset   The offset within the file to set the cursor to
+     * @param relative If true, the offset is calculated from the current position
+     *                 within the file, otherwise it is calculated as absolute
      * @return The new position
-     * @throws IOException
-     *             If there was an error setting the cursor
+     * @throws IOException If there was an error setting the cursor
      */
     public long seek(long offset, boolean relative) throws IOException {
-    	if (_openMode == Mode.WRITE_ONLY)
-    	{
-    		IOException ex = new IOException("Cannot seek in WRITE mode.");
-    		_logger.throwing("dCacheFile", "seek", ex);
-    	}
-    		
+        if (_openMode == Mode.WRITE_ONLY) {
+            IOException ex = new IOException("Cannot seek in WRITE mode.");
+            _logger.throwing("dCacheFile", "seek", ex);
+        }
+
         _logger.fine("Sending SEEK command to pool [offset = " + offset
                 + ", relative = " + relative + "]");
 
@@ -367,23 +311,44 @@ public class dCacheFile extends File implements DataConnectionCallback,
         return _commandBuffer.getLong();
     }
 
+    // TODO: Let's see what we can do for stat
+    /*
+     * private void stat() throws IOException { _poolOut.writeInt(4);
+     * _poolOut.writeInt(10); // Send STATUS command
+     * 
+     * int nBytes = _poolIn.readInt() - 12; // Should be 12 int ack =
+     * _poolIn.readInt(); int cmdCode = _poolIn.readInt(); int success =
+     * _poolIn.readInt();
+     * 
+     * if (success != 0) // Means command failed { String detail =
+     * _poolIn.readUTF(); _logger.severe("Cannot get STATUS information for file
+     * [nBytes = " + nBytes + ", ack = " + ack + ", cmdCode = " + cmdCode + ",
+     * success = " + success + "]\n" + "Pool replied: " + detail);
+     * 
+     * IOException ex = new IOException(detail); _logger.throwing("dCacheFile",
+     * "stat", ex); throw ex; } // Else if command successful _mode =
+     * _poolIn.readInt(); int nLinks = _poolIn.readInt();
+     * 
+     * _uid = _poolIn.readInt(); _guid = _poolIn.readInt(); _filesize =
+     * _poolIn.readLong(); _atime = _poolIn.readLong(); _mtime =
+     * _poolIn.readLong(); _ctime = _poolIn.readLong(); }
+     */
+
     /**
      * Get the current position of the cursor.
      * <p>
-     * Only available if the file is opened for reading. 
-     * 
+     * Only available if the file is opened for reading.
+     *
      * @return The current position of the cursor in the file
-     * @throws IOException
-     *             If there was an error getting the cursor
+     * @throws IOException If there was an error getting the cursor
      */
     public long tell() throws IOException {
-    	if (_openMode == Mode.WRITE_ONLY)
-    	{
-    		IOException ex = new IOException("Cannot get cursor position in WRITE mode");
-    		_logger.throwing("dCacheFiles", "tell", ex);
-    		throw ex;
-    	}
-    	
+        if (_openMode == Mode.WRITE_ONLY) {
+            IOException ex = new IOException("Cannot get cursor position in WRITE mode");
+            _logger.throwing("dCacheFiles", "tell", ex);
+            throw ex;
+        }
+
         _logger.fine("Sending LOCATE command to pool");
 
         ByteBuffer _commandBuffer = ByteBuffer.allocate(30);
@@ -437,14 +402,11 @@ public class dCacheFile extends File implements DataConnectionCallback,
 
     /**
      * Read from the file.
-     * 
-     * @param bytes
-     *            Fill the buffer <i>bytes</i> with bytes from the file
-     * @param off
-     *            The offset within the file to read from
+     *
+     * @param bytes Fill the buffer <i>bytes</i> with bytes from the file
+     * @param off   The offset within the file to read from
      * @return The number of bytes successfully read
-     * @throws IOException
-     *             If there was an error reading the file
+     * @throws IOException If there was an error reading the file
      */
     public int read(ByteBuffer bytes, long off) throws IOException {
         if (_openMode != Mode.READ_ONLY) {
@@ -480,7 +442,7 @@ public class dCacheFile extends File implements DataConnectionCallback,
         _commandBuffer.rewind();
         int num_bytes = 0;
         while (num_bytes < 12)
-        	num_bytes += _commandBuffer.getInt(); // Should be 12
+            num_bytes += _commandBuffer.getInt(); // Should be 12
 
         _commandBuffer.rewind();
         _commandBuffer.limit(num_bytes);
@@ -547,13 +509,13 @@ public class dCacheFile extends File implements DataConnectionCallback,
             while (restPacket > 0) {
                 int block = restPacket;
 
-                for (int rest = block; rest > 0;) {
+                for (int rest = block; rest > 0; ) {
                     bytes.position(position);
                     bytes.limit(position + rest);
                     int rc = _clientChannel.read(bytes);
                     if (rc < 0)
                         throw new IOException(
-                        "Read operation terminted prematurely");
+                                "Read operation terminted prematurely");
 
                     rest -= rc;
                     position += rc;
@@ -591,7 +553,6 @@ public class dCacheFile extends File implements DataConnectionCallback,
         _logger.fine("Read " + bytes_read + " bytes from " + super.getName());
         return (bytes_read == 0 ? -1 : bytes_read);
     }
-    
 
     /**
      * Not implemented
@@ -600,52 +561,47 @@ public class dCacheFile extends File implements DataConnectionCallback,
         // return read(bytes, 0);
         throw new IOException("Not Implemented Yet");
     }
-    
+
     /**
      * Get the pool ID of the file that the pool is coming from.
-     * 
+     *
      * @return The pool ID
      */
 
     public int getPoolID() {
-    	if (!_connected) 
-    	{
-    		try
-	    	{
-	    		open();
-	    		tell();
-	    		_connected = true;
-	    	}
-	    	catch(Exception ex)
-	    	{
-	    		ex.printStackTrace();
-	    	}
-    	}
-    	
-    	_logger.info("PoolID: " + _poolID);
+        if (!_connected) {
+            try {
+                open();
+                tell();
+                _connected = true;
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+
+        _logger.info("PoolID: " + _poolID);
         return _poolID;
     }
-    
-    
+
     /**
      * Prepare the file for writing.
-     * 
+     *
      * @param position The position to start writing from
      * @return The remaining number of bytes that can be written, if limited by the pool.
      * @throws IOException If the writing fails
      */
 
     private long makeWritable(long position) throws IOException {
-    	_commandBuffer.clear();
+        _commandBuffer.clear();
 
         if (position == -1) {
-        	_commandBuffer.putInt(4);
-        	_commandBuffer.putInt(1);
+            _commandBuffer.putInt(4);
+            _commandBuffer.putInt(1);
         } else {
-        	_commandBuffer.putInt(16);
-        	_commandBuffer.putInt(12);
-        	_commandBuffer.putLong(position);
-        	_commandBuffer.putInt(0);
+            _commandBuffer.putInt(16);
+            _commandBuffer.putInt(12);
+            _commandBuffer.putLong(position);
+            _commandBuffer.putInt(0);
         }
 
         _commandBuffer.flip();
@@ -657,7 +613,7 @@ public class dCacheFile extends File implements DataConnectionCallback,
         _commandBuffer.clear();
         int bytes_read = 0;
         while (bytes_read < 12)
-        	bytes_read += _clientChannel.read(_commandBuffer);
+            bytes_read += _clientChannel.read(_commandBuffer);
 
         _commandBuffer.flip();
         int num_bytes = _commandBuffer.getInt();
@@ -683,7 +639,7 @@ public class dCacheFile extends File implements DataConnectionCallback,
         if (num_bytes != 12) {
             // Server sends extra parameters
             if (num_bytes == 24) {
-            	_commandBuffer.position(_commandBuffer.position() + 4);
+                _commandBuffer.position(_commandBuffer.position() + 4);
                 _max_bytes = _commandBuffer.getLong();
                 _logger.fine("WRITE request succeeded for " + super.getName()
                         + ". Server limited write size. [" + "num_bytes = "
@@ -691,7 +647,7 @@ public class dCacheFile extends File implements DataConnectionCallback,
                         + cmdCode + ", success = " + success + ", max_bytes = "
                         + _max_bytes + "]");
             } else if (num_bytes == 16) {
-            	_commandBuffer.position(_commandBuffer.position() + 4);
+                _commandBuffer.position(_commandBuffer.position() + 4);
 
                 _logger.fine("WRITE request succeeded for " + super.getName()
                         + ". Server replied EXPECT_NEW_CONNECTION. ["
@@ -701,42 +657,38 @@ public class dCacheFile extends File implements DataConnectionCallback,
             }
         } else {
             _logger
-            .fine("WRITE request succeeded for " + super.getName()
-                    + " [" + "num_bytes = " + num_bytes + ", ack = "
-                    + ack + ", cmdCode = " + cmdCode + ", success = "
-                    + success + "]");
+                    .fine("WRITE request succeeded for " + super.getName()
+                            + " [" + "num_bytes = " + num_bytes + ", ack = "
+                            + ack + ", cmdCode = " + cmdCode + ", success = "
+                            + success + "]");
         }
 
         _writable = true;
         return _max_bytes;
     }
 
-    
     /**
      * Write to the file.
-     * 
-     * @param buffer
-     *            Write <i>buffer</i> to the file
-     * @param position Start writing at <i>position</i> in the file            
+     *
+     * @param buffer   Write <i>buffer</i> to the file
+     * @param position Start writing at <i>position</i> in the file
      * @return The number of bytes written
-     * 
-     * @throws IOException If the write operation failed 
+     * @throws IOException If the write operation failed
      */
     public int write(ByteBuffer buffer, long position)
-    throws IOException {
-    	if (!_connected)
-    	{
-    		open();
-    		tell();
-    		_connected = true;
-    		_logger.fine("PoolID: " + getPoolID());
-    	}
-    	
+            throws IOException {
+        if (!_connected) {
+            open();
+            tell();
+            _connected = true;
+            _logger.fine("PoolID: " + getPoolID());
+        }
+
         try {
             if (_commandBuffer == null)
-            	_commandBuffer = ByteBuffer.allocate(128);
+                _commandBuffer = ByteBuffer.allocate(128);
             else
-            	_commandBuffer.clear();
+                _commandBuffer.clear();
 
             if (_openMode != Mode.WRITE_ONLY) {
                 IOException ex = new IOException("File not opened for writing");
@@ -745,7 +697,7 @@ public class dCacheFile extends File implements DataConnectionCallback,
                 throw ex;
             }
 
-            if ( _max_bytes < buffer.remaining() ) {
+            if (_max_bytes < buffer.remaining()) {
                 IOException ex = new IOException("Cannot write more than "
                         + _max_bytes + " to " + super.getName());
                 _logger.throwing("dCacheFile", "write(byte[], int, int, long)",
@@ -762,20 +714,20 @@ public class dCacheFile extends File implements DataConnectionCallback,
             _commandBuffer.clear();
             _commandBuffer.putInt(4);
             _commandBuffer.putInt(8);
-            
-          	_commandBuffer.putInt(buffer.remaining());
-           	_logger.finest("Writing " + buffer.remaining() + " bytes to " + super.getName() + " starting...");
 
-           	_commandBuffer.flip();
-            
+            _commandBuffer.putInt(buffer.remaining());
+            _logger.finest("Writing " + buffer.remaining() + " bytes to " + super.getName() + " starting...");
+
+            _commandBuffer.flip();
+
             while (_commandBuffer.hasRemaining())
-            	_clientChannel.write(_commandBuffer);
+                _clientChannel.write(_commandBuffer);
 
             int bytes_written = 0;
             while (buffer.hasRemaining()) {
                 bytes_written += _clientChannel.write(buffer);
             }
-                        
+
             _logger.finest("File was opened write only, telling pool transfer is complete");
 
             finishedWriting();
@@ -790,16 +742,16 @@ public class dCacheFile extends File implements DataConnectionCallback,
     }
 
     private void finishedWriting() throws IOException {
-    	_commandBuffer.clear();
-    	
-    	_commandBuffer.putInt(-1);
-    	_commandBuffer.flip();
-    	_clientChannel.write(_commandBuffer);
-    	_commandBuffer.clear();
+        _commandBuffer.clear();
 
-    	int num_bytes = 0;
-    	while (num_bytes < 12)
-    		num_bytes +=  _clientChannel.read(_commandBuffer);
+        _commandBuffer.putInt(-1);
+        _commandBuffer.flip();
+        _clientChannel.write(_commandBuffer);
+        _commandBuffer.clear();
+
+        int num_bytes = 0;
+        while (num_bytes < 12)
+            num_bytes += _clientChannel.read(_commandBuffer);
         _logger.finest("Bytes read: " + num_bytes);
         _commandBuffer.flip();
         num_bytes = _commandBuffer.getInt();
@@ -827,16 +779,11 @@ public class dCacheFile extends File implements DataConnectionCallback,
         }
     }
 
-    
-//    public int write(byte b[]) throws IOException {
-//        return write(b, 0, 0, -1);
-//    }
-
-/**
- * Close the file
- * 
- * @throws IOException If there was an error closing the file
- */
+    /**
+     * Close the file
+     *
+     * @throws IOException If there was an error closing the file
+     */
     public void close() throws IOException {
         ByteBuffer _commandBuffer = ByteBuffer.allocate(30);
         _logger.info("Close on " + super.getName());
@@ -857,7 +804,7 @@ public class dCacheFile extends File implements DataConnectionCallback,
             _commandBuffer.limit(16);
             int numread = 0;
             while (numread < 16)
-            	numread += _clientChannel.read(_commandBuffer);
+                numread += _clientChannel.read(_commandBuffer);
 
             if (numread >= 16) {
                 _commandBuffer.rewind();
@@ -904,15 +851,19 @@ public class dCacheFile extends File implements DataConnectionCallback,
     }
 
 
+//    public int write(byte b[]) throws IOException {
+//        return write(b, 0, 0, -1);
+//    }
+
     /**
      * Get length of the file
-     * 
+     *
      * @return The length of the file in bytes
      */
     public long length() {
         return _filesize;
     }
-    
+
     /**
      * Not Implemented.
      */
@@ -920,35 +871,31 @@ public class dCacheFile extends File implements DataConnectionCallback,
     public int available() throws IOException {
         return Integer.MAX_VALUE;
     }
-    
+
     /**
      * Get mode in which file was opened
+     *
      * @return The file mode
      */
 
     public Mode mode() {
         return _openMode;
     }
-    
 
     protected void finalize() throws Throwable {
         close();
         super.finalize();
     }
-    
 
     public void handleStreams(DataInputStream dataIn, DataOutputStream dataOut,
-            String host, SocketChannel client) {
+                              String host, SocketChannel client) {
         _clientChannel = client;
-        try
-        {
-        	_clientChannel.socket().setSendBufferSize(800000);
+        try {
+            _clientChannel.socket().setSendBufferSize(800000);
+        } catch (java.net.SocketException ex) {
+
         }
-        catch (java.net.SocketException ex)
-        {
-        	
-        }
-        
+
         _logger.info("Data connection callback for " + super.getAbsolutePath());
 
         if (host != null)
@@ -960,5 +907,10 @@ public class dCacheFile extends File implements DataConnectionCallback,
     public void handleDoorCommand(String input[]) {
         _doorReply = input;
         _doorReplied = true;
+    }
+
+    // / Represents the mode in which dCache files can be opened.
+    public enum Mode {
+        READ_ONLY, WRITE_ONLY
     }
 }

@@ -4,16 +4,16 @@
 
 package lia.util.net.copy.transport;
 
-import java.nio.ByteBuffer;
-import java.util.UUID;
-
 import lia.util.net.copy.FileBlock;
 import lia.util.net.copy.transport.internal.FDTSelectionKey;
+
+import java.nio.ByteBuffer;
+import java.util.UUID;
 
 /**
  * The key selection used by the "read" sockets TODO - Use finer grained synchronization mechanism instead of
  * syncronized on the entire key
- * 
+ *
  * @author ramiro
  */
 class FDTReaderKeyAttachement extends FDTKeyAttachement {

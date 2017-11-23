@@ -3,14 +3,13 @@
  */
 package lia.util.net.copy.monitoring.lisa;
 
+import lia.util.net.copy.monitoring.lisa.xdr.XDRClient;
+
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import lia.util.net.copy.monitoring.lisa.xdr.XDRClient;
-
 /**
- * 
  * @author Adrian Muraru
  */
 public class MonClient {
@@ -21,10 +20,9 @@ public class MonClient {
     private int lisaPort;
 
     /**
-     * @param lisaHost:
-     *            lisa host
-     * @param lisaPort :
-     *            lisa XDR port
+     * @param lisaHost: lisa host
+     * @param lisaPort  :
+     *                  lisa XDR port
      */
     public MonClient(String lisaHost, int lisaPort) throws Exception {
         this.lisaHost = lisaHost;
@@ -34,11 +32,9 @@ public class MonClient {
 
     /**
      * Sends information related to FDT Client
-     * 
-     * @param id:
-     *            transfer identifier (in ML this will be the Node under which the values are reported)
-     * @param parameters:
-     *            paramters map
+     *
+     * @param id:         transfer identifier (in ML this will be the Node under which the values are reported)
+     * @param parameters: paramters map
      * @throws Exception
      */
     public void sendClientParameters(String id, Map<String, Double> parameters) throws Exception {
@@ -62,11 +58,9 @@ public class MonClient {
 
     /**
      * Sends information related to FDT Server
-     * 
-     * @param id:
-     *            transfer identifier (in ML this will be the Node under which the values are reported)
-     * @param parameters:
-     *            paramters map
+     *
+     * @param id:         transfer identifier (in ML this will be the Node under which the values are reported)
+     * @param parameters: paramters map
      * @throws Exception
      */
     public void sendServerParameters(String id, Map<String, Double> parameters) throws Exception {
@@ -99,7 +93,7 @@ public class MonClient {
         if (lisaClient != null) {
             return lisaClient.sendCommand(cmd);
         }
-        
+
         throw new Exception("Unable to connect to LISA / ML modules");
     }
 }
