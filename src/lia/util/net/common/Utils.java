@@ -404,7 +404,8 @@ public final class Utils {
         synchronized (Utils.class) {
 
             // just check that initApMonInstance will be ever called ....
-            if (Config.getInstance().getApMonHosts() == null) {
+            Config config = Config.getInstance();
+            if (config.getApMonHosts() == null && !config.getMonitor().equals(config.OPENTSDB)) {
                 return null;
             }
 
@@ -1768,6 +1769,7 @@ public final class Utils {
                 loggingProps.put("handlers", "java.util.logging.ConsoleHandler");
                 loggingProps.put("java.util.logging.ConsoleHandler.level", "FINEST");
                 loggingProps.put("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
+                loggingProps.put("java.util.logging.SimpleFormatter.format", "%1$tY-%1$tm-%1$td %1$tH:%1$tM:%1$tS %4$s %2$s %5$s%6$s%n");
             }
 
             if (logFile != null) {
@@ -1778,6 +1780,7 @@ public final class Utils {
                 loggingProps.put("handlers", "java.util.logging.FileHandler,java.util.logging.ConsoleHandler");
                 loggingProps.put("java.util.logging.ConsoleHandler.level", "FINEST");
                 loggingProps.put("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
+                loggingProps.put("java.util.logging.SimpleFormatter.format", "%1$tY-%1$tm-%1$td %1$tH:%1$tM:%1$tS %4$s %2$s %5$s%6$s%n");
                 loggingProps.put("java.util.logging.FileHandler.level", "FINEST");
                 loggingProps.put("java.util.logging.FileHandler.formatter", "java.util.logging.SimpleFormatter");
                 loggingProps.put("java.util.logging.FileHandler.pattern", "" + logFile);

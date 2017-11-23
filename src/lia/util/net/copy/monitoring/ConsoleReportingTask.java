@@ -150,14 +150,12 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
 
     private void reportStatus() {
         StringBuilder sb = new StringBuilder(8192);
-        sb.append(dateFormat.format(new Date())).append("\t");
 
         boolean shouldReport = (reportStatus(diskWriterManager.getSessions(), oldWriterSessions, "Net In: ", sb)
                 || reportStatus(diskReaderManager.getSessions(), oldReaderSessions, "Net Out: ", sb));
 
         if (shouldReport) {
             logger.info(sb.toString());
-            System.out.println(sb.toString());
         }
 
     }

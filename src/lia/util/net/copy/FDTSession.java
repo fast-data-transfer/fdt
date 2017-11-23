@@ -4,6 +4,7 @@
 package lia.util.net.copy;
 
 import lia.util.net.common.Config;
+import lia.util.net.common.MonitoringUtils;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.monitoring.FDTSessionMonitoringTask;
 import lia.util.net.copy.monitoring.lisa.LisaCtrlNotifier;
@@ -129,7 +130,7 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         if (this.role == CLIENT || this.role == COORDINATOR) {
             this.controlChannel = new ControlChannel(config.getHostName(), transferPort, sessionID(), this);
         }
-
+        syncFDTConfig(controlChannel.remoteConf);
         rateLimit.set(config.getRateLimit());
         final long remoteRateLimit = Utils.getLongValue(controlChannel.remoteConf, "-limit", -1);
         rateLimitDelay.set(config.getRateLimitDelay());
@@ -168,6 +169,27 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         monitoringTaskFuture = monitoringService.scheduleWithFixedDelay(monitoringTask, 1, 5, TimeUnit.SECONDS);
 
         monitoringTask.startSession();
+    }
+
+    private void syncFDTConfig(Map<String, Object> remoteConf) {
+
+        if (remoteConf.get("-opentsdb") != null){
+            if(config.getFDTTag() != remoteConf.get("-fdtTAG") && remoteConf.get("-fdtTAG") != null) {
+                config.setFDTTag((String)remoteConf.get("-fdtTAG"));
+            }
+            if (config.getOpentsdb() != remoteConf.get("-opentsdb") && remoteConf.get("-opentsdb") != null) {
+                config.setOpentsdb((String)remoteConf.get("-opentsdb"));
+            }
+            try {
+                FDT.initOpenTSDB(config);
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Failed to initOpenTSDB monitor task", e);
+            }
+        }
+    }
+
+    public int getTransferPort() {
+        return transferPort;
     }
 
     public FDTSession(ControlChannel controlChannel, short role) throws Exception {
@@ -550,7 +572,14 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
         ssc.configureBlocking(false);
         FDTSession sess = FDTSessionManager.getInstance().getSession(sessionID);
         ss = ssc.socket();
-        ss.bind(new InetSocketAddress(port));
+        String listenIP = config.getListenAddress();
+        if (listenIP == null) {
+            ss.bind(new InetSocketAddress(port));
+        }
+        else
+        {
+            ss.bind(new InetSocketAddress(InetAddress.getByName(listenIP), port));
+        }
 
         sel = Selector.open();
         ssc.register(sel, SelectionKey.OP_ACCEPT);
@@ -708,6 +737,10 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
             monitoringService.remove(monitoringTask);
             monitoringService.purge();
             monitoringTask.finishSession();
+        }
+        if (config.getMonitor().equals(Config.OPENTSDB)) {
+            MonitoringUtils monUtils = new MonitoringUtils(config, this);
+            monUtils.monitorFinish(System.currentTimeMillis(), role == CLIENT ? "Readers" : "Writers");
         }
     }
 

@@ -170,10 +170,13 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 sb.append(" ) final stats:");
                 sb.append("\n Started: ").append(new Date(startTimeMillis));
                 sb.append("\n Ended:   ").append(endDate);
+                long period = System.nanoTime() - startTimeNanos;
                 sb.append("\n Transfer period:   ")
                         .append(Utils.getETA(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNanos)));
                 sb.append("\n TotalBytes: ").append(getTotalBytes());
+                long utilBytes = 0;
                 if (transportProvider != null) {
+                    utilBytes = transportProvider.getUtilBytes();
                     sb.append("\n TotalNetworkBytes: ").append(transportProvider.getUtilBytes());
                     try {
                         if (!Utils.updateTotalReadCounter(transportProvider.getUtilBytes())) {
@@ -200,6 +203,11 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                     logger.info(sb.toString());
                 } else {
                     System.out.println(sb.toString());
+                }
+                if (config.getMonitor().equals(Config.OPENTSDB)) {
+                    MonitoringUtils monUtils = new MonitoringUtils(config, this);
+                    monUtils.monitorEndStats(((downCause() == null) && (downMessage() == null)), getTotalBytes(), utilBytes,
+                            startTimeMillis,  endDate.getTime(), period, "Writers");
                 }
             } catch (Throwable t) {
                 logger.log(Level.WARNING,
@@ -492,6 +500,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
     @Override
     public void handleStartFDTSession(CtrlMsg ctrlMsg) throws Exception {
+
         if (logger.isLoggable(Level.FINEST)) {
             logger.log(Level.FINEST, "[ FDTWriterSession ] handleStartFDTSession. Msg: " + ctrlMsg);
         }
@@ -500,6 +509,10 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 transportProvider = new TCPSessionReader(this, this, InetAddress.getByName(config.getHostName()),
                         transferPort, config.getSockNum());
             }
+        }
+        if (config.getMonitor().equals(Config.OPENTSDB)) {
+            MonitoringUtils monUtils = new MonitoringUtils(config, this);
+            monUtils.monitorStart(System.currentTimeMillis(), "Writers");
         }
 
         setCurrentState(TRANSFERING);

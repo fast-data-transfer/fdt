@@ -49,7 +49,6 @@ public abstract class AbstractAccountableMonitoringTask implements Runnable {
 
             if (accEntry.lastTimeCalled != 0) {
                 computeRate(accEntry, now);
-
             }
 
             if (accEntry.debug) {

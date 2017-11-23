@@ -3,6 +3,7 @@ package lia.util.net.copy;
 import lia.gsi.FDTGSIServer;
 import lia.util.net.common.*;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.nio.channels.SelectionKey;
@@ -60,7 +61,15 @@ public class FDTServer extends AbstractFDTCloseable {
         ssc.configureBlocking(false);
 
         ss = ssc.socket();
-        ss.bind(new InetSocketAddress(port));
+
+        String listenIP = config.getListenAddress();
+        if (listenIP == null) {
+            ss.bind(new InetSocketAddress(port));
+        }
+        else
+        {
+            ss.bind(new InetSocketAddress(InetAddress.getByName(listenIP), port));
+        }
 
         sel = Selector.open();
         ssc.register(sel, SelectionKey.OP_ACCEPT);

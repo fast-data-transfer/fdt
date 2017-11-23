@@ -457,7 +457,7 @@ class BkThread extends Thread {
         monitor.updateCall();
         long crtTime = System.currentTimeMillis();
 
-        logger.info("Sending system monitoring information...");
+        logger.log(Level.FINER,"Sending system monitoring information...");
         // long intervalLength = crtTime - apm.lastSysInfoSend;
         apm.lastSysInfoSend = crtTime;
 
@@ -595,7 +595,6 @@ class BkThread extends Thread {
                 }
             } catch (Exception e) {
                 logger.log(Level.WARNING, "", e);
-                ;
                 if (apm.autoDisableMonitoring) {
                     logger.warning("parameter processes disabled");
                     apm.sysMonitorParams &= ~ApMonMonitoringConstants.SYS_NET_TCP_DETAILS;

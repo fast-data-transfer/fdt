@@ -33,6 +33,8 @@
 package apmon;
 
 import apmon.host.cmdExec;
+import lia.util.net.common.Config;
+import lia.util.net.common.MonitoringUtils;
 
 import java.io.*;
 import java.net.*;
@@ -817,6 +819,11 @@ public class ApMon {
     public void sendTimedParameters(String clusterName, String nodeName, int nParams, Vector paramNames, Vector paramValues, int timestamp) throws ApMonException, UnknownHostException, SocketException, IOException {
 
         int i;
+
+        if (Config.getInstance().getMonitor().equals(Config.OPENTSDB)) {
+            MonitoringUtils monUtils = new MonitoringUtils(Config.getInstance());
+            monUtils.shareMetrics(clusterName, nodeName, paramNames, paramValues);
+        }
 
         if (!shouldSend())
             return;
