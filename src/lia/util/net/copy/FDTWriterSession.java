@@ -530,11 +530,11 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
         String remoteDownMsg = null;
         if (ctrlMsg.message != null) {
-            if (ctrlMsg.message instanceof TreeMap) {
+            if (ctrlMsg.message instanceof Map) {
                 logger.log(Level.INFO, "[ FDTWriterSession ] Remote FDTReaderSession for session [ " + sessionID
                         + " ] finished ok. Waiting for our side to finish.");
                 // the md5 sums
-                TreeMap<UUID, byte[]> md5Sums = (TreeMap<UUID, byte[]>) ctrlMsg.message;
+                Map<UUID, byte[]> md5Sums = (Map<UUID, byte[]>) ctrlMsg.message;
 
                 if (md5Sums != null && md5Sums.size() > 0) {
                     StringBuilder sb = new StringBuilder();
