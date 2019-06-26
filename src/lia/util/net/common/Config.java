@@ -7,6 +7,7 @@ import lia.util.net.copy.PosixFSFileChannelProviderFactory;
 import org.opentsdb.client.HttpClientImpl;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.*;
@@ -299,6 +300,8 @@ public class Config {
 
         portNo = Utils.getIntValue(configMap, "-p", DEFAULT_PORT_NO);
         transportPorts = Utils.getTransportPortsValue(configMap, "-tp", DEFAULT_TRANSFER_PORT_NO);
+        if(transportPorts.size() == 1 && transportPorts.element().intValue() == DEFAULT_TRANSFER_PORT_NO)
+        	transportPorts.clear();
         tp = Arrays.asList(transportPorts.toArray());
         isCoordinatorMode = (configMap.get("-coord") != null);
         isThirdPartyCopyAgent = (configMap.get("-agent") != null);
@@ -702,7 +705,7 @@ public class Config {
     }
 
     private String[] getLogFiles(String sessionID) {
-        return new String[]{"/tmp/" + sessionID + ".log"};
+    	return new String[] { System.getProperty("java.io.tmpdir") + File.pathSeparatorChar + sessionID + ".log" };
     }
 
     public String getListFilesFrom() {
@@ -904,12 +907,16 @@ public class Config {
     }
 
     public int getNewRemoteTransferPort() {
+    	int rtp = -1;
         try {
             if (!transportPorts.isEmpty()) {
-                int rtp = this.transportPorts.poll(20, TimeUnit.SECONDS);
-                System.out.println("Took new remote transfer port " + rtp);
-                return rtp;
+                rtp = this.transportPorts.poll(20, TimeUnit.SECONDS);
+                logger.log(Level.FINER,"Reusing remote transfer port " + rtp);
+            } else {
+            	rtp = findAvailablePort();
+            	logger.log(Level.FINER,"Used new remote transfer port " + rtp);
             }
+            
         } catch (Exception e) {
             if (transportPorts.size() == 0) {
                 logger.log(Level.WARNING, "No transfer ports defined or no free transfer ports left...", e);
@@ -917,10 +924,31 @@ public class Config {
                 logger.log(Level.WARNING, "Failed to retrieve remote transfer port", e);
             }
         }
-        return -1;
+        
+        return rtp;
     }
 
-    public void setSessionSocket(ServerSocketChannel ssc, ServerSocket ss, SocketChannel sc, Socket s, int port) {
+    private int findAvailablePort() {
+
+    	/**
+    	 * Returns a free port number on localhost.
+    	 * @since December 2017
+    	 * @author will
+    	 * @return a free port number on localhost
+    	 * @throws IllegalStateException if unable to find a free port
+    	 */
+    		try(ServerSocket socket = new ServerSocket(0)) {
+    			socket.setReuseAddress(true);
+    			return socket.getLocalPort();
+    		} catch(IOException e)
+    		{
+    			logger.log(Level.WARNING, "Unable to find a free Socket", e);
+    		}
+    		
+    		throw new IllegalStateException("Could not find a free TCP/IP port");
+    }
+
+	public void setSessionSocket(ServerSocketChannel ssc, ServerSocket ss, SocketChannel sc, Socket s, int port) {
         List<Object> socks = new ArrayList<>();
         socks.add(ssc);
         socks.add(ss);

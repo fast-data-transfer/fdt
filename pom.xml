@@ -8,7 +8,7 @@
 	<packaging>jar</packaging>
 
 	<properties>
-		<jdk.version>1.7</jdk.version>
+		<jdk.version>1.8</jdk.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 	<dependencies>
@@ -16,41 +16,57 @@
 			<groupId>edu.illinois.ncsa</groupId>
 			<artifactId>BCGSS</artifactId>
 			<version>1.0.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/BCGSS.jar</systemPath>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk15on -->
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
-			<artifactId>bcprov</artifactId>
-			<version>1.50.0</version>
+			<artifactId>bcprov-jdk15on</artifactId>
+			<version>1.50</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-compress -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-compress</artifactId>
-			<version>1.2.0</version>
+			<version>1.2</version>
 		</dependency>
 		<dependency>
 			<groupId>net.iharder.dnd</groupId>
 			<artifactId>filedrop</artifactId>
 			<version>1.0.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/filedrop.jar</systemPath>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/sshtools/j2ssh-common -->
 		<dependency>
-			<groupId>com.sshtools.common</groupId>
+			<groupId>sshtools</groupId>
 			<artifactId>j2ssh-common</artifactId>
 			<version>0.2.7</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/j2ssh-common-0.2.7.jar</systemPath>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/sshtools/j2ssh-core -->
 		<dependency>
-			<groupId>com.sshtools.core</groupId>
+			<groupId>sshtools</groupId>
 			<artifactId>j2ssh-core</artifactId>
 			<version>0.2.7</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/j2ssh-core-0.2.7.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.lirc.socket</groupId>
 			<artifactId>jlirc-unix-soc</artifactId>
 			<version>1.0.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/jlirc-unix-soc.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>uk.ac.rl.esc.browser</groupId>
 			<artifactId>libbrowser</artifactId>
 			<version>1.0.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/libbrowser.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>log4j</groupId>
@@ -61,9 +77,12 @@
 			<groupId>edu.illinois.ncsa</groupId>
 			<artifactId>ncsa-lcrypto</artifactId>
 			<version>1.4.6</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/ncsa-lcrypto-146.jar</systemPath>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/ca.juliusdavies/not-yet-commons-ssl -->
 		<dependency>
-			<groupId>org.apache.commons</groupId>
+			<groupId>ca.juliusdavies</groupId>
 			<artifactId>not-yet-commons-ssl</artifactId>
 			<version>0.3.11</version>
 		</dependency>
@@ -71,46 +90,64 @@
 			<groupId>com.sshtools.ext</groupId>
 			<artifactId>putty-pk</artifactId>
 			<version>1.1.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/putty-pk-1.1.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>com.sshtools.tunnel</groupId>
 			<artifactId>SecureTunneling</artifactId>
 			<version>1.0.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/SecureTunneling.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>com.sshtools.shift</groupId>
 			<artifactId>ShiFT</artifactId>
 			<version>1.0.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/ShiFT.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>com.sshtools.sshterm</groupId>
 			<artifactId>SSHTerm</artifactId>
 			<version>1.0.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/SSHTerm-1.0.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>com.sshtools.sshvnc</groupId>
 			<artifactId>SSHVnc</artifactId>
 			<version>1.0.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/SSHVnc.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.jdesktop</groupId>
 			<artifactId>swing-layout</artifactId>
 			<version>1.0.3</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/swing-layout-1.0.3.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globusonline</groupId>
 			<artifactId>TransferAPIClient</artifactId>
 			<version>1.0.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/TransferAPIClient.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.italiangrid</groupId>
 			<artifactId>voms-api-java</artifactId>
 			<version>3.0.1</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/voms-api-java-2.0.9.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globus</groupId>
 			<artifactId>axisg</artifactId>
 			<version>2.2.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/gsi-sshterm/jglobus2/axisg-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>commons-logging</groupId>
@@ -126,21 +163,29 @@
 			<groupId>org.globus</groupId>
 			<artifactId>gram</artifactId>
 			<version>2.2.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/globus/gram-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globus</groupId>
 			<artifactId>gridftp</artifactId>
 			<version>2.2.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/globus/gridftp-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globus.gsi.gssapi</groupId>
 			<artifactId>gss</artifactId>
 			<version>2.2.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/globus/gss-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globus.io</groupId>
 			<artifactId>io</artifactId>
 			<version>2.2.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/globus/io-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
@@ -156,6 +201,8 @@
 			<groupId>org.globus.jsse</groupId>
 			<artifactId>jsse</artifactId>
 			<version>2.2.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/globus/jsse-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -171,16 +218,22 @@
 			<groupId>org.globus.myproxy</groupId>
 			<artifactId>myproxy</artifactId>
 			<version>2.2.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/globus/myproxy-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globus</groupId>
 			<artifactId>ssl-proxies</artifactId>
 			<version>2.2.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/globus/ssl-proxies-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.opentsdb</groupId>
 			<artifactId>opentsdb-client</artifactId>
 			<version>2.1.0</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/lib/opentsdb/opentsdb-client-2.1.0.jar</systemPath>
 		</dependency>
 	</dependencies>
 	<build>
@@ -264,7 +317,8 @@
 								<copy
 									file="${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
 									tofile="${project.build.directory}/fdt.jar" />
-								<echo file="${project.build.directory}/fdt" append="false">java -jar fdt.jar "$@"</echo>
+								<echo file="${project.build.directory}/fdt" append="false">java
+									-jar fdt.jar "$@"</echo>
 								<chmod file="${project.build.directory}/fdt" perm="ugo+rx" />
 							</target>
 							<filemode>755</filemode>
