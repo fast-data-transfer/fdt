@@ -17,7 +17,6 @@
 			<artifactId>BCGSS</artifactId>
 			<version>1.0.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/BCGSS.jar</systemPath>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk15on -->
 		<dependency>
@@ -36,7 +35,6 @@
 			<artifactId>filedrop</artifactId>
 			<version>1.0.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/filedrop.jar</systemPath>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/sshtools/j2ssh-common -->
 		<dependency>
@@ -44,7 +42,6 @@
 			<artifactId>j2ssh-common</artifactId>
 			<version>0.2.7</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/j2ssh-common-0.2.7.jar</systemPath>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/sshtools/j2ssh-core -->
 		<dependency>
@@ -52,21 +49,18 @@
 			<artifactId>j2ssh-core</artifactId>
 			<version>0.2.7</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/j2ssh-core-0.2.7.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.lirc.socket</groupId>
 			<artifactId>jlirc-unix-soc</artifactId>
 			<version>1.0.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/jlirc-unix-soc.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>uk.ac.rl.esc.browser</groupId>
 			<artifactId>libbrowser</artifactId>
 			<version>1.0.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/libbrowser.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>log4j</groupId>
@@ -78,7 +72,6 @@
 			<artifactId>ncsa-lcrypto</artifactId>
 			<version>1.4.6</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/ncsa-lcrypto-146.jar</systemPath>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/ca.juliusdavies/not-yet-commons-ssl -->
 		<dependency>
@@ -91,63 +84,54 @@
 			<artifactId>putty-pk</artifactId>
 			<version>1.1.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/putty-pk-1.1.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>com.sshtools.tunnel</groupId>
 			<artifactId>SecureTunneling</artifactId>
 			<version>1.0.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/SecureTunneling.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>com.sshtools.shift</groupId>
 			<artifactId>ShiFT</artifactId>
 			<version>1.0.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/ShiFT.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>com.sshtools.sshterm</groupId>
 			<artifactId>SSHTerm</artifactId>
 			<version>1.0.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/SSHTerm-1.0.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>com.sshtools.sshvnc</groupId>
 			<artifactId>SSHVnc</artifactId>
 			<version>1.0.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/SSHVnc.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.jdesktop</groupId>
 			<artifactId>swing-layout</artifactId>
 			<version>1.0.3</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/swing-layout-1.0.3.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globusonline</groupId>
 			<artifactId>TransferAPIClient</artifactId>
 			<version>1.0.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/TransferAPIClient.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.italiangrid</groupId>
 			<artifactId>voms-api-java</artifactId>
 			<version>3.0.1</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/voms-api-java-2.0.9.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globus</groupId>
 			<artifactId>axisg</artifactId>
 			<version>2.2.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/gsi-sshterm/jglobus2/axisg-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>commons-logging</groupId>
@@ -164,28 +148,24 @@
 			<artifactId>gram</artifactId>
 			<version>2.2.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/globus/gram-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globus</groupId>
 			<artifactId>gridftp</artifactId>
 			<version>2.2.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/globus/gridftp-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globus.gsi.gssapi</groupId>
 			<artifactId>gss</artifactId>
 			<version>2.2.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/globus/gss-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globus.io</groupId>
 			<artifactId>io</artifactId>
 			<version>2.2.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/globus/io-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
@@ -202,7 +182,6 @@
 			<artifactId>jsse</artifactId>
 			<version>2.2.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/globus/jsse-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -219,21 +198,18 @@
 			<artifactId>myproxy</artifactId>
 			<version>2.2.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/globus/myproxy-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.globus</groupId>
 			<artifactId>ssl-proxies</artifactId>
 			<version>2.2.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/globus/ssl-proxies-2.2.0.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.opentsdb</groupId>
 			<artifactId>opentsdb-client</artifactId>
 			<version>2.1.0</version>
 			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/opentsdb/opentsdb-client-2.1.0.jar</systemPath>
 		</dependency>
 	</dependencies>
 	<build>
