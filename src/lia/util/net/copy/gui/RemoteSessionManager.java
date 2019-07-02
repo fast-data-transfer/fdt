@@ -427,8 +427,9 @@ public class RemoteSessionManager implements GUIControlChannelNotifier, Runnable
                         // append the required options to the configurable java
                         // command
                         String remoteCmd = config.getRemoteCommand() + " -p " + config.getPort() + " -silent -S -f " + localAddresses;
+                        String remoteCustomShell = config.getCustomShell();
                         System.err.println(" [ CONFIG ] Starting FDT server over SSH using [ " + remoteCmd + " ]");
-                        sshConn.startProgram(remoteCmd);
+                        sshConn.startProgram(remoteCmd, remoteCustomShell);
                         sshConn.waitForControlMessage("READY");
                         System.err.println(" [ CONFIG ] FDT server successfully started on [ " + config.getHostName() + " ]");
 
