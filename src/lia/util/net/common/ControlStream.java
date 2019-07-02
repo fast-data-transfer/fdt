@@ -16,7 +16,7 @@ public interface ControlStream {
      */
     void connect() throws IOException;
 
-    public void startProgram(String cmd) throws IOException;
+    public void startProgram(String cmd, String customShell) throws IOException;
 
     public InputStream getProgramStdOut() throws IOException;
 
