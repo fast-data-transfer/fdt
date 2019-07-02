@@ -28,11 +28,9 @@ public class GSISSHControlStream implements ControlStream {
      * the SSH connection & session
      */
     private SshClient conn;
-
     private SessionChannelClient sess;
-
     private String cmd;
-
+    private String customShell;
 
     /**
      * Creates a new GSI SSH control connection on the default ssh port.
@@ -115,8 +113,8 @@ public class GSISSHControlStream implements ControlStream {
      *
      * @see lia.util.net.common.ControlStream#startProgram(java.lang.String)
      */
-    public void startProgram(String cmd) throws IOException {
-        this.cmd = "/bin/bash --login -c '" + cmd + " 2>&1'";
+    public void startProgram(String cmd, String customShell) throws IOException {
+        this.cmd = customShell + " --login -c '" + cmd + " 2>&1'";
         this.sess.executeCommand(this.cmd);
     }
 
