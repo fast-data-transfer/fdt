@@ -37,7 +37,7 @@ public class Config {
             "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb"};
     public static final String[] VALUE_CMDLINE_ARGS = {"-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters",
             "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d",
-            "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka", "-tp"};
+            "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka", "-tp", "-shell"};
     public static final String POSSIBLE_VALUE_CMDLINE_ARGS[] = {"-enable_apmon", "-lisafdtclient", "-lisafdtserver",
             "-f", "-F", "-h", "-H", "--help", "-help," + "-u", "-U", "--update", "-update"};
     /**
@@ -47,12 +47,12 @@ public class Config {
     public static final String REGEX_REMAP_DELIMITER = "(\\s)+/(\\s)+";
     // all of this are set by the ant script
     public static final String FDT_MAJOR_VERSION = "0";
-    public static final String FDT_MINOR_VERSION = "26";
-    public static final String FDT_MAINTENANCE_VERSION = "1";
+    public static final String FDT_MINOR_VERSION = "27";
+    public static final String FDT_MAINTENANCE_VERSION = "0";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "."
             + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2017-08-08";
-    public static final String FDT_RELEASE_TIME = "1830";
+    public static final String FDT_RELEASE_DATE = "2019-07-02";
+    public static final String FDT_RELEASE_TIME = "0530";
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )
     public static final int HEADER_SIZE = 56;
@@ -70,6 +70,8 @@ public class Config {
     public static final long DEFAULT_KEEP_ALIVE_NANOS = TimeUnit.MINUTES.toNanos(2);
     public static final int DEFAULT_PORT_NO_GSI = 54320;
     public static final int DEFAULT_PORT_NO_SSH = 22;
+    public static final String DEFAULT_SHELL = "/bin/bash"	
+	
     /**
      * Check if remote server is needed. We use SSH channels to control remote startup. <br>
      * In SSH/SCP mode we have three types of syntax we need to support:
@@ -200,7 +202,8 @@ public class Config {
     private Map<String, Integer> sessionPortMap = new HashMap<>();
     private Map<Integer, List<Object>> sessionSocketMap = new HashMap<>();
     private HttpClientImpl httpClient = null;
-
+    private String customShell = null;
+	
     /**
      * @param configMap
      * @throws InvalidFDTParameterException if incorrect values are supplied for parameters
@@ -344,7 +347,8 @@ public class Config {
         listFilesFrom = Utils.getStringValue(configMap, "-ls", null);
         bComputeMD5 = (configMap.get("-md5") != null);
         sshKeyPath = Utils.getStringValue(configMap, "-sshKey", null);
-
+        customShell = Utils.getStringValue(configMap, "-shell", DEFAULT_SHELL);
+	    
         if (isNetTest) {
             destDir = "/dev/null";
             @SuppressWarnings("unchecked")
@@ -1214,4 +1218,7 @@ public class Config {
         this.opentsdb = opentsdb;
     }
 
+    public String getCustomShell() {
+        return customShell;
+    }
 }
