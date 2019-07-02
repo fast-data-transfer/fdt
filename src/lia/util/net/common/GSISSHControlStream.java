@@ -62,7 +62,7 @@ public class GSISSHControlStream implements ControlStream {
     // TEST
     public static void main(String[] args) throws IOException {
         ControlStream cs = new GSISSHControlStream(args[0], args[1]);
-        cs.startProgram(args[3]);
+        cs.startProgram(args[2]);
 
 		/* read stdout */
         InputStream stdout = new StreamGobbler(cs.getProgramStdOut());
