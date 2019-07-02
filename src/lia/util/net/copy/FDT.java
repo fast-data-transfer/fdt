@@ -289,6 +289,7 @@ public class FDT {
         ControlStream sshConn;
         String localAddresses;
         StringBuilder remoteCmd;
+        String remoteCustomShell;
         if (logger.isLoggable(Level.FINE)) {
             logger.fine("[SSH Mode] SSH_REMOTE_SERVER_LOCAL_CLIENT_PUSH. Remote ssh port: " + sshPort);
         }
@@ -322,6 +323,7 @@ public class FDT {
         ControlStream sshConn;
         String localAddresses;
         StringBuilder remoteCmd;
+        String remoteCustomShell;
         if (logger.isLoggable(Level.FINE)) {
             logger.fine("[SSH Mode] SSH_REMOTE_SERVER_LOCAL_CLIENT_PULL. Remote ssh port: " + sshPort);
         }
@@ -365,6 +367,7 @@ public class FDT {
     private static void sshRemoteServerAndClientPush(String[] args, int sshPort) throws Exception {
         ControlStream sshConn;
         StringBuilder remoteCmd;
+        String remoteCustomShell;
         String[] clients;
         if (logger.isLoggable(Level.FINE)) {
             logger.fine("[SSH Mode] SSH_REMOTE_SERVER_REMOTE_CLIENT_PUSH. Remote ssh port: " + sshPort);
