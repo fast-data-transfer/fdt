@@ -35,6 +35,7 @@ public class SSHControlStream implements ControlStream {
     private Connection conn;
     private Session sess;
     private String cmd;
+    private String customShell;
 
     /**
      * Creates a new SSH control connection on the default ssh port.
@@ -247,8 +248,8 @@ public class SSHControlStream implements ControlStream {
     /* (non-Javadoc)
      * @see lia.util.net.common.ControlStream#startProgram(java.lang.String)
      */
-    public void startProgram(String cmd) throws IOException {
-        this.cmd = "/bin/bash --login -c '" + cmd + " 2>&1'";
+    public void startProgram(String cmd, String customShell) throws IOException {
+        this.cmd = customShell + " --login -c '" + cmd + " 2>&1'";
         this.sess.execCommand(this.cmd);
     }
 
