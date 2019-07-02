@@ -60,7 +60,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
      */
     public FDTReaderSession(int transferPort) throws Exception {
         super(FDTSession.CLIENT, transferPort);
-        Utils.initLogger(config.getLogLevel(), new File(System.getProperty("java.io.tmpdir") + File.pathSeparatorChar + sessionID + ".log"), new Properties());
+        Utils.initLogger(config.getLogLevel(), new File(System.getProperty("java.io.tmpdir") + File.separatorChar + sessionID + ".log"), new Properties());
         final int rMul = Integer.getInteger("fdt.rQueueM", 2);
         final int avProcProp = Integer.getInteger("fdt.avProc", 1);
         final int avProcMax = Math.max(avProcProp, Utils.availableProcessors());
