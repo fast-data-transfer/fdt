@@ -306,10 +306,11 @@ public class FDT {
         // append the required options to the configurable java command
         remoteCmd = new StringBuilder(config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f "
                 + localAddresses);
+        remoteCustomShell = config.getCustomShell();
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(" [ CONFIG ] Starting FDT server over SSH using [ " + remoteCmd + " ]");
         }
-        sshConn.startProgram(remoteCmd.toString());
+        sshConn.startProgram(remoteCmd.toString(), remoteCustomShell.toString());
         sshConn.waitForControlMessage("READY");
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(" [ CONFIG ] FDT server successfully started on [ " + config.getHostName() + " ]");
@@ -350,10 +351,11 @@ public class FDT {
         // append the required options to the configurable java command
         remoteCmd = new StringBuilder(config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f "
                 + localAddresses);
+        remoteCustomShell = config.getCustomShell();
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(" [ CONFIG ] Starting FDT server over SSH using [ " + remoteCmd + " ]");
         }
-        sshConn.startProgram(remoteCmd.toString());
+        sshConn.startProgram(remoteCmd.toString(), remoteCustomShell.toString());
         sshConn.waitForControlMessage("READY");
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(" [ CONFIG ] FDT server successfully started on [ " + remoteServerHost + " ]");
@@ -381,10 +383,11 @@ public class FDT {
         // append the required options to the configurable java command
         remoteCmd = new StringBuilder(config.getRemoteCommand() + " -p " + config.getPort() + " -noupdates -silent -S -f "
                 + clientHost);
+        remoteCustomShell = config.getCustomShell();
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(" [ CONFIG ] Starting remote FDT server over SSH using [ " + remoteCmd + " ]");
         }
-        sshConn.startProgram(remoteCmd.toString());
+        sshConn.startProgram(remoteCmd.toString(), remoteCustomShell.toString());
         sshConn.waitForControlMessage("READY");
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(" [ CONFIG ] FDT server successfully started on [ " + config.getHostName() + " ]");
@@ -420,7 +423,8 @@ public class FDT {
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(" [ CONFIG ] Starting FDT client over SSH using [ " + remoteCmd + " ]");
         }
-        sshConn.startProgram(remoteCmd.toString());
+        remoteCustomShell = getCustomShell();
+        sshConn.startProgram(remoteCmd.toString(), remoteCustomShell.toString());
         // wait for client termination or forced exit
         sshConn.waitForControlMessage("DONE", true);
         // after the remote client finished, our 'proxy' program should also exit
