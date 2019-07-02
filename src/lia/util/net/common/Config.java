@@ -70,7 +70,7 @@ public class Config {
     public static final long DEFAULT_KEEP_ALIVE_NANOS = TimeUnit.MINUTES.toNanos(2);
     public static final int DEFAULT_PORT_NO_GSI = 54320;
     public static final int DEFAULT_PORT_NO_SSH = 22;
-    public static final String DEFAULT_SHELL = "/bin/bash"	
+    public static final String DEFAULT_SHELL = "/bin/bash";	
 	
     /**
      * Check if remote server is needed. We use SSH channels to control remote startup. <br>
