@@ -35,6 +35,9 @@ Client specific:
    			 By default, FDT will look for ssh keys in
    			 $HOME/.ssh/id_dsa.fdt (DSA) and
    			 $HOME/.ssh/id_rsa.fdt (RSA)
+   -shell <customShell>  By default /bin/bash is used, but if you are on something
+                         esoteric like a mainframe, you might have an alternate location
+			 for bash. i.e. - /rsusr/rocket/bin/bash
 
 Server specific:
    -S			 disable standalone mode; if specified, the server
