@@ -426,7 +426,7 @@ public class FDT {
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(" [ CONFIG ] Starting FDT client over SSH using [ " + remoteCmd + " ]");
         }
-        remoteCustomShell = getCustomShell();
+        remoteCustomShell = config.getCustomShell();
         sshConn.startProgram(remoteCmd.toString(), remoteCustomShell.toString());
         // wait for client termination or forced exit
         sshConn.waitForControlMessage("DONE", true);
