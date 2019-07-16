@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -132,6 +133,7 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
 
                 if (windowSize > 0) {
                     s.setSendBufferSize(windowSize);
+                    sc.setOption(StandardSocketOptions.SO_SNDBUF, windowSize);
                 }
                 final String sdpConfFlag = System.getProperty("com.sun.sdp.conf");
                 final boolean bSDP = (sdpConfFlag != null && !sdpConfFlag.isEmpty());
