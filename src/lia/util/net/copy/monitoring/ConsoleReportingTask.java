@@ -10,6 +10,7 @@ import lia.util.net.copy.disk.DiskWriterManager;
 import lia.util.net.copy.monitoring.base.AbstractAccountableMonitoringTask;
 import lia.util.net.copy.transport.TCPTransportProvider;
 
+import java.net.SocketException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -111,6 +112,15 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                             sb.append(" ").append(Utils.percentDecimalFormat((cSize * 100) / tSize)).append("%");
                             final double remainingSeconds = (fdtSession.getSize() - cSize) / avgTotalRate;
                             sb.append(" ( ").append(Utils.getETA((long) remainingSeconds)).append(" )");
+                            
+                            
+                            sb.append("\tSO_SNDBUF Size: ");
+                            try {
+                            	sb.append(tcpTransportProvider.getSNDBUFSize());
+                            } catch (SocketException e) {
+                            	e.printStackTrace();
+                            }
+                            
                         }
                     }
                 }

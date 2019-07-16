@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -57,7 +58,9 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
     ScheduledFuture<?> monitoringTaskFuture;
 
     ScheduledFuture<?> limiterTask;
-
+    
+    private static SocketChannel sc;
+    
     public TCPTransportProvider(FDTSession fdtSession) throws Exception {
         this(fdtSession, new LinkedBlockingQueue<FDTSelectionKey>());
     }
@@ -189,7 +192,7 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
                 for (Iterator<SelectionKey> it = selectedKeys.iterator(); it.hasNext(); ) {
                     SelectionKey ssk = it.next();
                     it.remove();
-                    SocketChannel sc = (SocketChannel) ssk.channel();
+                    sc = (SocketChannel) ssk.channel();
                     if (ssk.isConnectable()) {
                         ssk.interestOps(ssk.interestOps() & ~SelectionKey.OP_CONNECT);
                         while (!sc.finishConnect()) {
@@ -285,6 +288,14 @@ public abstract class TCPTransportProvider extends AbstractFDTIOEntity implement
         synchronized (this.closeLock) {
             return channels.size();
         }
+    }
+    
+    public int getSNDBUFSize() throws SocketException {
+    	return sc.socket().getSendBufferSize();
+    }
+    
+    public int getRCVBUFSize() throws SocketException {
+    	return sc.socket().getReceiveBufferSize();
     }
 
     public InetAddress getRemoteEndPointAddress() {
