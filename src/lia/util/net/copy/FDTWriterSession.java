@@ -171,8 +171,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 sb.append("\n Started: ").append(new Date(startTimeMillis));
                 sb.append("\n Ended:   ").append(endDate);
                 long period = System.nanoTime() - startTimeNanos;
-                sb.append("\n Transfer period:   ")
-                        .append(Utils.getETA(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNanos)));
+                sb.append("\n Transfer period:   ").append(Utils.getETA(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNanos)));
                 sb.append("\n TotalBytes: ").append(getTotalBytes());
                 long utilBytes = 0;
                 if (transportProvider != null) {
@@ -181,15 +180,12 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                     try {
                         if (!Utils.updateTotalReadCounter(transportProvider.getUtilBytes())) {
                             if (logger.isLoggable(Level.FINEST)) {
-                                logger.log(Level.FINEST,
-                                        " [ FDTWriterSession ] Unable to update the contor in the update file.");
+                                logger.log(Level.FINEST," [ FDTWriterSession ] Unable to update the contor in the update file.");
                             }
                         }
                     } catch (Throwable tu) {
                         if (logger.isLoggable(Level.FINEST)) {
-                            logger.log(Level.FINEST,
-                                    " [ FDTWriterSession ] Unable to update the contor in the update file. Cause: ",
-                                    tu);
+                            logger.log(Level.FINEST," [ FDTWriterSession ] Unable to update the contor in the update file. Cause: ", tu);
                         }
                     } finally {
                         transportProvider.close(downMessage(), downCause());
@@ -206,31 +202,25 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 }
                 if (config.getMonitor().equals(Config.OPENTSDB)) {
                     MonitoringUtils monUtils = new MonitoringUtils(config, this);
-                    monUtils.monitorEndStats(((downCause() == null) && (downMessage() == null)), getTotalBytes(), utilBytes,
-                            startTimeMillis,  endDate.getTime(), period, "Writers");
+                    monUtils.monitorEndStats(((downCause() == null) && (downMessage() == null)), getTotalBytes(), utilBytes, startTimeMillis,  endDate.getTime(), period, "Writers");
                 }
             } catch (Throwable t) {
-                logger.log(Level.WARNING,
-                        "[ FDTWriterSession ] [ finalCleanup ] [ HANDLED ] Exception getting final statistics. Smth went wrong! Cause: ",
-                        t);
+                logger.log(Level.WARNING, "[ FDTWriterSession ] [ finalCleanup ] [ HANDLED ] Exception getting final statistics. Smth went wrong! Cause: ", t);
             }
 
             try {
                 if (dwm.removeSession(this, downMessage(), downCause())) {
                     if (isFine) {
-                        logger.log(Level.FINE,
-                                "[ FDTWriterSession ] [ finalCleanup ] Successfully removing session from DiskWriterManager");
+                        logger.log(Level.FINE, "[ FDTWriterSession ] [ finalCleanup ] Successfully removing session from DiskWriterManager");
                     }
                 } else {
                     if (isFine) {
-                        logger.log(Level.FINE,
-                                "[ FDTWriterSession ] [ finalCleanup ] Removing session from DiskWriterManager returned FALSE should have been true!!");
+                        logger.log(Level.FINE, "[ FDTWriterSession ] [ finalCleanup ] Removing session from DiskWriterManager returned FALSE should have been true!!");
                     }
                 }
             } catch (Throwable fine) {
                 if (isFine) {
-                    logger.log(Level.FINE, "[ FDTWriterSession ] [ finalCleanup ] exception removing session. Cause:",
-                            fine);
+                    logger.log(Level.FINE, "[ FDTWriterSession ] [ finalCleanup ] exception removing session. Cause:", fine);
                 }
             }
 
@@ -240,16 +230,14 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                         fileSession.close(downMessage(), downCause());
                     } catch (Throwable ign) {
                         if (isFinest) {
-                            logger.log(Level.FINEST, "[ FDTWriterSession ] [ finalCleanup ]  closing file session: "
-                                    + fileSession + " got exception. Cause: ", ign);
+                            logger.log(Level.FINEST, "[ FDTWriterSession ] [ finalCleanup ]  closing file session: " + fileSession + " got exception. Cause: ", ign);
                         }
                     }
                 }
             } catch (Throwable ignOutter) {
                 if (isFinest) {
                     logger.log(Level.FINEST,
-                            "[ FDTWriterSession ] [ finalCleanup ]  closing file sessions got exception. Cause: ",
-                            ignOutter);
+                            "[ FDTWriterSession ] [ finalCleanup ]  closing file sessions got exception. Cause: ", ignOutter);
                 }
             }
 
@@ -266,8 +254,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             } catch (Throwable ignTransport) {
                 if (isFinest) {
                     logger.log(Level.FINEST,
-                            "[ FDTWriterSession ] [ finalCleanup ]  closing transport got exception. Cause: ",
-                            ignTransport);
+                            "[ FDTWriterSession ] [ finalCleanup ]  closing transport got exception. Cause: ", ignTransport);
                 }
             }
 
@@ -278,8 +265,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             } catch (Throwable ignCtrl) {
                 if (isFinest) {
                     logger.log(Level.FINEST,
-                            "[ FDTWriterSession ] [ finalCleanup ]  closing control channel got exception. Cause: ",
-                            ignCtrl);
+                            "[ FDTWriterSession ] [ finalCleanup ]  closing control channel got exception. Cause: ", ignCtrl);
                 }
             }
             try {
@@ -287,8 +273,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             } catch (Throwable ignore) {
                 if (isFinest) {
                     logger.log(Level.FINEST,
-                            "[ FDTWriterSession ] [ finalCleanup ]  finishing session in session manager got exception. Cause: ",
-                            ignore);
+                            "[ FDTWriterSession ] [ finalCleanup ]  finishing session in session manager got exception. Cause: ", ignore);
                 }
             }
         }
@@ -298,8 +283,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
         if (logger.isLoggable(Level.FINEST)) {
             Thread.dumpStack();
-            logger.log(Level.FINEST, " [ FDTWriterSession ] enters internalClose downMsg: " + downMessage()
-                    + " ,  downCause: " + downCause());
+            logger.log(Level.FINEST, " [ FDTWriterSession ] enters internalClose downMsg: " + downMessage() + " ,  downCause: " + downCause());
             Thread.dumpStack();
         }
 
@@ -316,9 +300,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             checkFinished(null);
         } else {
             final String downLogMsg = (downMessage == null) ? "N/A" : downMessage;
-            logger.log(Level.INFO,
-                    "\nThe FDTWriterSession ( " + sessionID + " ) finished with error(s). Cause: " + downLogMsg,
-                    downCause());
+            logger.log(Level.INFO, "\nThe FDTWriterSession ( " + sessionID + " ) finished with error(s). Cause: " + downLogMsg, downCause());
             finalCleanup();
         }
 
@@ -346,8 +328,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
     @Override
     public void handleInitFDTSessionConf(CtrlMsg ctrlMsg) throws Exception {
         // this should be never called ( for the moment ... )
-        logger.log(Level.WARNING,
-                "[ FDTWriterSession ] handleInitFDTSessionConf must not be called on the writer side. Msg: " + ctrlMsg);
+        logger.log(Level.WARNING, "[ FDTWriterSession ] handleInitFDTSessionConf must not be called on the writer side. Msg: " + ctrlMsg);
         FDTProcolException fpe = new FDTProcolException("Illegal message INIT_FDT_CONF in WriterSesssion");
         fpe.fillInStackTrace();
         throw fpe;
@@ -368,8 +349,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 logger.log(Level.SEVERE, "Unable to transfer to storage: " + "Storage configuration is not found.");
             } else {
                 this.destinationDir = config.storageParams().localFileDir();
-                logger.log(Level.WARNING, "Destination directory has been " + "changed from " + sccm.destinationDir
-                        + " to " + this.destinationDir);
+                logger.log(Level.WARNING, "Destination directory has been " + "changed from " + sccm.destinationDir + " to " + this.destinationDir);
             }
         }
 
@@ -393,13 +373,11 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             noTmp = true;
         }
         boolean noLock = false;
-        if (config.isNoLockFlagSet() || controlChannel.remoteConf.get("-nolock") != null
-                || controlChannel.remoteConf.get("-nolocks") != null) {
+        if (config.isNoLockFlagSet() || controlChannel.remoteConf.get("-nolock") != null || controlChannel.remoteConf.get("-nolocks") != null) {
             noLock = true;
         }
 
-        final FileChannelProvider fcp = Config.getInstance().getFileChannelProviderFactory()
-                .newWriterFileChannelProvider(this);
+        final FileChannelProvider fcp = Config.getInstance().getFileChannelProviderFactory().newWriterFileChannelProvider(this);
 
         final String preProcessFiltersProp = config.getPreFilters();
         boolean hasPreProc = false;
@@ -447,24 +425,21 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             }
 
             if (bPreProccessing) {
-                logger.log(Level.INFO,
-                        "Preprocessing took: " + (TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sTime)) + " ms.");
+                logger.log(Level.INFO, "Preprocessing took: " + (TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sTime)) + " ms.");
             }
         }
 
         for (final FileSession fws : fileSessions.values()) {
             if (resumeManager.isFinished(fws)) {
                 if (isFiner) {
-                    logger.log(Level.FINER,
-                            "\n\n\n ====> [ FDTWriterSession ] the file session " + fws.sessionID + " is Finished!");
+                    logger.log(Level.FINER, "\n\n\n ====> [ FDTWriterSession ] the file session " + fws.sessionID + " is Finished!");
                 }
                 addAndGetUtilBytes(fws.sessionSize());
                 addAndGetTotalBytes(fws.sessionSize());
                 super.finishFileSession(fws.sessionID, null);
             } else {
                 if (isFiner) {
-                    logger.log(Level.FINER, "\n\n\n ====> [ FDTWriterSession ] <====== the file session "
-                            + fws.sessionID + " is NOT Finished!  <============ ");
+                    logger.log(Level.FINER, "\n\n\n ====> [ FDTWriterSession ] <====== the file session " + fws.sessionID + " is NOT Finished!  <============ ");
                 }
             }
         }
@@ -481,8 +456,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 throw new FDTProcolException(" Non null transport provider !");
             }
         } else if (role == CLIENT) {
-            transportProvider = new TCPSessionReader(this, this, InetAddress.getByName(config.getHostName()),
-                    transferPort, config.getSockNum());
+            transportProvider = new TCPSessionReader(this, this, InetAddress.getByName(config.getHostName()), transferPort, config.getSockNum());
         }
 
         // Notify the reader that he can start to send the data
@@ -540,8 +514,10 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                     StringBuilder sb = new StringBuilder();
                     sb.append("\n\n===\tRemote MD5 Sums\t===");
                     for (Map.Entry<UUID, byte[]> entry : md5Sums.entrySet()) {
-                        sb.append("\n").append(Utils.md5ToString(entry.getValue())).append("  ")
-                                .append(fileSessions.get(entry.getKey()).fileName());
+                        sb.append("\n");
+                        sb.append(Utils.md5ToString(entry.getValue()));
+                        sb.append("  ");
+                        sb.append(fileSessions.get(entry.getKey()).fileName());
                     }
                     sb.append("\n===\tEND Remote MD5 Sums\t=== \n");
                     logger.log(Level.INFO, sb.toString());
@@ -550,12 +526,10 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             } else if (ctrlMsg.message instanceof String) {
                 remoteDownMsg = (String) ctrlMsg.message;
                 close(remoteDownMsg, null);
-                logger.log(Level.WARNING, "\n\n [ FDTWriterSession ] Remote FDTReaderSession for session [ " + sessionID
-                        + " ] finished with errors:\n" + remoteDownMsg + "\n");
+                logger.log(Level.WARNING, "\n\n [ FDTWriterSession ] Remote FDTReaderSession for session [ " + sessionID + " ] finished with errors:\n" + remoteDownMsg + "\n");
             }
         } else {
-            logger.log(Level.INFO, "[ FDTWriterSession ] Remote FDTReaderSession for session [ " + sessionID
-                    + " ] finished ok. Waiting for our side to finish.");
+            logger.log(Level.INFO, "[ FDTWriterSession ] Remote FDTReaderSession for session [ " + sessionID + " ] finished ok. Waiting for our side to finish.");
         }
     }
 
@@ -607,8 +581,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             final UUID fid = fs.sessionID;
             final FileSession existing = fileSessions.get(fid);
             if (existing == null) {
-                logger.log(Level.WARNING,
-                        "[FDTWriterSession] [doPreprocess] new file session from filter will be ingored: " + fs);
+                logger.log(Level.WARNING, "[FDTWriterSession] [doPreprocess] new file session from filter will be ingored: " + fs);
                 continue;
             }
 
@@ -616,9 +589,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
                 retIDs.add(fid);
                 fileSessions.put(fid, fs);
             } else {
-                logger.log(Level.WARNING,
-                        "[FDTWriterSession] [doPreprocess] new file session from filter will be ingored: " + fs
-                                + " because is not a FileWriterSession");
+                logger.log(Level.WARNING, "[FDTWriterSession] [doPreprocess] new file session from filter will be ingored: " + fs + " because is not a FileWriterSession");
             }
         }
 
@@ -627,8 +598,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
             final UUID fid = fws.sessionID;
             if (!retIDs.contains(fid)) {
                 if (isFine) {
-                    logger.log(Level.FINE, "\n\n\n ====> [ FDTWriterSession ] [preProcess] the file session "
-                            + fws.sessionID + "/" + fws.fileName() + " is finished!");
+                    logger.log(Level.FINE, "\n\n\n ====> [ FDTWriterSession ] [preProcess] the file session " + fws.sessionID + "/" + fws.fileName() + " is finished!");
                 }
                 addAndGetUtilBytes(fws.sessionSize());
                 addAndGetTotalBytes(fws.sessionSize());
@@ -692,8 +662,10 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
         } finally {
             StringBuffer sb = new StringBuffer();
             if (filtersCount > 0) {
-                sb.append("[ FDTWriterSession ] Postprocessing: ").append(filtersCount).append(" filters in ")
-                        .append(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sTime)).append(" ms");
+                sb.append("[ FDTWriterSession ] Postprocessing: ");
+                sb.append(filtersCount).append(" filters in ");
+                sb.append(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sTime));
+                sb.append(" ms");
             } else {
                 sb.append("[ FDTWriterSession ] No post processing filters defined/processed.");
             }
@@ -735,8 +707,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
     private void checkFinished(Throwable finishCause) {
 
         if (logger.isLoggable(Level.FINER)) {
-            logger.log(Level.FINER, "\n\n\n\n\n\n ---------------- [ FDTWriterSession ] finishedSessions.size(). "
-                    + finishedSessions.size() + " fileSessions.size() " + fileSessions.size());
+            logger.log(Level.FINER, "\n\n\n\n\n\n ---------------- [ FDTWriterSession ] finishedSessions.size(). " + finishedSessions.size() + " fileSessions.size() " + fileSessions.size());
         }
 
         if (finishedSessions.size() == fileSessions.size()) {
