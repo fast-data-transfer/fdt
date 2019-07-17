@@ -21,6 +21,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+
+/// Libraries for writing rate monitor to a file
+import java.io.*;
+
 /**
  * This class is the only class which should report to the stdout
  *
@@ -158,8 +162,11 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
         return shouldReport;
     }
 
-    private void reportStatus() {
+    private void reportStatus() throws IOException {
         StringBuilder sb = new StringBuilder(8192);
+        
+        //BufferedWriter for writing the rate to .txt file
+        BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/tmp/tranfer_rate.txt")));
 
         boolean shouldReport = (reportStatus(diskWriterManager.getSessions(), oldWriterSessions, "Net In: ", sb)
                 || reportStatus(diskReaderManager.getSessions(), oldReaderSessions, "Net Out: ", sb));
@@ -167,6 +174,15 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
         if (shouldReport) {
             logger.info(sb.toString());
         }
+        
+        //Convert StringBuilder sb to string then use buffered writer to write it to the file 
+        bwr.write(sb.toString());
+        
+        //Flush the stream
+        bwr.flush();
+        
+        //Close the stream
+        bwr.close();
 
     }
 
