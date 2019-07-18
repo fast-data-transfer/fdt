@@ -24,6 +24,7 @@ import java.util.logging.Logger;
 
 /// Libraries for writing rate monitor to a file
 import java.io.*;
+import lia.util.net.copy.*;
 
 /**
  * This class is the only class which should report to the stdout
@@ -38,12 +39,16 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
 
     private static final DiskReaderManager diskReaderManager = DiskReaderManager.getInstance();
     private static final ConsoleReportingTask thisInstace = new ConsoleReportingTask();
-    // private final DateFormat dateFormat = new SimpleDateFormat("dd/MM/yy HH:mm:ss");
-    private final DateFormat dateFormat = new SimpleDateFormat("dd/MM HH:mm:ss");
+    private final DateFormat dateFormat = new SimpleDateFormat("dd/MM/yy HH:mm:ss");
+    // private final DateFormat dateFormat = new SimpleDateFormat("dd/MM HH:mm:ss");
     private final Set<FDTSession> oldReaderSessions = new TreeSet<FDTSession>();
     private final Set<FDTSession> oldWriterSessions = new TreeSet<FDTSession>();
     private final boolean customLog;
-
+    
+    //StringBufferf for transfer rate bufferedWriter
+    private StringBuffer sbf = new StringBuffer();
+    private int writeRateToFileCount = 0;
+    
     private ConsoleReportingTask() {
         super(null);
         if (logger.isLoggable(Level.FINER)) {
@@ -56,9 +61,9 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
         return thisInstace;
     }
 
-    private final boolean reportStatus(final Set<FDTSession> currentSessionSet, final Set<FDTSession> oldSessionSet,
-                                       final String tag, final StringBuilder sb) {
-        boolean shouldReport = false;
+    private final boolean reportStatus(final Set<FDTSession> currentSessionSet, final Set<FDTSession> oldSessionSet, final String tag, final StringBuilder sb) {
+       
+    	boolean shouldReport = false;
 
         if (oldSessionSet.size() > 0) {
             double totalReadRate = 0;
@@ -77,14 +82,11 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                     if (tcpTransportProvider == null) {
                         // this is real big .... BUG?????
                         logger.log(Level.WARNING,
-                                " [ ConsoleReportingTask ] The session: " + fdtSession
-                                        .sessionID() + " is no longer "
-                                        + "available, but canot remove trasport provider from monitoring queue. It's probably a BUG in FDT");
+                                " [ ConsoleReportingTask ] The session: " + fdtSession.sessionID() + " is no longer available, but canot remove trasport provider from monitoring queue. It's probably a BUG in FDT");
                         continue;
                     }
                     if (logger.isLoggable(Level.FINE)) {
-                        logger.log(Level.FINE, " [ ConsoleReportingTask ]  Removing tcpTransportProvider "
-                                + tcpTransportProvider + " for session: " + fdtSession.sessionID());
+                    	logger.log(Level.FINE, " [ ConsoleReportingTask ]  Removing tcpTransportProvider " + tcpTransportProvider + " for session: " + fdtSession.sessionID());
                     }
                     remove(tcpTransportProvider);
                     it.remove();
@@ -102,10 +104,13 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                     totalReadRate += totalRate;
 
                     if (reportMultipleSessions) {
-                        sb.append("\n").append(fdtSession.sessionID());
+                        sb.append("\n");
+                        sb.append(fdtSession.sessionID());
                     }
-                    sb.append(tag).append(Utils.formatWithBitFactor(8 * totalRate, 0, "/s")).append("\tAvg: ")
-                            .append(Utils.formatWithBitFactor(8 * avgTotalRate, 0, "/s"));
+                    	sb.append(tag);
+                    	sb.append(Utils.formatWithBitFactor(8 * totalRate, 0, "/s"));
+                    	sb.append("\tAvg: ");
+                        sb.append(Utils.formatWithBitFactor(8 * avgTotalRate, 0, "/s"));
 
                     final long dtMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - fdtSession.startTimeNanos);
                     if (fdtSession.getSize() > 0 && dtMillis > 20 * 1000) {
@@ -114,10 +119,10 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                         if (cSize > 0) {
                             final double tSize = (fdtSession.getSize() <= 0L) ? 0D : fdtSession.getSize();
                             sb.append(" ").append(Utils.percentDecimalFormat((cSize * 100) / tSize)).append("%");
+                            
                             final double remainingSeconds = (fdtSession.getSize() - cSize) / avgTotalRate;
                             sb.append(" ( ").append(Utils.getETA((long) remainingSeconds)).append(" )");
-                            
-                            
+                                                    
                             sb.append("\tSO_SNDBUF Size: ");
                             try {
                             	sb.append(tcpTransportProvider.getSNDBUFSize());
@@ -144,13 +149,11 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                 if (tcpTransportProvider != null) {
                     if (addIfAbsent(tcpTransportProvider, logger.isLoggable(Level.FINER) ? true : false)) {
                         if (logger.isLoggable(Level.FINE)) {
-                            logger.log(Level.FINE, " [ ConsoleReportingTask ]  Adding tcpTransportProvider "
-                                    + tcpTransportProvider + " for session: " + fdtSession.sessionID());
+                            logger.log(Level.FINE, " [ ConsoleReportingTask ]  Adding tcpTransportProvider " + tcpTransportProvider + " for session: " + fdtSession.sessionID());
                         }
                     } else {
                         if (logger.isLoggable(Level.FINE)) {
-                            logger.log(Level.FINE, " [ ConsoleReportingTask ]  Unable to add tcpTransportProvider "
-                                    + tcpTransportProvider + " for session: " + fdtSession.sessionID());
+                            logger.log(Level.FINE, " [ ConsoleReportingTask ]  Unable to add tcpTransportProvider " + tcpTransportProvider + " for session: " + fdtSession.sessionID());
                         }
                     }
 
@@ -165,24 +168,14 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
     private void reportStatus() throws IOException {
         StringBuilder sb = new StringBuilder(8192);
         
-        //BufferedWriter for writing the rate to .txt file
-        BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/tmp/tranfer_rate.txt")));
-
-        boolean shouldReport = (reportStatus(diskWriterManager.getSessions(), oldWriterSessions, "Net In: ", sb)
-                || reportStatus(diskReaderManager.getSessions(), oldReaderSessions, "Net Out: ", sb));
+        boolean shouldReport = (reportStatus(diskWriterManager.getSessions(), oldWriterSessions, "Net In: ", sb) || reportStatus(diskReaderManager.getSessions(), oldReaderSessions, "Net Out: ", sb));
 
         if (shouldReport) {
             logger.info(sb.toString());
         }
         
-        //Convert StringBuilder sb to string then use buffered writer to write it to the file 
-        bwr.write(sb.toString());
-        
-        //Flush the stream
-        bwr.flush();
-        
-        //Close the stream
-        bwr.close();
+        //Parse StringBuilder sb as argument for writeRateToFile Method
+        writeRateToFile(sb.toString());
 
     }
 
@@ -193,6 +186,38 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
         } catch (Throwable t1) {
             logger.log(Level.WARNING, " [ ConsoleReportingTask ] Got exception while reporting", t1);
         }
+    }
+    
+    //Take the Net_IN/Net_OUT log and write to a seperate text file
+    private void writeRateToFile(String terminalRateLog) throws IOException{
+    
+    	String newRateLog = terminalRateLog;
+    	
+    	if (writeRateToFileCount>0) {
+    		//After the file was already rreated, just append the new log the to the old file
+    		
+    		BufferedWriter bwr = new BufferedWriter(new FileWriter("/tmp/transfer_rate.txt", true)); //add true argument for append mode
+    		//BufferedWriter bwr = new BufferedWriter(new FileWriter("/tmp/transfer_rate.txt", true)); //add true argument for append mode
+    		
+    		bwr.newLine();
+    		bwr.write(writeRateToFileCount + " ");
+    		bwr.write(dateFormat.format(new Date()) + " ");
+    		bwr.write(newRateLog);
+    		bwr.close();
+    		writeRateToFileCount++;	
+    	} else {
+    		//BufferedWriter for writing the rate to .txt file
+    		//Create new file first when the this method is called for the first time
+            	
+    		BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/tmp/transfer_rate.txt")));
+    		//BufferedWriter bwr = new BufferedWriter(new FileWriter("/tmp/transfer_rate.txt", true)); //add true argument for append mode
+    		
+    		bwr.write(writeRateToFileCount + " ");
+    		bwr.write(dateFormat.format(new Date()) + " ");
+    		bwr.write(newRateLog);
+    		bwr.close();
+    		writeRateToFileCount++;	
+    	}
     }
 
 }
