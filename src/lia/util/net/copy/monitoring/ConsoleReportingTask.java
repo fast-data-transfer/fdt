@@ -39,14 +39,14 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
 
     private static final DiskReaderManager diskReaderManager = DiskReaderManager.getInstance();
     private static final ConsoleReportingTask thisInstace = new ConsoleReportingTask();
-    private final DateFormat dateFormat = new SimpleDateFormat("dd/MM/yy HH:mm:ss");
+    private final DateFormat dateFormat = new SimpleDateFormat("dd/MM/yy\tHH:mm:ss");
     // private final DateFormat dateFormat = new SimpleDateFormat("dd/MM HH:mm:ss");
     private final Set<FDTSession> oldReaderSessions = new TreeSet<FDTSession>();
     private final Set<FDTSession> oldWriterSessions = new TreeSet<FDTSession>();
     private final boolean customLog;
     
     //StringBufferf for transfer rate bufferedWriter
-    private StringBuffer sbf = new StringBuffer();
+    //private StringBuffer sbf = new StringBuffer();
     private int writeRateToFileCount = 0;
     
     private ConsoleReportingTask() {
@@ -61,7 +61,7 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
         return thisInstace;
     }
 
-    private final boolean reportStatus(final Set<FDTSession> currentSessionSet, final Set<FDTSession> oldSessionSet, final String tag, final StringBuilder sb) {
+    private final boolean reportStatus(final Set<FDTSession> currentSessionSet, final Set<FDTSession> oldSessionSet, final String tag, final StringBuilder sb, final String buffTag) {
        
     	boolean shouldReport = false;
 
@@ -118,14 +118,22 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
                         final double cSize = (tcpSize <= 0L) ? 0D : tcpSize;
                         if (cSize > 0) {
                             final double tSize = (fdtSession.getSize() <= 0L) ? 0D : fdtSession.getSize();
-                            sb.append(" ").append(Utils.percentDecimalFormat((cSize * 100) / tSize)).append("%");
+                            sb.append("\t");
+                            sb.append(Utils.percentDecimalFormat((cSize * 100) / tSize));
+                            sb.append("%");
+                            sb.append("\t");
                             
                             final double remainingSeconds = (fdtSession.getSize() - cSize) / avgTotalRate;
-                            sb.append(" ( ").append(Utils.getETA((long) remainingSeconds)).append(" )");
+                            sb.append(" ( ");
+                            sb.append(Utils.getETA((long) remainingSeconds));
+                            sb.append(" )");
                                                     
-                            sb.append("\tSO_SNDBUF Size: ");
+                            sb.append("\t");
+                            sb.append(buffTag);
                             try {
-                            	sb.append(tcpTransportProvider.getSNDBUFSize());
+                            	if (buffTag=="SO_SNDBUF: ") {
+                					sb.append(tcpTransportProvider.getSNDBUFSize());
+                				} else sb.append("null");	//Currently don't support SO_RCVBUF yet
                             } catch (SocketException e) {
                             	e.printStackTrace();
                             }
@@ -168,7 +176,7 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
     private void reportStatus() throws IOException {
         StringBuilder sb = new StringBuilder(8192);
         
-        boolean shouldReport = (reportStatus(diskWriterManager.getSessions(), oldWriterSessions, "Net In: ", sb) || reportStatus(diskReaderManager.getSessions(), oldReaderSessions, "Net Out: ", sb));
+        boolean shouldReport = (reportStatus(diskWriterManager.getSessions(), oldWriterSessions, "Net In: ", sb, "SO_RCVBUF: ") || reportStatus(diskReaderManager.getSessions(), oldReaderSessions, "Net Out: ", sb, "SO_SNDBUF: "));
 
         if (shouldReport) {
             logger.info(sb.toString());
@@ -178,7 +186,7 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
         writeRateToFile(sb.toString());
 
     }
-
+    
     @Override
     public void rateComputed() {
         try {
@@ -188,10 +196,46 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
         }
     }
     
-    //Take the Net_IN/Net_OUT log and write to a seperate text file
+    //Take the Net_IN/Net_OUT log and write to a separate text file
     private void writeRateToFile(String terminalRateLog) throws IOException{
     
     	String newRateLog = terminalRateLog;
+    	String buffTag, netTag;
+    	if(newRateLog.contains("Net In")) {
+    		buffTag = "SO_RCVBUF:";
+    		netTag = "NET_IN";
+    	} else {
+    		buffTag = "SO_SNDBUF:";
+    		netTag = "NET_OUT";
+    	}  	
+    	/**
+    	 * Original format:
+    	 * 
+    	 * Net {In/Out}: X.XXX {Gb/s|Mb/s}\tAvg: Y.YYY {Gb/s|Mb/s}\tZZ.ZZ% ( RemainingTime )\t{SO_SNDBUF|SO_RCVBUF} Size: AAAAAAA 
+    	 * 
+    	 * Target format:
+    	 * X.XXX\tY.YYY\tZZ.ZZ\tRemainingTime\tAAAAAA
+    	 * 
+    	 * **/
+    	if(newRateLog.contains("Net Out: ")) {
+    		newRateLog = newRateLog.replaceAll("Net Out: ", "");
+		newRateLog = newRateLog.replaceAll("SO_SNDBUF: ", "");
+    	} else {
+    		newRateLog = newRateLog.replaceAll("Net In: ", "");
+		newRateLog = newRateLog.replaceAll("SO_RCVBUF: ", "");
+    	}
+    	
+    	if(newRateLog.contains(" Gb/s")) {
+    		newRateLog = newRateLog.replaceAll(" Gb/s", "");
+    	} else if (newRateLog.contains(" Mb/s")) {
+    		newRateLog = newRateLog.replaceAll(" Mb/s", "");
+    	} else  newRateLog = newRateLog.replaceAll(" Kb/s", "");
+    	
+    	newRateLog = newRateLog.replaceAll("Avg: ", "");
+		newRateLog = newRateLog.replaceAll("%", "");
+		newRateLog = newRateLog.replaceAll("\\( ","");
+		newRateLog = newRateLog.replaceAll(" \\)", "");
+    	
     	
     	if (writeRateToFileCount>0) {
     		//After the file was already rreated, just append the new log the to the old file
@@ -200,8 +244,8 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
     		//BufferedWriter bwr = new BufferedWriter(new FileWriter("/tmp/transfer_rate.txt", true)); //add true argument for append mode
     		
     		bwr.newLine();
-    		bwr.write(writeRateToFileCount + " ");
-    		bwr.write(dateFormat.format(new Date()) + " ");
+    		bwr.write(writeRateToFileCount + "\t");
+    		bwr.write(dateFormat.format(new Date()) + "\t");
     		bwr.write(newRateLog);
     		bwr.close();
     		writeRateToFileCount++;	
@@ -212,8 +256,15 @@ public class ConsoleReportingTask extends AbstractAccountableMonitoringTask {
     		BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/tmp/transfer_rate.txt")));
     		//BufferedWriter bwr = new BufferedWriter(new FileWriter("/tmp/transfer_rate.txt", true)); //add true argument for append mode
     		
-    		bwr.write(writeRateToFileCount + " ");
-    		bwr.write(dateFormat.format(new Date()) + " ");
+    		/**
+    		 * Column Header for the .txt file separated with tab \t
+    		 * 
+    		 * [NO]\t[DATE]\t[TIME]\t{NET_IN|NET_OUT}\t[AVG]\t[PERCENT COMPLETED]\t[TIME REMAINING]\t[SO_SNDBUF]
+    		 * **/
+    		bwr.write("NO\tDATE\tTIME\t" + netTag +"\tAVG\tPERCENT COMPLETED\tTIME REMAINING\t" + buffTag);		
+    	
+    		bwr.write(writeRateToFileCount + "\t");
+    		bwr.write(dateFormat.format(new Date()) + "\t");
     		bwr.write(newRateLog);
     		bwr.close();
     		writeRateToFileCount++;	
