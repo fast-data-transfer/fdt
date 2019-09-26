@@ -150,7 +150,18 @@ public class DiskWriterTask extends GenericDiskTask {
                     final int remainingBeforeWrite = fileBlock.buff.remaining();
 
                     if (!fileSession.isLoop()) {
-                        writtenBytes = fileChannel.write(fileBlock.buff, fileBlock.fileOffset);
+                        if (fileBlock.buff.remaining() % 4096 != 0) {
+                            // This relies on the allocated buffers capacities to be aligned to 4K as well
+                            // Should be guaranteed by the specification of block size (default 16K, normally way larger)
+                            int toTruncate = fileBlock.buff.remaining();
+                            int toExtend = (toTruncate + 4096) & ~(4096 - 1);
+                            fileBlock.buff.limit(toExtend);
+                            int added = toExtend - toTruncate;
+                            writtenBytes = fileChannel.write(fileBlock.buff, fileBlock.fileOffset) - added;
+                            fileChannel.truncate(fileBlock.fileOffset + toTruncate); // Truncate to get rid of excess
+                        } else {
+                            writtenBytes = fileChannel.write(fileBlock.buff, fileBlock.fileOffset);
+                        }
                     } else {
                         writtenBytes = fileChannel.write(fileBlock.buff);
                     }
