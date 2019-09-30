@@ -14,6 +14,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import sun.misc.Unsafe;
+import java.lang.reflect.Field;
+import java.nio.Buffer;
 
 /**
  * This class should unify both header and payload buffers
@@ -68,11 +71,86 @@ public abstract class AbstractBPool {
 
     }
 
+    // Align all buffes to a 4K boundary.  This is a safe operation for all file accesses.
+    // By aligning, we allow for O_DIRECT accesses (using the LD_PRELOAD open_direct.c shim)
+    // which can be 0-copy and do not pollute the page cache with data that will only be
+    // streamed one time.  If the LD_PRELOAD shim is not used, or the buffer is for a file
+    // which is not opened in direct mode, there is no logical change to system operation.
+    //
+    // Adapted from http://psy-lob-saw.blogspot.com/2013/01/direct-memory-alignment-in-java.html
+    private static Unsafe unsafe;      // Only way to access addresses of ByteBuffer data
+    private static long addressOffset; // The offsetof(Buffer.address)
+    // Class initialization needs to set the above variables
+    {
+        // If we directly try to get an Unsafe singleton, we'll throw a security exception,
+        // so go into the class itself and mark the field accessible and then grab it.
+        try {
+            Field f = Unsafe.class.getDeclaredField("theUnsafe");
+            f.setAccessible(true);
+            unsafe = (Unsafe) f.get(null);
+	} catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        // Unsafe is available, so cache the offsetof(address) we need
+        try {
+            Field[] f = Buffer.class.getDeclaredFields();
+            boolean found = false;
+            for (int i = 0; i < f.length; i++) { // Dumb, but only run once over small list
+                if (f[i].toString().compareTo("long java.nio.Buffer.address") == 0) {
+                    addressOffset = unsafe.objectFieldOffset(f[i]);
+                    found = true;
+                }
+            }
+            if (found == false) {
+                throw new RuntimeException("Can't find Buffer.address field");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // Peek at this Buffer.address, pointing to the actual data for this ByteBuffer
+    private static long getAddress(ByteBuffer buffy) {
+        return unsafe.getLong(buffy, addressOffset);
+    }
+
+    // Allocate ByteBuffer with data aligned to a specific alignment.  Works for any
+    // 2^n alignment, but in this case we only need 4096 (i.e. page aligned).
+    private static ByteBuffer allocateAlignedByteBuffer(int capacity, long align) {
+        // Power of 2 --> single bit, none power of 2 alignments are not allowed.
+        if (Long.bitCount(align) != 1) {
+            throw new IllegalArgumentException("Alignment must be a power of 2");
+        }
+        // We over allocate by the alignment so we know we can have a large enough aligned
+        // block of memory to use. Also set order to native while we are here.
+        ByteBuffer buffy = ByteBuffer.allocateDirect((int) (capacity + align));
+        long address = getAddress(buffy);
+        // check if we got lucky and the address is already aligned
+        if ((address & (align - 1)) == 0) {
+            // set the new limit to intended capacity
+            buffy.limit(capacity);
+            // the slice is now an aligned buffer of the required capacity
+           return buffy.slice();//.order(ByteOrder.nativeOrder());
+        } else {
+            // we need to shift the start position to an aligned address --> address + (align - (address % align))
+            // the modulo replacement with the & trick is valid for power of 2 values only
+            int newPosition = (int) (align - (address & (align - 1)));
+            // change the position
+            buffy.position(newPosition);
+            int newLimit = newPosition + capacity;
+            // set the new limit to accomodate offset + intended capacity
+            buffy.limit(newLimit);
+            // the slice is now an aligned buffer of the required capacity
+            return buffy.slice();//.order(ByteOrder.nativeOrder());
+        }
+    }
+
     private ByteBuffer tryAllocateBuffer() {
 
         ByteBuffer retBuffer = null;
         try {
-            retBuffer = ByteBuffer.allocateDirect(bufferSize);
+            retBuffer = allocateAlignedByteBuffer(bufferSize, 4096);
             if (randomGen && retBuffer != null) {
                 try {
                     logger.log(Level.INFO, "BuffFill START generating data to fill the buffer: " + Utils.buffToString(retBuffer));
