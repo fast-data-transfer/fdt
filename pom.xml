@@ -275,44 +275,6 @@
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>rpm-maven-plugin</artifactId>
-				<version>2.1.5</version>
-				<extensions>true</extensions>
-				<executions>
-					<execution>
-						<goals>
-							<goal>attached-rpm</goal>
-						</goals>
-						<phase>package</phase>
-					</execution>
-				</executions>
-				<configuration>
-					<mappings>
-						<mapping>
-							<directory>/usr/bin/</directory>
-							<sources>
-								<source>
-									<location>target</location>
-									<includes>
-										<include>fdt.jar</include>
-										<include>fdt</include>
-									</includes>
-								</source>
-							</sources>
-						</mapping>
-					</mappings>
-					<classifier>${rpm.classifier}</classifier>
-					<copyright>Caltech</copyright>
-					<distribution>Linux</distribution>
-					<group>Applications/Internet</group>
-					<packager>${user.name}</packager>
-					<changelogFile>CHANGELOG</changelogFile>
-					<defaultDirmode>500</defaultDirmode>
-					<defaultFilemode>755</defaultFilemode>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
 </project>
