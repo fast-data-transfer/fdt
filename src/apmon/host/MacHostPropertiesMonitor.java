@@ -114,7 +114,7 @@ public class MacHostPropertiesMonitor {
 
         // get CPU, load, Mem, Pages, Processes from '/usr/bin/top'
         command = sep + "usr" + sep + "bin" + sep
-                + "top -d -l2 -n1 -F -R -X";
+                + "top -d -l2 -n1 -F -R";
         String result = execute.executeCommand(command, "PID", 2);
         //System.out.println(command + " = "+ result);
         if (result == null || result.equals("")) {
