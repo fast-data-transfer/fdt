@@ -3,6 +3,7 @@
  */
 package lia.util.net.common;
 
+import lia.util.net.copy.FDTMain;
 import lia.util.net.copy.PosixFSFileChannelProviderFactory;
 import org.opentsdb.client.HttpClientImpl;
 
@@ -33,7 +34,7 @@ public class Config {
     // public static final String SINGLE_CMDLINE_ARGS[] = { "-S", "-pull", "-N", "-gsi", "-bio", "-r", "-fbs", "-ll",
     // "-loop", "-enableLisaRestart", "-md5", "-printStats", "-gsissh", "-noupdates", "-silent"};
     public static final String[] SINGLE_CMDLINE_ARGS = {"-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats",
-            "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb"};
+            "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb", "-autoport"};
     public static final String[] VALUE_CMDLINE_ARGS = {"-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters",
             "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d",
             "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka", "-tp"};
@@ -47,7 +48,7 @@ public class Config {
     // all of this are set by the ant script
     public static final String FDT_MAJOR_VERSION = "0";
     public static final String FDT_MINOR_VERSION = "26";
-    public static final String FDT_MAINTENANCE_VERSION = "1";
+    public static final String FDT_MAINTENANCE_VERSION = "2";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "."
             + FDT_MAINTENANCE_VERSION;
     public static final String FDT_RELEASE_DATE = "2017-08-08";
@@ -180,6 +181,8 @@ public class Config {
     private long apMonReportInterval = 20;
     // for client side in SSH mode
     private boolean bSSHMode = false;
+    private boolean autoPort = false;
+    private int portRange = 100;
     private boolean bGSISSHMode = false;
     private boolean bGSIMode = false;
     private String[] aSourceUsers = null;
@@ -291,6 +294,11 @@ public class Config {
             if (isPullMode) {
                 configMap.put("-pull", "");
             }
+        }
+
+        autoPort = configMap.get("-autoport") != null;
+        if (autoPort) {
+            portRange = Utils.getIntValue(configMap, "-portRange", 100);
         }
 
         final long ka = Utils.getLongValue(configMap, "-ka", TimeUnit.NANOSECONDS.toSeconds(DEFAULT_KEEP_ALIVE_NANOS));
@@ -905,6 +913,10 @@ public class Config {
 
     public int getNewRemoteTransferPort() {
         try {
+            if (autoPort)
+            {
+                return getRandomPort(getDefaultPort());
+            }
             if (!transportPorts.isEmpty()) {
                 int rtp = this.transportPorts.poll(20, TimeUnit.SECONDS);
                 System.out.println("Took new remote transfer port " + rtp);
@@ -918,6 +930,27 @@ public class Config {
             }
         }
         return -1;
+    }
+
+    private int getRandomPort(int defaultPort)
+    {
+        int randomPort = -1;
+        try {
+            Random r = new Random();
+            randomPort = r.nextInt(((defaultPort + portRange) - defaultPort) + 1) + defaultPort;
+            logger.log(Level.INFO, "Auto FDT on port " + randomPort);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    new FDTMain();
+                }
+            }, "FDT custom port " + randomPort).start();
+        }
+        catch (Exception e)
+        {
+            logger.log(Level.INFO, " FAILED auto FDT on port " + randomPort);
+        }
+        return randomPort;
     }
 
     public void setSessionSocket(ServerSocketChannel ssc, ServerSocket ss, SocketChannel sc, Socket s, int port) {

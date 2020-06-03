@@ -3,12 +3,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>fast-data-transfer</groupId>
 	<artifactId>fdt</artifactId>
-	<version>0.26.1-SNAPSHOT</version>
+	<version>0.26.2-SNAPSHOT</version>
 	<description>Fast data transfer</description>
 	<packaging>jar</packaging>
 
 	<properties>
-		<jdk.version>1.7</jdk.version>
+		<jdk.version>1.8</jdk.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 	<dependencies>

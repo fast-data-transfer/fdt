@@ -567,10 +567,9 @@ public abstract class FDTSession extends IOSession implements ControlChannelNoti
                 2,
                 10,
                 new ArrayBlockingQueue<Runnable>(65500),
-                Thread.NORM_PRIORITY - 2);
+                Thread.NORM_PRIORITY);
         ssc = ServerSocketChannel.open();
         ssc.configureBlocking(false);
-        FDTSession sess = FDTSessionManager.getInstance().getSession(sessionID);
         ss = ssc.socket();
         String listenIP = config.getListenAddress();
         if (listenIP == null) {
