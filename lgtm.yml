@@ -1,0 +1,5 @@
+extraction:
+  java:
+    index:
+      build_command:
+      - ./build-all.sh

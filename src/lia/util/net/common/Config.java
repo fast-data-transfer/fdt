@@ -3,6 +3,7 @@
  */
 package lia.util.net.common;
 
+import lia.util.net.copy.FDTMain;
 import lia.util.net.copy.PosixFSFileChannelProviderFactory;
 import org.opentsdb.client.HttpClientImpl;
 
@@ -34,7 +35,7 @@ public class Config {
     // public static final String SINGLE_CMDLINE_ARGS[] = { "-S", "-pull", "-N", "-gsi", "-bio", "-r", "-fbs", "-ll",
     // "-loop", "-enableLisaRestart", "-md5", "-printStats", "-gsissh", "-noupdates", "-silent"};
     public static final String[] SINGLE_CMDLINE_ARGS = {"-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats",
-            "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb"};
+            "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb", "-autoport"};
     public static final String[] VALUE_CMDLINE_ARGS = {"-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters",
             "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d",
             "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka", "-tp", "-shell"};
@@ -183,6 +184,8 @@ public class Config {
     private long apMonReportInterval = 20;
     // for client side in SSH mode
     private boolean bSSHMode = false;
+    private boolean autoPort = false;
+    private int portRange = 100;
     private boolean bGSISSHMode = false;
     private boolean bGSIMode = false;
     private String[] aSourceUsers = null;
@@ -295,6 +298,11 @@ public class Config {
             if (isPullMode) {
                 configMap.put("-pull", "");
             }
+        }
+
+        autoPort = configMap.get("-autoport") != null;
+        if (autoPort) {
+            portRange = Utils.getIntValue(configMap, "-portRange", 100);
         }
 
         final long ka = Utils.getLongValue(configMap, "-ka", TimeUnit.NANOSECONDS.toSeconds(DEFAULT_KEEP_ALIVE_NANOS));
@@ -913,6 +921,10 @@ public class Config {
     public int getNewRemoteTransferPort() {
     	int rtp = -1;
         try {
+            if (autoPort)
+            {
+                return getRandomPort(getDefaultPort());
+            }
             if (!transportPorts.isEmpty()) {
                 rtp = this.transportPorts.poll(20, TimeUnit.SECONDS);
                 logger.log(Level.FINER,"Reusing remote transfer port " + rtp);
@@ -927,8 +939,7 @@ public class Config {
             } else {
                 logger.log(Level.WARNING, "Failed to retrieve remote transfer port", e);
             }
-        }
-        
+        } 
         return rtp;
     }
 

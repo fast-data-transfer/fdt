@@ -1,3 +1,4 @@
+
 if command -v yum > /dev/null 2>&1; then
     OS="Centos"
     CMD=yum
