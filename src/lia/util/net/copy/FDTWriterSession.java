@@ -15,6 +15,8 @@ import java.io.File;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,7 +48,7 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
 
     public FDTWriterSession(int transferPort) throws Exception {
         super(FDTSession.CLIENT, transferPort);
-        Utils.initLogger(config.getLogLevel(), new File("/tmp/" + sessionID + ".log"), new Properties());
+        Utils.initLogger(config.getLogLevel(), new File(System.getProperty("java.io.tmpdir") + File.separatorChar + sessionID + ".log"), new Properties());
         dwm.addSession(this);
         sendInitConf();
         this.monID = config.getMonID();
@@ -424,9 +426,13 @@ public class FDTWriterSession extends FDTSession implements FileBlockConsumer {
         for (int i = 0; i < fCount; i++) {
             final String fName = (sccm.remappedFileLists == null || sccm.remappedFileLists[i] == null)
                     ? sccm.fileLists[i] : sccm.remappedFileLists[i];
+            // OSG change, just get the file name and none of the path stuff
+            Path p = Paths.get(fName);
+            String oFileName = p.getFileName().toString();
+             	
             final FileWriterSession fws = new FileWriterSession(sccm.fileIDs[i], this,
                     this.destinationDir + File.separator
-                            + ((shouldReplace) ? fName.replace(remoteCharSeparator, File.separatorChar) : fName),
+                            + ((shouldReplace) ? fName.replace(remoteCharSeparator, File.separatorChar) : oFileName),
                     sccm.fileSizes[i], sccm.lastModifTimes[i], isLoop, writeMode, noTmp, noLock, fcp);
             fileSessions.put(fws.sessionID, fws);
             if (hasPreProc) {

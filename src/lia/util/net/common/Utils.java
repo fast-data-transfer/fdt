@@ -1557,7 +1557,6 @@ public final class Utils {
         }
     }
 
-    @SuppressWarnings("SameParameterValue")
     public static void cancelFutureIgnoringException(Future<?> f, boolean mayInterruptIfRunning) {
         if (f != null) {
             try {
