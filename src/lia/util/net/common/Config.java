@@ -48,11 +48,11 @@ public class Config {
     // all of this are set by the ant script
     public static final String FDT_MAJOR_VERSION = "0";
     public static final String FDT_MINOR_VERSION = "26";
-    public static final String FDT_MAINTENANCE_VERSION = "2";
+    public static final String FDT_MAINTENANCE_VERSION = "3";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "."
             + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2017-08-08";
-    public static final String FDT_RELEASE_TIME = "1830";
+    public static final String FDT_RELEASE_DATE = "2021-03-31";
+    public static final String FDT_RELEASE_TIME = "2247";
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )
     public static final int HEADER_SIZE = 56;
