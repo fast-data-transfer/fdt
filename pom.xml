@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>fast-data-transfer</groupId>
 	<artifactId>fdt</artifactId>
-	<version>0.26.2-SNAPSHOT</version>
+	<version>0.26.3-SNAPSHOT</version>
 	<description>Fast data transfer</description>
 	<packaging>jar</packaging>
 
