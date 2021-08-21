@@ -943,6 +943,24 @@ public class Config {
         return rtp;
     }
 
+    private int getRandomPort(int defaultPort) {
+        int randomPort = -1;
+        try {
+            Random r = new Random();
+            randomPort = r.nextInt(((defaultPort + portRange) - defaultPort) + 1) + defaultPort;
+            logger.log(Level.INFO, "Auto FDT on port " + randomPort);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    new FDTMain();
+                }
+            }, "FDT custom port " + randomPort).start();
+        } catch (Exception e) {
+            logger.log(Level.INFO, " FAILED auto FDT on port " + randomPort);
+        }
+        return randomPort;
+    }
+
     private int findAvailablePort() {
 
     	/**
