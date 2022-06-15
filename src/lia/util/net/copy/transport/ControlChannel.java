@@ -280,7 +280,17 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
         if (cleanupFinished.compareAndSet(false, true)) {
             Utils.cancelFutureIgnoringException(ccptFuture, false);
             Utils.closeIgnoringExceptions(ois);
+            if(oos != null)
+				try {
+					oos.flush();
+				} catch (IOException e) {
+				}
             Utils.closeIgnoringExceptions(oos);
+            // give the output stream time to flush
+            try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+			}
             Utils.closeIgnoringExceptions(controlSocket);
 
             if (notifier != null) {
@@ -418,8 +428,8 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
                 logger.log(Level.FINEST, "[ ControlChannel ] [ getResponse] waited for " + RETRY_TIMEOUT + "ms");
             } finally {
 
-                if (newCtrlMsg == null && i == MAX_RETRIES) {
-                    logger.log(Level.FINEST, "[ ControlChannel ] [ getResponse] CtrlMsg " + newCtrlMsg, t);
+                if (newCtrlMsg == null && i >= MAX_RETRIES) {
+                    logger.log(Level.FINEST, "[ ControlChannel ] [ getResponse] CtrlMsg " + newCtrlMsg , t);
                     throw t;
                 }
             }
@@ -542,6 +552,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
                     notifQueue.add(o);
                 } catch (SocketTimeoutException ste) {
+                	logger.log(Level.FINEST, "Control Channel timeout");
                     // ignore this??? or shall I close it() ?
                 } catch (IOException ioe) {
                     close("Control channel got I/O Exception", ioe);
@@ -555,7 +566,6 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
 
         } catch (Throwable t) {
             if (!isClosed()) {
-
                 internalDownMsg = myName + " got exception in main loop: " + t.getMessage();
                 internalDownCause = t;
 
@@ -570,6 +580,7 @@ public class ControlChannel extends AbstractFDTCloseable implements Runnable {
             } else {
                 close(internalDownMsg, internalDownCause);
             }
+            cleanup();
         }
 
         logger.log(Level.INFO, myName + " FINISHED");
