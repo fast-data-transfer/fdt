@@ -14,11 +14,11 @@
 
 In Server mode the FDT will start listening for incoming client connections. The server may or may not stop after the last client finishes the transfer. In Client mode the client will connect to the specified host, where an FDT Server is expected to be running. The client can either read or write file from/to the server. 
 
-In the SCP (Secure Copy) mode the local FDT instance will use SSH to start/stop the FDT server and/or client.  The security is based on ssh credentials. The server started in this mode will accept connections **ONLY** from the "SCP" client. It is possible to restrict the access for the FDT Servers started from the command line using the -f option. The option accepts a list of IP addresses separated by ':'. 
+In the SCP (Secure Copy) mode the local FDT instance will use SSH to start/stop the FDT server and/or client. The security is based on ssh credentials. The server started in this mode will accept connections **ONLY** from the "SCP" client. It is possible to restrict the access for the FDT Servers started from the command line using the `-f` option. The option accepts a list of IP addresses separated by `:`. 
 
-In order to use third party copy feature with FDT there have to be two FDT launched in agent mode. In Agent mode the FDT will start listening for incoming client connections on . In Agent mode the client will listen for coordinator message with task. After receiving coordinator message Agent will try to send message to destination Agent requesting to open socket for transfer session. Destination Agent will take one transfer port from pool and open port for that session and then informs source Agent that transfer job can be started. At this pont first agent now has session ID and it sends it to the coordinator, that later coordinator could see that FDT session log file from remote Agent. After finishing task Agent will close transfer port and return it to the transfer ports pool.
+In order to use third party copy feature with FDT there have to be two FDT launched in agent mode. In Agent mode the FDT will start listening for incoming client connections on. In Agent mode the client will listen for coordinator message with task. After receiving coordinator message Agent will try to send message to destination Agent requesting to open socket for transfer session. Destination Agent will take one transfer port from pool and open port for that session and then informs source Agent that transfer job can be started. At this pont first agent now has session ID and it sends it to the coordinator, that later coordinator could see that FDT session log file from remote Agent. After finishing task Agent will close transfer port and return it to the transfer ports pool.
 
-To retrieve list of files on custom path there is a custom mode which can be used. User needs to specify host and port (if not default) ant specify path from where he want to get list if files. It will not list files in directory where he has no access.
+To retrieve list of files on custom path there is a custom mode which can be used. User needs to specify host and port (if not default) and specify path from where he want to get list of files. It will not list files in directory where he has no access.
 
 The OPTIONS currently supported may be server or client specific, or may be used in both modes.
 
@@ -44,7 +44,7 @@ The OPTIONS currently supported may be server or client specific, or may be used
 
 **-printStats** Various statistics about buffer pools, sessions, etc will be printed
 
-**-v** Verbose. Multiple 'v'-s (up to three) may be used to increment the verbosity level.Maximum level is three (-vvv) which corresponds to Level.FINEST for the standard Java logging system used by FDT.
+**-v** Verbose. Multiple 'v'-s (up to three) may be used to increment the verbosity level. Maximum level is three (-vvv) which corresponds to Level.FINEST for the standard Java logging system used by FDT.
 
 **-u, -update** Update. If a newer version of fdt.jar is available on the update server it will update the local copy 
 
@@ -64,7 +64,7 @@ The OPTIONS currently supported may be server or client specific, or may be used
 
 **-d \<dstDir>** The destination directory used to copy files. 
 
-**-fl \<fileList>** a list of files. Must have only one file per line. 
+**-fl \<fileList>** a file which contains a list of files. Must have only one file per line. 
 
 **-pull** Pull mode. The client will receive the data from the server. 
 
@@ -148,4 +148,4 @@ where OPTIONS may be:
                             G - GigaBytes
                             T - TeraBytes
                             P - PetaBytes
-                         The default value is self adjusted. If the factor is too big only 0s will be displayed
+                         The default value is self adjusted. If the factor is too big only 0s will be displayed.
