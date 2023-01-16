@@ -7,7 +7,7 @@
 * **Server**: java -jar fdt.jar [ OPTIONS ]
 * **Client**: java -jar fdt.jar [ OPTIONS ] -c \<host> [file1 ...]|[-fl \<fileList>] -d \<destinationDirectory>
 * **SCP**: java -jar fdt.jar [ OPTIONS ] [[[user@][host1:]]file1 [[[user@][host2:]]file2
-* **Coordinator**: java -jar fdt.jar [OPTIONS]  -dIP \<destination-ip> -dp \<destination-port> -sIP \<source-ip> -p \<source-port> -d \<destinationDirectory>  [-fl \<fileList>] -coord
+* **Coordinator**: java -jar fdt.jar [OPTIONS] -dIP \<destination-ip> -dp \<destination-port> -sIP \<source-ip> -p \<source-port> -d \<destinationDirectory>  [-fl \<fileList>] -coord
 * **List Files**: java -jar fdt.jar [OPTIONS] -c \<host> -ls \<ls-path>
 * **Agent**: java -jar fdt.jar [OPTIONS] -c \<host>  -tp \<transfer,ports,separated,with,comma> -agent 
 * **Session log**: java -jar fdt.jar [OPTIONS] -c \<host> -d \<destinationDirectory> -sID \<session-ID>
