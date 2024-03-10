@@ -120,6 +120,8 @@ Agent can use booth Server and Client options too, because at any time Agent can
 
 **-fdtTAG \<tag>** custom FDT metrics tag 
 
+**-FDT_LISTEN \<IP>** listen only to specific IP address
+
 	
 ### DDCopy
 **DDCopy** is very similar to Unix `dd` command and can be used to test the local disks or file system. It is bundled in the fdt.jar and has the following syntax:
