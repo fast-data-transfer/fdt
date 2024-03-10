@@ -9,7 +9,7 @@ It is written in Java, runs an all major platforms and it is easy to use.
 FDT is based on an asynchronous, flexible multithreaded system and is using
 the capabilities of the Java NIO libraries. Its main features are:
 
-* Streams a dataset (list of files) continuously, using a managed poolof buffers through one or more TCP sockets.
+* Streams a dataset (list of files) continuously, using a managed pool of buffers through one or more TCP sockets.
 * Uses independent threads to read and write on each physical device
 * Transfers data in parallel on multiple TCP streams, when necessary
 * Uses appropriate-sized buffers for disk I/O and for the network
