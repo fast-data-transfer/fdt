@@ -74,6 +74,10 @@ We obtained good results on OpenSolaris using these setting for the TCP buffers:
 
 ```ndd -set /dev/tcp tcp_recv_hiwat 524288```
 
+### Network Ports Used
+By default, FDT uses port 54321 as a control channel port.
+Data ports used are _________________
+
 This page will include other settings or operating systems in the near future.
 
 For further comments and suggestions please send an email to: support-fdt@monalisa.cern.ch
