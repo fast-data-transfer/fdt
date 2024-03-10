@@ -52,7 +52,7 @@ public class Config {
     public static final String FDT_MAINTENANCE_VERSION = "0";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "."
             + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2019-07-02";
+    public static final String FDT_RELEASE_DATE = "2022-07-02";
     public static final String FDT_RELEASE_TIME = "0530";
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )

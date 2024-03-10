@@ -861,7 +861,10 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     public void handleStartFDTSession(CtrlMsg ctrlMsg) throws Exception {
         // I will start the TransportProvider ... if every thing works as
         // expected I will start sending
-        transferPort=(int)ctrlMsg.message;
+        if (ctrlMsg.tag == CtrlMsg.REMOTE_TRANSFER_PORT) {
+            transferPort = (int) ctrlMsg.message;
+        }
+
         boolean sendCookie = true;
         if (role == CLIENT) {
             sendCookie = false;
