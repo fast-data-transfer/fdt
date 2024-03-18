@@ -39,6 +39,8 @@ Client specific:
                          something esoteric like a mainframe, you might have 
 			 an alternate location for bash. 
 			 i.e. - /rsusr/rocket/bin/bash
+	-FDT_LISTEN <IP_ADDRESS> by default FDT is listening to all IP adresses.
+	         This option tells FDT to listen only on specific IP address
 
 Server specific:
    -S			 disable standalone mode; if specified, the server
