@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Adding lib directory contents to a local maven repository then later we could use them in fdt building
 # Maven should be installed already on machine (i.e. use sudo apt-get install maven)
 
