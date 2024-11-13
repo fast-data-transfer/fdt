@@ -28,6 +28,11 @@
 			<version>1.26.0</version>
 		</dependency>
 		<dependency>
+			<groupId>com.github.oshi</groupId>
+			<artifactId>oshi-core</artifactId>
+			<version>6.4.2</version>
+		</dependency>
+		<dependency>
 			<groupId>net.iharder.dnd</groupId>
 			<artifactId>filedrop</artifactId>
 			<version>1.0.0</version>
