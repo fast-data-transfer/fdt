@@ -35,7 +35,7 @@ public class Config {
     // public static final String SINGLE_CMDLINE_ARGS[] = { "-S", "-pull", "-N", "-gsi", "-bio", "-r", "-fbs", "-ll",
     // "-loop", "-enableLisaRestart", "-md5", "-printStats", "-gsissh", "-noupdates", "-silent"};
     public static final String[] SINGLE_CMDLINE_ARGS = {"-v", "-vv", "-vvv", "-loop", "-r", "-pull", "-printStats",
-            "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb", "-autoport"};
+            "-N", "-bio", "-gsi", "-gsissh", "-notmp", "-nolock", "-nolocks", "-nettest", "-genb", "-autoport", "-stable"};
     public static final String[] VALUE_CMDLINE_ARGS = {"-bs", "-P", "-ss", "-limit", "-preFilters", "-postFilters",
             "-monID", "-ms", "-c", "-p", "-sshp", "-gsip", "-iof", "-sn", "-rCount", "-wCount", "-pCount", "-d",
             "-writeMode", "-lisa_rep_delay", "-apmon_rep_delay", "-fl", "-reportDelay", "-ka", "-tp", "-shell"};
@@ -52,8 +52,8 @@ public class Config {
     public static final String FDT_MAINTENANCE_VERSION = "0";
     public static final String FDT_FULL_VERSION = FDT_MAJOR_VERSION + "." + FDT_MINOR_VERSION + "."
             + FDT_MAINTENANCE_VERSION;
-    public static final String FDT_RELEASE_DATE = "2022-07-02";
-    public static final String FDT_RELEASE_TIME = "0530";
+    public static final String FDT_RELEASE_DATE = "2024-11-11";
+    public static final String FDT_RELEASE_TIME = "2030";
     // the size of header packet sent over the wire -
     // TODO - this should be dynamic ... or not ( performance resons ?! )
     public static final int HEADER_SIZE = 56;
@@ -1252,5 +1252,9 @@ public class Config {
 
     public String getCustomShell() {
         return customShell;
+    }
+
+    public boolean isThrottlingEnabled() {
+        return configMap.containsKey("-stable");
     }
 }
