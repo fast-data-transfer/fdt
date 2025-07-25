@@ -892,7 +892,7 @@ public class FDTReaderSession extends FDTSession implements FileBlockProducer {
     @Override
     public void transportWorkerDown() throws Exception {
         // fileBlockQueue.offer(FileBlock.EOF_FB);
-        close("wroker down", null);
+        close("worker down", null);
     }
 
     @Override
