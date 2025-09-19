@@ -5,6 +5,7 @@ package lia.util.net.copy.disk;
 
 import lia.util.net.common.Config;
 import lia.util.net.common.DirectByteBufferPool;
+import lia.util.net.common.SystemLoadMonitor;
 import lia.util.net.common.Utils;
 import lia.util.net.copy.FDTReaderSession;
 import lia.util.net.copy.FileBlock;
@@ -36,6 +37,24 @@ public class DiskReaderTask extends GenericDiskTask {
     List<FileSession> fileSessions;
     private AtomicBoolean isFinished = new AtomicBoolean(false);
     private int addedFBS = 0;
+
+    private static final double HIGH_CORE_LOAD_THRESHOLD = Double.parseDouble(System.getProperty("cputh", "0.999")); // 99.9%
+    private static final long HIGH_CONTEXT_SWITCH_THRESHOLD = Long.parseLong(System.getProperty("ctxth", "100000"));
+    private static final double HIGH_SYSTEM_LOAD_THRESHOLD = Double.parseDouble(System.getProperty("scputh", "0.5"));
+
+    private static final double CPU_LOAD_SCALING_FACTOR = Double.parseDouble(System.getProperty("cpuscl", "1000.0"));
+    private static final double CONTEXT_SWITCH_SCALING_FACTOR = Double.parseDouble(System.getProperty("ctxscl", "0.0001"));
+
+    private static final long MIN_SLEEP_TIME_NS = 1;   // Minimum sleep time
+    private static final long MAX_SLEEP_TIME_NS = 9999;  // Maximum sleep time
+
+    private static final long SLEEP_EVERY_NS = Long.getLong("sleepEvery", 999999L);
+
+    private static final int NUM_CORES = Runtime.getRuntime().availableProcessors();
+
+    private double previousCpuLoadExcess = 0.0;
+    private double previousContextSwitchExcess = 0.0;
+
 
     /**
      * @throws NullPointerException if fdtSession is null or fileSessions list is null
@@ -117,6 +136,9 @@ public class DiskReaderTask extends GenericDiskTask {
                     }
 
                     downCause = null;
+                    long timer = System.currentTimeMillis();
+                    long timer2 = System.currentTimeMillis();
+                    long sleepTimer = System.nanoTime();
 
                     final FileChannel fileChannel = (fileSession.isZero()) ? null : fileSession.getChannel();
                     cuurentFileChannel = fileChannel;
@@ -130,6 +152,90 @@ public class DiskReaderTask extends GenericDiskTask {
 
                         for (; ; ) {
 
+                            double[] perCoreLoads = SystemLoadMonitor.getInstance().getPerCoreLoads();
+                            double maxCoreLoad = 0.0;
+                            for (double coreLoad : perCoreLoads) {
+                                if (coreLoad > maxCoreLoad) {
+                                    maxCoreLoad = coreLoad;
+                                }
+                            }
+
+                            long currentContextSwitches = SystemLoadMonitor.getInstance().getContextSwitches();
+                            double[] systemLoadAverages = SystemLoadMonitor.getInstance().getSystemLoadAverage();
+                            double systemLoad1Min = systemLoadAverages[0]; // 1-minute load average
+
+                            double cpuLoadExcess = maxCoreLoad - HIGH_CORE_LOAD_THRESHOLD;
+                            if((System.currentTimeMillis() - timer2) > 10000) {
+                                logger.log(Level.FINE, "Max core load: " + maxCoreLoad + " exces: " + cpuLoadExcess);
+                            }
+                            cpuLoadExcess = Math.max(cpuLoadExcess, 0);
+
+                            double normalizedSystemLoad = systemLoad1Min / NUM_CORES;
+                            double systemLoadExcess = normalizedSystemLoad - HIGH_SYSTEM_LOAD_THRESHOLD;
+                            systemLoadExcess = Math.max(systemLoadExcess, 0);
+                            if((System.currentTimeMillis() - timer2) > 10000) {
+                                logger.log(Level.FINE, "Max system load: " + normalizedSystemLoad + " exces: " + systemLoadExcess);
+                            }
+
+                            long contextSwitchExcess = currentContextSwitches - HIGH_CONTEXT_SWITCH_THRESHOLD;
+                            contextSwitchExcess = Math.max(contextSwitchExcess, 0);
+
+                            double alpha = 0.2; // Smoothing factor between 0 and 1
+
+                            cpuLoadExcess = previousCpuLoadExcess * (1 - alpha) + cpuLoadExcess * alpha;
+                            if((System.currentTimeMillis() - timer2) > 10000) {
+                                logger.log(Level.FINE, "CPU excess : " + cpuLoadExcess);
+                            }
+                            previousCpuLoadExcess = cpuLoadExcess;
+
+                            contextSwitchExcess = (long) (previousContextSwitchExcess * (1 - alpha) + contextSwitchExcess * alpha);
+                            if((System.currentTimeMillis() - timer2) > 10000) {
+                                logger.log(Level.FINE, "Context switches excess : " + contextSwitchExcess);
+                            }
+                            previousContextSwitchExcess = contextSwitchExcess;
+
+                            double cpuSleepTime = cpuLoadExcess * CPU_LOAD_SCALING_FACTOR; // In milliseconds
+                            double contextSwitchSleepTime = contextSwitchExcess * CONTEXT_SWITCH_SCALING_FACTOR; // In milliseconds
+                            double systemLoadSleepTime = systemLoadExcess * CPU_LOAD_SCALING_FACTOR; // In milliseconds
+
+                            double totalSleepTime = cpuSleepTime + contextSwitchSleepTime + systemLoadSleepTime;
+                            if((System.currentTimeMillis() - timer2) > 10000) {
+                                timer2 = System.currentTimeMillis();
+                                logger.log(Level.FINE, "Total sleep time: " + totalSleepTime + " CPU : " + cpuSleepTime + " context " + contextSwitchSleepTime + " system load " + systemLoadSleepTime);
+                            }
+                            totalSleepTime = Math.max(totalSleepTime, MIN_SLEEP_TIME_NS);
+                            totalSleepTime = Math.min(totalSleepTime, MAX_SLEEP_TIME_NS);
+
+                            int sleepTimeNanos = (int) Math.max(totalSleepTime, 0);
+                            if((System.currentTimeMillis() - timer2) > 10000) {
+                                timer2 = System.currentTimeMillis();
+                                logger.log(Level.FINE, "Total sleep time: " + sleepTimeNanos);
+                            }
+
+                            if (cpuLoadExcess > 0 || contextSwitchExcess > 0 || systemLoadExcess > 0) {
+                                if (totalSleepTime > 1) {
+                                    try {
+                                        if(Config.getInstance().isThrottlingEnabled()) {
+                                            if((System.currentTimeMillis() - timer) > 10000)
+                                            {
+                                                timer = System.currentTimeMillis();
+                                                logger.info("Throttling data transfer due to high system load. CPU Load: "+ String.format("%f", cpuLoadExcess) +", Context Switches: "+ contextSwitchExcess + " Throttling with dynamic sleep: " + totalSleepTime);
+                                                //logger.log(Level.INFO, "Start throttling due " + cpuLoadExcess + " or contexts:" + contextSwitchExcess);
+                                                //logger.info("Throttling with dynamic sleep: " + totalSleepTime);
+                                            }
+                                            if((System.nanoTime() - sleepTimer) > SLEEP_EVERY_NS)
+                                            {
+                                                sleepTimer = System.currentTimeMillis();
+                                                Thread.sleep(0, sleepTimeNanos);
+                                            }
+
+                                        }
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                        break;
+                                    }
+                                }
+                            }
 
                             //try to get a new buffer from the pool
                             buff = null;
